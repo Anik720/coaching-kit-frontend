@@ -1,0 +1,426 @@
+/* ============================================
+   PROFESSIONAL AUTH LAYOUT STYLES
+   Modern centered design with gradient background - NO GAPS
+   ============================================ */
+
+/* Full Screen Wrapper with Professional Background - NO PADDING */
+.authWrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 0; /* REMOVED PADDING - No gaps on sides */
+}
+
+/* Alternative Professional Backgrounds (Choose one by replacing .authWrapper background) */
+/* 
+Option 1 - Elegant Purple to Blue:
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+Option 2 - Modern Blue to Cyan:
+background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+
+Option 3 - Warm Gradient:
+background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+
+Option 4 - Cool Corporate:
+background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+
+Option 5 - Subtle Professional:
+background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+
+Option 6 - Dark Mode:
+background: linear-gradient(135deg, #232526 0%, #414345 100%);
+*/
+
+/* Animated Background Decoration */
+.backgroundDecoration {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.circle1,
+.circle2,
+.circle3 {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(60px);
+  animation: float 20s infinite ease-in-out;
+}
+
+.circle1 {
+  width: 500px;
+  height: 500px;
+  top: -150px;
+  right: -150px;
+  animation-delay: 0s;
+}
+
+.circle2 {
+  width: 400px;
+  height: 400px;
+  bottom: -100px;
+  left: -100px;
+  animation-delay: 5s;
+}
+
+.circle3 {
+  width: 300px;
+  height: 300px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation-delay: 10s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+/* Centered Container */
+.authContainer {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0; /* NO PADDING - Card goes edge to edge on mobile */
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Premium Card Design */
+.authCard {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 0; /* NO BORDER RADIUS - Square edges */
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  border: none; /* NO BORDER */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.authCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 30px 80px rgba(0, 0, 0, 0.35),
+    0 15px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Premium Header with Gradient */
+.authHeader {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  color: white;
+  padding: 48px 40px 36px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.authHeader::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Logo Styling */
+.logo {
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.logoText {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #ffffff 0%, #f0e7ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.logoText::before {
+  content: '[';
+  margin-right: 4px;
+}
+
+.logoText::after {
+  content: ']';
+  margin-left: 4px;
+}
+
+/* Tagline */
+.tagline {
+  position: relative;
+  z-index: 1;
+}
+
+.tagline h1 {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+  opacity: 0.95;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Content Area */
+.authContent {
+  padding: 40px;
+  background: white;
+}
+
+/* Form Header */
+.formHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.formHeader h2 {
+  font-size: 28px;
+  color: #1f2937;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #1f2937 0%, #4b5563 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  color: #6b7280;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Footer */
+.authFooter {
+  padding: 28px 40px;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.copyright {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .authWrapper {
+    padding: 0; /* Keep no padding on mobile */
+  }
+  
+  .authContainer {
+    padding: 0; /* No padding on container either */
+  }
+  
+  .authCard {
+    border-radius: 0; /* Keep square edges on mobile */
+  }
+  
+  .authHeader {
+    padding: 36px 30px 28px;
+  }
+  
+  .authContent {
+    padding: 32px 28px;
+  }
+  
+  .authFooter {
+    padding: 24px 28px;
+  }
+  
+  .logoText {
+    font-size: 28px;
+  }
+  
+  .tagline h1 {
+    font-size: 16px;
+  }
+  
+  .formHeader h2 {
+    font-size: 24px;
+  }
+  
+  .circle1,
+  .circle2,
+  .circle3 {
+    display: none; /* Hide decorative circles on mobile for performance */
+  }
+}
+
+@media (max-width: 480px) {
+  .authContainer {
+    padding: 0; /* Still no padding */
+  }
+  
+  .authHeader {
+    padding: 32px 24px 24px;
+  }
+  
+  .authContent {
+    padding: 28px 24px;
+  }
+  
+  .authFooter {
+    padding: 20px 24px;
+  }
+  
+  .logoText {
+    font-size: 26px;
+  }
+  
+  .tagline h1 {
+    font-size: 15px;
+  }
+  
+  .formHeader h2 {
+    font-size: 22px;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+  }
+}
+
+/* High resolution screens */
+@media (min-width: 1920px) {
+  .authContainer {
+    max-width: 520px;
+    padding: 0;
+  }
+  
+  .authHeader {
+    padding: 56px 48px 40px;
+  }
+  
+  .authContent {
+    padding: 48px;
+  }
+  
+  .logoText {
+    font-size: 36px;
+  }
+  
+  .tagline h1 {
+    font-size: 20px;
+  }
+  
+  .formHeader h2 {
+    font-size: 30px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .authWrapper {
+    background: white;
+  }
+  
+  .backgroundDecoration {
+    display: none;
+  }
+  
+  .authCard {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .authCard,
+  .authContainer,
+  .circle1,
+  .circle2,
+  .circle3 {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .authWrapper {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
+  }
+  
+  .authCard {
+    background: rgba(17, 24, 39, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .authContent {
+    background: #111827;
+  }
+  
+  .formHeader h2 {
+    color: #f9fafb;
+    background: linear-gradient(135deg, #f9fafb 0%, #d1d5db 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .subtitle {
+    color: #9ca3af;
+  }
+  
+  .authFooter {
+    background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+    border-top-color: #374151;
+  }
+  
+  .copyright {
+    color: #9ca3af;
+  }
+}
