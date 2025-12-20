@@ -1,9 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import classReducer from '../api/classApi/classSlice'
-
+import subjectReducer from '../api/subjectApi/subjectSlice'
+import groupReducer from '../api/groupsApi/groupSlice';
 export const store = configureStore({
   reducer: {
     class: classReducer,
+    subject: subjectReducer,
+    group: groupReducer,
     // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>

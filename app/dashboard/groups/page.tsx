@@ -1,4 +1,5 @@
-import ClassesPage from "@/components/classPage/ClassesPage";
+import GroupsPage from "@/components/Groups/GroupsPage";
+
 
 export default async function ClassPage({
   params,
@@ -7,5 +8,5 @@ export default async function ClassPage({
 }) {
   const { id } = await params;
 
-  return <ClassesPage />;
+  return <GroupsPage />;
 }

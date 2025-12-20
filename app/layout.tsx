@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import ReduxProvider from "@/store/ReduxProvider";
+import ToastProvider from "@/lib/ToastProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ReduxProvider>
           <AuthProvider>{children}</AuthProvider>
+          <ToastProvider />
         </ReduxProvider>
       </body>
     </html>
