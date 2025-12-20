@@ -1,7 +1,7 @@
 import GroupsPage from "@/components/Groups/GroupsPage";
 
 
-export default async function ClassPage({
+export default async function GroupPage({
   params,
 }: {
   params: Promise<{ id: string }>;

@@ -2,11 +2,13 @@ import { configureStore } from '@reduxjs/toolkit';
 import classReducer from '../api/classApi/classSlice'
 import subjectReducer from '../api/subjectApi/subjectSlice'
 import groupReducer from '../api/groupsApi/groupSlice';
+import batchReducer from '../api/batchApi/batchSlice';
 export const store = configureStore({
   reducer: {
     class: classReducer,
     subject: subjectReducer,
     group: groupReducer,
+    batch: batchReducer,
     // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>

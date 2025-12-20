@@ -1,7 +1,7 @@
 import SubjectsPage from "@/components/subject/SubjectsPage";
 
 
-export default async function ClassPage({
+export default async function SubjectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
