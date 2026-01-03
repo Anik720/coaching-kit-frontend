@@ -12,6 +12,10 @@ import {
   fetchAdmissionStatistics,
   updateAdmissionStatus,
   updateAdmissionPayment,
+  fetchActiveBatches,
+  fetchClasses,
+  fetchGroups,
+  fetchSubjects,
 } from "@/api/admissionApi/admissionSlice";
 import { toastManager } from "@/utils/toastConfig";
 import styles from './AdmissionPage.module.css';
@@ -25,6 +29,7 @@ import {
   Religion,
 } from "@/api/admissionApi/types/admission.types";
 import AdmissionFormModal from "./AdmissionFormModal";
+import api from "@/api/axios";
 
 // Debounce hook for search optimization
 const useDebounce = (value: string, delay: number) => {
@@ -54,6 +59,10 @@ export default function AdmissionPage() {
     limit,
     totalPages,
     statistics,
+    batches,
+    classes,
+    groups,
+    subjects,
     dispatch,
   } = useAdmission();
 
@@ -70,11 +79,32 @@ export default function AdmissionPage() {
     admission: null,
   });
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [dropdownsLoaded, setDropdownsLoaded] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Use debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  // Load dropdown data on component mount
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        await Promise.all([
+          dispatch(fetchActiveBatches()),
+          dispatch(fetchClasses()),
+          dispatch(fetchGroups()),
+          dispatch(fetchSubjects()),
+        ]);
+        setDropdownsLoaded(true);
+      } catch (error: any) {
+        console.error('Failed to load dropdown data:', error);
+        toastManager.showError('Failed to load some dropdown data');
+      }
+    };
+
+    loadDropdownData();
+  }, [dispatch]);
 
   // Fetch admissions and statistics on component mount and when filters change
   useEffect(() => {
@@ -129,24 +159,37 @@ export default function AdmissionPage() {
     const toastId = toastManager.showLoading('Creating admission...');
     
     try {
+      console.log('Creating admission with data:', admissionData);
       await dispatch(createAdmission(admissionData)).unwrap();
       toastManager.updateToast(toastId, 'Admission created successfully!', 'success');
       setOpen(false);
+      
+      // Refresh the admissions list
+      await dispatch(fetchAdmissions({
+        page: currentPage,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }));
+      
     } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, 'Failed to create admission', 'error');
+      console.error('Create admission error:', error);
+      toastManager.safeUpdateToast(toastId, error.message || 'Failed to create admission', 'error');
     }
-  }, [dispatch]);
+  }, [dispatch, currentPage]);
 
   const handleUpdateAdmission = useCallback(async (registrationId: string, admissionData: any) => {
     setIsUpdating(true);
     const toastId = toastManager.showLoading('Updating admission...');
     
     try {
+      console.log('Updating admission:', registrationId, admissionData);
       await dispatch(updateAdmission({ registrationId, admissionData })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission updated successfully!', 'success');
       setEditingAdmission(null);
     } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, 'Failed to update admission', 'error');
+      console.error('Update admission error:', error);
+      toastManager.safeUpdateToast(toastId, error.message || 'Failed to update admission', 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -166,7 +209,8 @@ export default function AdmissionPage() {
       await dispatch(deleteAdmission(admissionToDelete)).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission deleted successfully!', 'success');
     } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, 'Failed to delete admission', 'error');
+      console.error('Delete admission error:', error);
+      toastManager.safeUpdateToast(toastId, error.message || 'Failed to delete admission', 'error');
     } finally {
       setIsDeleting(false);
       setAdmissionToDelete(null);
@@ -184,7 +228,8 @@ export default function AdmissionPage() {
       await dispatch(updateAdmissionStatus({ registrationId, status })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Status updated successfully!', 'success');
     } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, 'Failed to update status', 'error');
+      console.error('Update status error:', error);
+      toastManager.safeUpdateToast(toastId, error.message || 'Failed to update status', 'error');
     }
   }, [dispatch]);
 
@@ -194,6 +239,11 @@ export default function AdmissionPage() {
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
       toastManager.showError('Please enter a valid payment amount');
+      return;
+    }
+
+    if (amount > paymentDialog.admission.dueAmount) {
+      toastManager.showError(`Payment cannot exceed due amount of ${formatCurrency(paymentDialog.admission.dueAmount)}`);
       return;
     }
 
@@ -209,7 +259,8 @@ export default function AdmissionPage() {
       setPaymentDialog({ open: false, admission: null });
       setPaymentAmount("");
     } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, 'Failed to update payment', 'error');
+      console.error('Update payment error:', error);
+      toastManager.safeUpdateToast(toastId, error.message || 'Failed to update payment', 'error');
     }
   }, [dispatch, paymentDialog.admission, paymentAmount]);
 
@@ -275,6 +326,49 @@ export default function AdmissionPage() {
     });
   };
 
+  // Calculate admission statistics from current data
+// Calculate admission statistics from current data
+const calculatedStats = useMemo(() => {
+  if (!admissions || admissions.length === 0) return null;
+  
+  const totalAdmissions = total;
+  const pendingCount = admissions.filter(a => a.status === AdmissionStatus.PENDING).length;
+  const completedCount = admissions.filter(a => a.status === AdmissionStatus.COMPLETED).length;
+  const approvedCount = admissions.filter(a => a.status === AdmissionStatus.APPROVED).length;
+  const rejectedCount = admissions.filter(a => a.status === AdmissionStatus.REJECTED).length;
+  const cancelledCount = admissions.filter(a => a.status === AdmissionStatus.CANCELLED).length;
+  
+  const today = new Date().toISOString().split('T')[0];
+  const todayAdmissions = admissions.filter(a => 
+    a.createdAt.split('T')[0] === today
+  ).length;
+  
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const thisMonthAdmissions = admissions.filter(a => {
+    const date = new Date(a.createdAt);
+    return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+  }).length;
+  
+  const totalRevenue = admissions.reduce((sum, admission) => sum + admission.totalFee, 0);
+  
+  return {
+    total: totalAdmissions,
+    pending: pendingCount,
+    completed: completedCount,
+    approved: approvedCount,
+    rejected: rejectedCount,
+    cancelled: cancelledCount,
+    todayAdmissions,
+    thisMonthAdmissions,
+    totalRevenue,
+    monthlyRevenue: totalRevenue / 12,
+  };
+}, [admissions, total]);
+
+  // Use API statistics or calculated statistics
+  const displayStats = statistics || calculatedStats;
+
   // Search input component
   const searchInput = (
     <div className={styles.searchBox}>
@@ -334,8 +428,9 @@ export default function AdmissionPage() {
           <button 
             onClick={() => setOpen(true)} 
             className={styles.btnPrimary}
-            disabled={loading || isUpdating}
+            disabled={loading || isUpdating || !dropdownsLoaded}
             type="button"
+            title={!dropdownsLoaded ? "Loading dropdown data..." : "Create new admission"}
           >
             {loading || isUpdating ? (
               <span className={styles.spinnerSmall}></span>
@@ -352,7 +447,7 @@ export default function AdmissionPage() {
       </div>
 
       {/* Stats Cards */}
-      {statistics && (
+      {displayStats && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
@@ -360,9 +455,9 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Admissions</p>
-              <p className={styles.statValue}>{statistics.total}</p>
+              <p className={styles.statValue}>{displayStats.total.toLocaleString()}</p>
               <span className={styles.statSubtext}>
-                {statistics.todayAdmissions} today • {statistics.thisMonthAdmissions} this month
+                {displayStats.todayAdmissions} today • {displayStats.thisMonthAdmissions} this month
               </span>
             </div>
           </div>
@@ -373,9 +468,9 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Pending</p>
-              <p className={styles.statValue}>{statistics.pending}</p>
+              <p className={styles.statValue}>{displayStats.pending}</p>
               <span className={styles.statSubtext}>
-                {statistics.completed} completed • {statistics.approved} approved
+                {displayStats.completed} completed • {displayStats.approved} approved
               </span>
             </div>
           </div>
@@ -386,10 +481,27 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Revenue</p>
-              <p className={styles.statValue}>{formatCurrency(statistics.totalRevenue)}</p>
+              <p className={styles.statValue}>{formatCurrency(displayStats.totalRevenue)}</p>
               <span className={styles.statSubtext}>
-                Average: {formatCurrency(statistics.totalRevenue / Math.max(statistics.total, 1))}
+                Monthly: {formatCurrency(displayStats.monthlyRevenue)}
               </span>
+            </div>
+          </div>
+
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+              📊
+            </div>
+            <div className={styles.statContent}>
+              <p className={styles.statLabel}>Status Overview</p>
+              <div className={styles.statusOverview}>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#e74c3c' }}>
+                  {displayStats.rejected} Rejected
+                </span>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#95a5a6' }}>
+                  {displayStats.cancelled} Cancelled
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -401,16 +513,28 @@ export default function AdmissionPage() {
           <button
             className={`${styles.statusFilterButton} ${statusFilter === "all" ? styles.active : ""}`}
             onClick={() => setStatusFilter("all")}
+            disabled={loading || isUpdating}
           >
-            All
+            All ({total})
           </button>
           {Object.values(AdmissionStatus).map((status) => (
             <button
               key={status}
               className={`${styles.statusFilterButton} ${statusFilter === status ? styles.active : ""} ${getStatusColor(status)}`}
               onClick={() => setStatusFilter(status)}
+              disabled={loading || isUpdating}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
+              {displayStats && (
+                <span className={styles.statusCount}>
+                  {status === AdmissionStatus.PENDING ? displayStats.pending :
+                   status === AdmissionStatus.COMPLETED ? displayStats.completed :
+                   status === AdmissionStatus.APPROVED ? displayStats.approved :
+                   status === AdmissionStatus.REJECTED ? displayStats.rejected :
+                   status === AdmissionStatus.CANCELLED ? displayStats.cancelled :
+                   status === AdmissionStatus.INCOMPLETE ? 0 : 0}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -449,6 +573,7 @@ export default function AdmissionPage() {
                       onClick={() => setOpen(true)} 
                       className={styles.btnPrimary}
                       type="button"
+                      disabled={!dropdownsLoaded}
                     >
                       Create First Admission
                     </button>
@@ -462,6 +587,7 @@ export default function AdmissionPage() {
                       <th>Student Name</th>
                       <th>Institute</th>
                       <th>Contact</th>
+                      <th>Batches</th>
                       <th>Status</th>
                       <th>Fees</th>
                       <th>Created</th>
@@ -474,6 +600,9 @@ export default function AdmissionPage() {
                         <td>
                           <div className={styles.registrationId}>
                             <span className={styles.idBadge}>{admission.registrationId}</span>
+                            <div className={styles.admissionType}>
+                              {admission.admissionType}
+                            </div>
                           </div>
                         </td>
                         <td>
@@ -483,20 +612,58 @@ export default function AdmissionPage() {
                               <div className={styles.studentNameNative}>({admission.nameNative})</div>
                             )}
                             <div className={styles.studentGender}>{admission.studentGender}</div>
+                            {admission.studentDateOfBirth && (
+                              <div className={styles.studentDOB}>
+                                DOB: {formatDate(admission.studentDateOfBirth)}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td>
                           <div className={styles.instituteName}>{admission.instituteName}</div>
+                          {admission.religion && (
+                            <div className={styles.religion}>{admission.religion}</div>
+                          )}
                         </td>
                         <td>
                           <div className={styles.contactInfo}>
                             <div className={styles.phoneNumber}>
-                              {admission.guardianMobileNumber}
+                              📞 {admission.guardianMobileNumber}
                             </div>
                             {admission.whatsappMobile && (
                               <div className={styles.whatsappNumber}>
-                                📱 {admission.whatsappMobile}
+                                💬 {admission.whatsappMobile}
                               </div>
+                            )}
+                            {admission.studentMobileNumber && (
+                              <div className={styles.studentMobile}>
+                                📱 Student: {admission.studentMobileNumber}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.batchesInfo}>
+                            {admission.batches && admission.batches.length > 0 ? (
+                              <div className={styles.batchesList}>
+                                {admission.batches.slice(0, 2).map((batch, index) => (
+                                  <div key={index} className={styles.batchItem}>
+                                    <span className={styles.batchName}>{batch.batchName}</span>
+                                    {batch.subjects.length > 0 && (
+                                      <span className={styles.subjectCount}>
+                                        ({batch.subjects.length} subject{batch.subjects.length > 1 ? 's' : ''})
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                                {admission.batches.length > 2 && (
+                                  <div className={styles.moreBatches}>
+                                    +{admission.batches.length - 2} more
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className={styles.noBatches}>No batches</span>
                             )}
                           </div>
                         </td>
@@ -504,22 +671,33 @@ export default function AdmissionPage() {
                           <span className={`${styles.statusBadge} ${getStatusColor(admission.status)}`}>
                             {admission.status.charAt(0).toUpperCase() + admission.status.slice(1)}
                           </span>
+                          {admission.isCompleted && (
+                            <div className={styles.completedIndicator}>✓ Completed</div>
+                          )}
                         </td>
                         <td>
                           <div className={styles.feeInfo}>
                             <div className={styles.feeTotal}>
                               Total: {formatCurrency(admission.totalFee)}
                             </div>
-                            <div className={styles.feePaid}>
+                            <div className={`${styles.feePaid} ${admission.paidAmount > 0 ? styles.paid : ''}`}>
                               Paid: {formatCurrency(admission.paidAmount)}
                             </div>
-                            <div className={styles.feeDue}>
+                            <div className={`${styles.feeDue} ${admission.dueAmount > 0 ? styles.due : ''}`}>
                               Due: {formatCurrency(admission.dueAmount)}
+                            </div>
+                            <div className={styles.feeBreakdown}>
+                              <small>A: {formatCurrency(admission.admissionFee)} | T: {formatCurrency(admission.tuitionFee)} | C: {formatCurrency(admission.courseFee)}</small>
                             </div>
                           </div>
                         </td>
                         <td className={styles.dateCell}>
                           {formatDate(admission.createdAt)}
+                          {admission.admissionDate && (
+                            <div className={styles.admissionDate}>
+                              Admission: {formatDate(admission.admissionDate)}
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div className={styles.actionButtons}>
@@ -545,7 +723,7 @@ export default function AdmissionPage() {
                               onClick={() => setPaymentDialog({ open: true, admission })}
                               className={styles.btnPayment}
                               title="Add Payment"
-                              disabled={loading || isUpdating}
+                              disabled={loading || isUpdating || admission.dueAmount <= 0}
                               type="button"
                             >
                               💰
@@ -633,7 +811,7 @@ export default function AdmissionPage() {
                   Last
                 </button>
                 <span className={styles.paginationInfo}>
-                  Page {currentPage} of {totalPages}
+                  Page {currentPage} of {totalPages} • Showing {admissions.length} of {total} admissions
                 </span>
               </div>
             )}
@@ -643,20 +821,43 @@ export default function AdmissionPage() {
 
       {/* Create/Edit Admission Modal */}
       {(open || editingAdmission) && (
-        <AdmissionFormModal
-          isOpen={open || !!editingAdmission}
-          onClose={() => {
-            setOpen(false);
-            setEditingAdmission(null);
-          }}
-          onSubmit={editingAdmission ? 
-            (data) => handleUpdateAdmission(editingAdmission.registrationId, data) :
-            handleCreateAdmission
-          }
-          initialData={editingAdmission}
-          loading={loading || isUpdating}
-          isEditing={!!editingAdmission}
-        />
+// Update the AdmissionFormModal props in AdmissionPage.tsx:
+<AdmissionFormModal
+  isOpen={open || !!editingAdmission}
+  onClose={() => {
+    setOpen(false);
+    setEditingAdmission(null);
+  }}
+  onSubmit={editingAdmission ? 
+    (data) => handleUpdateAdmission(editingAdmission.registrationId, data) :
+    handleCreateAdmission
+  }
+  initialData={editingAdmission}
+  loading={loading || isUpdating}
+  isEditing={!!editingAdmission}
+  batches={batches}
+  classes={classes}
+  groups={groups}
+  subjects={subjects}
+  dropdownsLoaded={dropdownsLoaded}
+  fetchBatchesByClass={async (classId) => {
+    try {
+      const response = await api.get(`/batches/class/${classId}`);
+      console.log('Batch response for class', classId, ':', response.data);
+      
+      // Handle API response format
+      if (response.data.data) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch batches:', error);
+      return [];
+    }
+  }}
+/>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -683,6 +884,7 @@ export default function AdmissionPage() {
                 onClick={() => setPaymentDialog({ open: false, admission: null })}
                 className={styles.modalClose}
                 type="button"
+                disabled={loading}
               >
                 ✕
               </button>
@@ -703,13 +905,29 @@ export default function AdmissionPage() {
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Paid Amount:</span>
-                  <strong>{formatCurrency(paymentDialog.admission.paidAmount)}</strong>
+                  <strong className={styles.paidAmount}>
+                    {formatCurrency(paymentDialog.admission.paidAmount)}
+                  </strong>
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Due Amount:</span>
                   <strong className={styles.dueAmount}>
                     {formatCurrency(paymentDialog.admission.dueAmount)}
                   </strong>
+                </div>
+                <div className={styles.paymentRow}>
+                  <span>Payment Progress:</span>
+                  <div className={styles.paymentProgress}>
+                    <div 
+                      className={styles.progressBar} 
+                      style={{ 
+                        width: `${(paymentDialog.admission.paidAmount / paymentDialog.admission.totalFee) * 100}%` 
+                      }}
+                    ></div>
+                    <span className={styles.progressText}>
+                      {Math.round((paymentDialog.admission.paidAmount / paymentDialog.admission.totalFee) * 100)}%
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className={styles.formGroup}>
@@ -726,6 +944,7 @@ export default function AdmissionPage() {
                   min="0"
                   max={paymentDialog.admission.dueAmount}
                   step="1"
+                  disabled={loading}
                 />
                 <div className={styles.helpText}>
                   Maximum amount: {formatCurrency(paymentDialog.admission.dueAmount)}
@@ -737,6 +956,7 @@ export default function AdmissionPage() {
                 type="button"
                 onClick={() => setPaymentDialog({ open: false, admission: null })}
                 className={styles.btnSecondary}
+                disabled={loading}
               >
                 Cancel
               </button>
@@ -744,9 +964,16 @@ export default function AdmissionPage() {
                 type="button"
                 onClick={handlePaymentSubmit}
                 className={styles.btnPrimary}
-                disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || loading}
               >
-                Add Payment
+                {loading ? (
+                  <>
+                    <span className={styles.spinnerSmall}></span>
+                    Processing...
+                  </>
+                ) : (
+                  'Add Payment'
+                )}
               </button>
             </div>
           </div>

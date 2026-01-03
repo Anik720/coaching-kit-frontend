@@ -9,7 +9,7 @@ export interface User {
 // Batch subject interface
 export interface BatchSubject {
   subjectName: string;
-  subjectId: number;
+  subjectId: number | string;
 }
 
 // Admission batch interface
@@ -17,7 +17,7 @@ export interface AdmissionBatch {
   _id?: string;
   batch: string; // ObjectId as string
   batchName: string;
-  batchId: number;
+  batchId: number | string;
   subjects: BatchSubject[];
   admissionFee: number;
   tuitionFee: number;
@@ -109,7 +109,7 @@ export interface AdmissionsResponse {
 }
 
 export interface CreateAdmissionDto {
-  registrationId: string;
+  registrationId?: string;
   name: string;
   instituteName: string;
   studentGender: Gender;
@@ -184,9 +184,11 @@ export interface AdmissionStatistics {
   completed: number;
   approved: number;
   rejected: number;
+  cancelled: number;
   todayAdmissions: number;
   thisMonthAdmissions: number;
   totalRevenue: number;
+  monthlyRevenue: number;
 }
 
 export interface AdmissionState {
@@ -200,4 +202,75 @@ export interface AdmissionState {
   limit: number;
   totalPages: number;
   statistics: AdmissionStatistics | null;
+  batches: any[];
+  classes: any[];
+  groups: any[];
+  subjects: any[];
+}
+
+// Batch related interfaces for dropdowns
+export interface BatchForDropdown {
+  _id: string;
+  batchName: string;
+  batchId: number;
+  className: string;
+  group: string;
+  sessionYear: string;
+  admissionFee: number;
+  tuitionFee: number;
+  courseFee: number;
+  isActive: boolean;
+  status: string;
+}
+
+export interface ClassForDropdown {
+  _id: string;
+  classname: string;
+}
+
+export interface GroupForDropdown {
+  _id: string;
+  groupName: string;
+}
+
+export interface SubjectForDropdown {
+  _id: string;
+  subjectName: string;
+}
+
+export interface ClassItem {
+  _id: string;
+  classname: string;
+  description: string;
+  isActive: boolean;
+  createdBy: User;
+  updatedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface GroupItem {
+  _id: string;
+  groupName: string;
+  description: string;
+  isActive: boolean;
+  createdBy: User;
+  updatedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface SubjectItem {
+  _id: string;
+  subjectName: string;
+  subjectCode: string;
+  description: string;
+  isActive: boolean;
+  createdBy: User;
+  updatedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }
