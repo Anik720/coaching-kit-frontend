@@ -9,6 +9,10 @@ import {
   UpdateAdmissionDto,
   AdmissionStatistics,
   AdmissionStatus,
+  BatchForDropdown,
+  ClassForDropdown,
+  GroupForDropdown,
+  SubjectForDropdown,
 } from './types/admission.types';
 
 const initialState: AdmissionState = {
@@ -22,6 +26,10 @@ const initialState: AdmissionState = {
   limit: 10,
   totalPages: 0,
   statistics: null,
+  batches: [],
+  classes: [],
+  groups: [],
+  subjects: [],
 };
 
 // Async thunks
@@ -97,6 +105,25 @@ export const updateAdmission = createAsyncThunk<
   }
 );
 
+  // Add this thunk to your admissionSlice.ts
+export const fetchBatchesByClass = createAsyncThunk<
+  any[],
+  string,
+  { rejectValue: string }
+>(
+  'admission/fetchBatchesByClass',
+  async (classId, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getBatchesByClass(classId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch batches by class'
+      );
+    }
+  }
+);
+
 export const deleteAdmission = createAsyncThunk<
   string,
   string,
@@ -128,6 +155,78 @@ export const fetchAdmissionStatistics = createAsyncThunk<
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.message || error.message || 'Failed to fetch statistics'
+      );
+    }
+  }
+);
+
+export const fetchActiveBatches = createAsyncThunk<
+  BatchForDropdown[],
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchActiveBatches',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getActiveBatches();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch batches'
+      );
+    }
+  }
+);
+
+// Update fetchClasses thunk to handle the new response format
+export const fetchClasses = createAsyncThunk<
+  ClassForDropdown[],
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchClasses',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getClasses();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch classes'
+      );
+    }
+  }
+);
+export const fetchGroups = createAsyncThunk<
+  GroupForDropdown[],
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchGroups',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getGroups();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch groups'
+      );
+    }
+  }
+);
+
+export const fetchSubjects = createAsyncThunk<
+  SubjectForDropdown[],
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchSubjects',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getSubjects();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch subjects'
       );
     }
   }
@@ -169,6 +268,24 @@ export const updateAdmissionPayment = createAsyncThunk<
   }
 );
 
+export const generateRegistrationId = createAsyncThunk<
+  string,
+  void,
+  { rejectValue: string }
+>(
+  'admission/generateRegistrationId',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.generateRegistrationId();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to generate registration ID'
+      );
+    }
+  }
+);
+
 const admissionSlice = createSlice({
   name: 'admission',
   initialState,
@@ -190,6 +307,12 @@ const admissionSlice = createSlice({
     },
     setCurrentAdmission: (state, action: PayloadAction<AdmissionItem | null>) => {
       state.currentAdmission = action.payload;
+    },
+    clearDropdownData: (state) => {
+      state.batches = [];
+      state.classes = [];
+      state.groups = [];
+      state.subjects = [];
     },
   },
   extraReducers: (builder) => {
@@ -303,6 +426,58 @@ const admissionSlice = createSlice({
         state.statistics = null;
       })
 
+      // Fetch Active Batches
+      .addCase(fetchActiveBatches.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchActiveBatches.fulfilled, (state, action: PayloadAction<BatchForDropdown[]>) => {
+        state.loading = false;
+        state.batches = action.payload;
+      })
+      .addCase(fetchActiveBatches.rejected, (state) => {
+        state.loading = false;
+        state.batches = [];
+      })
+
+      // Fetch Classes
+      .addCase(fetchClasses.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchClasses.fulfilled, (state, action: PayloadAction<ClassForDropdown[]>) => {
+        state.loading = false;
+        state.classes = action.payload;
+      })
+      .addCase(fetchClasses.rejected, (state) => {
+        state.loading = false;
+        state.classes = [];
+      })
+
+      // Fetch Groups
+      .addCase(fetchGroups.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchGroups.fulfilled, (state, action: PayloadAction<GroupForDropdown[]>) => {
+        state.loading = false;
+        state.groups = action.payload;
+      })
+      .addCase(fetchGroups.rejected, (state) => {
+        state.loading = false;
+        state.groups = [];
+      })
+
+      // Fetch Subjects
+      .addCase(fetchSubjects.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchSubjects.fulfilled, (state, action: PayloadAction<SubjectForDropdown[]>) => {
+        state.loading = false;
+        state.subjects = action.payload;
+      })
+      .addCase(fetchSubjects.rejected, (state) => {
+        state.loading = false;
+        state.subjects = [];
+      })
+
       // Update Status
       .addCase(updateAdmissionStatus.pending, (state) => {
         state.loading = true;
@@ -341,6 +516,17 @@ const admissionSlice = createSlice({
       .addCase(updateAdmissionPayment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to update payment';
+      })
+
+      // Generate Registration ID
+      .addCase(generateRegistrationId.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(generateRegistrationId.fulfilled, (state, action: PayloadAction<string>) => {
+        state.loading = false;
+      })
+      .addCase(generateRegistrationId.rejected, (state) => {
+        state.loading = false;
       });
   },
 });
@@ -351,6 +537,7 @@ export const {
   clearError,
   clearSuccess,
   setCurrentAdmission,
+  clearDropdownData,
 } = admissionSlice.actions;
 
 export default admissionSlice.reducer;
