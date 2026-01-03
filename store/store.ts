@@ -3,12 +3,14 @@ import classReducer from '../api/classApi/classSlice'
 import subjectReducer from '../api/subjectApi/subjectSlice'
 import groupReducer from '../api/groupsApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
+import admissionReducer from '../api/admissionApi/admissionSlice';
 export const store = configureStore({
   reducer: {
     class: classReducer,
     subject: subjectReducer,
     group: groupReducer,
     batch: batchReducer,
+     admission: admissionReducer
     // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>
