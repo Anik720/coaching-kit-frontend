@@ -91,7 +91,7 @@ export default function AdmissionPage() {
     const loadDropdownData = async () => {
       try {
         await Promise.all([
-          dispatch(fetchActiveBatches()),
+          // dispatch(fetchActiveBatches()),
           dispatch(fetchClasses()),
           dispatch(fetchGroups()),
           dispatch(fetchSubjects()),
@@ -184,6 +184,7 @@ export default function AdmissionPage() {
     
     try {
       console.log('Updating admission:', registrationId, admissionData);
+      // Call main update endpoint, not /status endpoint
       await dispatch(updateAdmission({ registrationId, admissionData })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission updated successfully!', 'success');
       setEditingAdmission(null);
@@ -225,7 +226,11 @@ export default function AdmissionPage() {
     const toastId = toastManager.showLoading('Updating status...');
     
     try {
-      await dispatch(updateAdmissionStatus({ registrationId, status })).unwrap();
+      // Use the main update endpoint with status in the body
+      await dispatch(updateAdmission({ 
+        registrationId, 
+        admissionData: { status } 
+      })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Status updated successfully!', 'success');
     } catch (error: any) {
       console.error('Update status error:', error);
@@ -242,8 +247,9 @@ export default function AdmissionPage() {
       return;
     }
 
-    if (amount > paymentDialog.admission.dueAmount) {
-      toastManager.showError(`Payment cannot exceed due amount of ${formatCurrency(paymentDialog.admission.dueAmount)}`);
+    const safeDueAmount = paymentDialog.admission.dueAmount || 0;
+    if (amount > safeDueAmount) {
+      toastManager.showError(`Payment cannot exceed due amount of ${formatCurrency(safeDueAmount)}`);
       return;
     }
 
@@ -291,8 +297,10 @@ export default function AdmissionPage() {
     setEditingAdmission(null);
   };
 
-  const getStatusColor = (status: AdmissionStatus) => {
-    switch (status) {
+  const getStatusColor = (status: AdmissionStatus | undefined) => {
+    const safeStatus = status || AdmissionStatus.PENDING;
+    
+    switch (safeStatus) {
       case AdmissionStatus.APPROVED:
         return styles.statusApproved;
       case AdmissionStatus.COMPLETED:
@@ -319,55 +327,74 @@ export default function AdmissionPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
   // Calculate admission statistics from current data
-// Calculate admission statistics from current data
-const calculatedStats = useMemo(() => {
-  if (!admissions || admissions.length === 0) return null;
-  
-  const totalAdmissions = total;
-  const pendingCount = admissions.filter(a => a.status === AdmissionStatus.PENDING).length;
-  const completedCount = admissions.filter(a => a.status === AdmissionStatus.COMPLETED).length;
-  const approvedCount = admissions.filter(a => a.status === AdmissionStatus.APPROVED).length;
-  const rejectedCount = admissions.filter(a => a.status === AdmissionStatus.REJECTED).length;
-  const cancelledCount = admissions.filter(a => a.status === AdmissionStatus.CANCELLED).length;
-  
-  const today = new Date().toISOString().split('T')[0];
-  const todayAdmissions = admissions.filter(a => 
-    a.createdAt.split('T')[0] === today
-  ).length;
-  
-  const thisMonth = new Date().getMonth();
-  const thisYear = new Date().getFullYear();
-  const thisMonthAdmissions = admissions.filter(a => {
-    const date = new Date(a.createdAt);
-    return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
-  }).length;
-  
-  const totalRevenue = admissions.reduce((sum, admission) => sum + admission.totalFee, 0);
-  
-  return {
-    total: totalAdmissions,
-    pending: pendingCount,
-    completed: completedCount,
-    approved: approvedCount,
-    rejected: rejectedCount,
-    cancelled: cancelledCount,
-    todayAdmissions,
-    thisMonthAdmissions,
-    totalRevenue,
-    monthlyRevenue: totalRevenue / 12,
-  };
-}, [admissions, total]);
+  const calculatedStats = useMemo(() => {
+    if (!admissions || admissions.length === 0) return null;
+    
+    const totalAdmissions = total;
+    const pendingCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.PENDING).length;
+    const completedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.COMPLETED).length;
+    const approvedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.APPROVED).length;
+    const rejectedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.REJECTED).length;
+    const cancelledCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.CANCELLED).length;
+    const incompleteCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.INCOMPLETE).length;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayAdmissions = admissions.filter(a => 
+      a.createdAt && a.createdAt.split('T')[0] === today
+    ).length;
+    
+    const thisMonth = new Date().getMonth();
+    const thisYear = new Date().getFullYear();
+    const thisMonthAdmissions = admissions.filter(a => {
+      if (!a.createdAt) return false;
+      try {
+        const date = new Date(a.createdAt);
+        return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+      } catch {
+        return false;
+      }
+    }).length;
+    
+    const totalRevenue = admissions.reduce((sum, admission) => sum + (admission.paidAmount || 0), 0);
+    const totalFees = admissions.reduce((sum, admission) => sum + (admission.totalFee || 0), 0);
+    
+    return {
+      total: totalAdmissions,
+      pending: pendingCount,
+      completed: completedCount,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      cancelled: cancelledCount,
+      incomplete: incompleteCount,
+      todayAdmissions,
+      thisMonthAdmissions,
+      totalRevenue,
+      totalFees,
+      monthlyRevenue: totalRevenue / 12,
+    };
+  }, [admissions, total]);
 
   // Use API statistics or calculated statistics
   const displayStats = statistics || calculatedStats;
+
+  // Safe function to get status display text
+  const getStatusDisplayText = (status: AdmissionStatus | undefined) => {
+    const safeStatus = status || AdmissionStatus.PENDING;
+    return safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1).toLowerCase();
+  };
 
   // Search input component
   const searchInput = (
@@ -501,6 +528,9 @@ const calculatedStats = useMemo(() => {
                 <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#95a5a6' }}>
                   {displayStats.cancelled} Cancelled
                 </span>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#f39c12' }}>
+                  {displayStats.incomplete} Incomplete
+                </span>
               </div>
             </div>
           </div>
@@ -524,7 +554,7 @@ const calculatedStats = useMemo(() => {
               onClick={() => setStatusFilter(status)}
               disabled={loading || isUpdating}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
               {displayStats && (
                 <span className={styles.statusCount}>
                   {status === AdmissionStatus.PENDING ? displayStats.pending :
@@ -532,7 +562,9 @@ const calculatedStats = useMemo(() => {
                    status === AdmissionStatus.APPROVED ? displayStats.approved :
                    status === AdmissionStatus.REJECTED ? displayStats.rejected :
                    status === AdmissionStatus.CANCELLED ? displayStats.cancelled :
-                   status === AdmissionStatus.INCOMPLETE ? 0 : 0}
+                   status === AdmissionStatus.INCOMPLETE ? displayStats.incomplete : 0
+                   
+                   }
                 </span>
               )}
             </button>
@@ -595,155 +627,191 @@ const calculatedStats = useMemo(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    {admissions.map((admission) => (
-                      <tr key={admission._id}>
-                        <td>
-                          <div className={styles.registrationId}>
-                            <span className={styles.idBadge}>{admission.registrationId}</span>
-                            <div className={styles.admissionType}>
-                              {admission.admissionType}
+                    {admissions.map((admission) => {
+                      // Create safe admission data with defaults
+                      const safeAdmission = {
+                        ...admission,
+                        registrationId: admission.registrationId || 'N/A',
+                        name: admission.name || 'Unknown Student',
+                        status: admission.status || AdmissionStatus.PENDING,
+                        instituteName: admission.instituteName || 'Not Specified',
+                        studentGender: admission.studentGender || 'Not Specified',
+                        guardianMobileNumber: admission.guardianMobileNumber || 'Not Provided',
+                        admissionType: admission.admissionType || AdmissionType.MONTHLY,
+                        batches: admission.batches || [],
+                        totalFee: admission.totalFee || 0,
+                        paidAmount: admission.paidAmount || 0,
+                        dueAmount: admission.dueAmount || 0,
+                        admissionFee: admission.admissionFee || 0,
+                        tuitionFee: admission.tuitionFee || 0,
+                        courseFee: admission.courseFee || 0,
+                        createdAt: admission.createdAt || new Date().toISOString(),
+                        admissionDate: admission.admissionDate,
+                        nameNative: admission.nameNative,
+                        studentDateOfBirth: admission.studentDateOfBirth,
+                        religion: admission.religion,
+                        whatsappMobile: admission.whatsappMobile,
+                        studentMobileNumber: admission.studentMobileNumber,
+                        fathersName: admission.fathersName,
+                        mothersName: admission.mothersName,
+                        motherMobileNumber: admission.motherMobileNumber,
+                        presentAddress: admission.presentAddress,
+                        permanentAddress: admission.permanentAddress,
+                        referBy: admission.referBy,
+                        remarks: admission.remarks,
+                        isCompleted: admission.isCompleted || false,
+                      };
+
+                      return (
+                        <tr key={admission._id}>
+                          <td>
+                            <div className={styles.registrationId}>
+                              <span className={styles.idBadge}>{safeAdmission.registrationId}</span>
+                              <div className={styles.admissionType}>
+                                {safeAdmission.admissionType}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={styles.studentInfo}>
-                            <div className={styles.studentName}>{admission.name}</div>
-                            {admission.nameNative && (
-                              <div className={styles.studentNameNative}>({admission.nameNative})</div>
-                            )}
-                            <div className={styles.studentGender}>{admission.studentGender}</div>
-                            {admission.studentDateOfBirth && (
-                              <div className={styles.studentDOB}>
-                                DOB: {formatDate(admission.studentDateOfBirth)}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div className={styles.instituteName}>{admission.instituteName}</div>
-                          {admission.religion && (
-                            <div className={styles.religion}>{admission.religion}</div>
-                          )}
-                        </td>
-                        <td>
-                          <div className={styles.contactInfo}>
-                            <div className={styles.phoneNumber}>
-                              📞 {admission.guardianMobileNumber}
+                          </td>
+                          <td>
+                            <div className={styles.studentInfo}>
+                              <div className={styles.studentName}>{safeAdmission.name}</div>
+                              {safeAdmission.nameNative && (
+                                <div className={styles.studentNameNative}>({safeAdmission.nameNative})</div>
+                              )}
+                              <div className={styles.studentGender}>{safeAdmission.studentGender}</div>
+                              {safeAdmission.studentDateOfBirth && (
+                                <div className={styles.studentDOB}>
+                                  DOB: {formatDate(safeAdmission.studentDateOfBirth)}
+                                </div>
+                              )}
                             </div>
-                            {admission.whatsappMobile && (
-                              <div className={styles.whatsappNumber}>
-                                💬 {admission.whatsappMobile}
+                          </td>
+                          <td>
+                            <div className={styles.instituteName}>{safeAdmission.instituteName}</div>
+                            {safeAdmission.religion && (
+                              <div className={styles.religion}>{safeAdmission.religion}</div>
+                            )}
+                          </td>
+                          <td>
+                            <div className={styles.contactInfo}>
+                              <div className={styles.phoneNumber}>
+                                📞 {safeAdmission.guardianMobileNumber}
+                              </div>
+                              {safeAdmission.whatsappMobile && (
+                                <div className={styles.whatsappNumber}>
+                                  💬 {safeAdmission.whatsappMobile}
+                                </div>
+                              )}
+                              {safeAdmission.studentMobileNumber && (
+                                <div className={styles.studentMobile}>
+                                  📱 Student: {safeAdmission.studentMobileNumber}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div className={styles.batchesInfo}>
+                              {safeAdmission.batches && safeAdmission.batches.length > 0 ? (
+                                <div className={styles.batchesList}>
+                                  {safeAdmission.batches.slice(0, 2).map((batch, index) => (
+                                    <div key={index} className={styles.batchItem}>
+                                      <span className={styles.batchName}>{batch.batchName || 'Unnamed Batch'}</span>
+                                      {batch.subjects && batch.subjects.length > 0 && (
+                                        <span className={styles.subjectCount}>
+                                          ({batch.subjects.length} subject{batch.subjects.length > 1 ? 's' : ''})
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {safeAdmission.batches.length > 2 && (
+                                    <div className={styles.moreBatches}>
+                                      +{safeAdmission.batches.length - 2} more
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className={styles.noBatches}>No batches</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`${styles.statusBadge} ${getStatusColor(safeAdmission.status)}`}>
+                              {getStatusDisplayText(safeAdmission.status)}
+                            </span>
+                            {safeAdmission.isCompleted && (
+                              <div className={styles.completedIndicator}>✓ Completed</div>
+                            )}
+                          </td>
+                          <td>
+                            <div className={styles.feeInfo}>
+                              <div className={styles.feeTotal}>
+                                Total: {formatCurrency(safeAdmission.totalFee)}
+                              </div>
+                              <div className={`${styles.feePaid} ${safeAdmission.paidAmount > 0 ? styles.paid : ''}`}>
+                                Paid: {formatCurrency(safeAdmission.paidAmount)}
+                              </div>
+                              <div className={`${styles.feeDue} ${safeAdmission.dueAmount > 0 ? styles.due : ''}`}>
+                                Due: {formatCurrency(safeAdmission.dueAmount)}
+                              </div>
+                              <div className={styles.feeBreakdown}>
+                                <small>A: {formatCurrency(safeAdmission.admissionFee)} | T: {formatCurrency(safeAdmission.tuitionFee)} | C: {formatCurrency(safeAdmission.courseFee)}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td className={styles.dateCell}>
+                            {formatDate(safeAdmission.createdAt)}
+                            {safeAdmission.admissionDate && (
+                              <div className={styles.admissionDate}>
+                                Admission: {formatDate(safeAdmission.admissionDate)}
                               </div>
                             )}
-                            {admission.studentMobileNumber && (
-                              <div className={styles.studentMobile}>
-                                📱 Student: {admission.studentMobileNumber}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div className={styles.batchesInfo}>
-                            {admission.batches && admission.batches.length > 0 ? (
-                              <div className={styles.batchesList}>
-                                {admission.batches.slice(0, 2).map((batch, index) => (
-                                  <div key={index} className={styles.batchItem}>
-                                    <span className={styles.batchName}>{batch.batchName}</span>
-                                    {batch.subjects.length > 0 && (
-                                      <span className={styles.subjectCount}>
-                                        ({batch.subjects.length} subject{batch.subjects.length > 1 ? 's' : ''})
-                                      </span>
-                                    )}
-                                  </div>
+                          </td>
+                          <td>
+                            <div className={styles.actionButtons}>
+                              <button
+                                onClick={() => startEdit(safeAdmission)}
+                                className={styles.btnEdit}
+                                title="Edit"
+                                disabled={loading || isUpdating}
+                                type="button"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(safeAdmission.registrationId)}
+                                className={styles.btnDelete}
+                                title="Delete"
+                                disabled={loading || isUpdating}
+                                type="button"
+                              >
+                                🗑️
+                              </button>
+                              <button
+                                onClick={() => setPaymentDialog({ open: true, admission: safeAdmission })}
+                                className={styles.btnPayment}
+                                title="Add Payment"
+                                disabled={loading || isUpdating || safeAdmission.dueAmount <= 0}
+                                type="button"
+                              >
+                                💰
+                              </button>
+                              <select
+                                value={safeAdmission.status}
+                                onChange={(e) => handleStatusChange(safeAdmission.registrationId, e.target.value as AdmissionStatus)}
+                                className={styles.statusSelect}
+                                disabled={loading || isUpdating}
+                              >
+                                {Object.values(AdmissionStatus).map((status) => (
+                                  <option key={status} value={status}>
+                                    {getStatusDisplayText(status)}
+                                  </option>
                                 ))}
-                                {admission.batches.length > 2 && (
-                                  <div className={styles.moreBatches}>
-                                    +{admission.batches.length - 2} more
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className={styles.noBatches}>No batches</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`${styles.statusBadge} ${getStatusColor(admission.status)}`}>
-                            {admission.status.charAt(0).toUpperCase() + admission.status.slice(1)}
-                          </span>
-                          {admission.isCompleted && (
-                            <div className={styles.completedIndicator}>✓ Completed</div>
-                          )}
-                        </td>
-                        <td>
-                          <div className={styles.feeInfo}>
-                            <div className={styles.feeTotal}>
-                              Total: {formatCurrency(admission.totalFee)}
+                              </select>
                             </div>
-                            <div className={`${styles.feePaid} ${admission.paidAmount > 0 ? styles.paid : ''}`}>
-                              Paid: {formatCurrency(admission.paidAmount)}
-                            </div>
-                            <div className={`${styles.feeDue} ${admission.dueAmount > 0 ? styles.due : ''}`}>
-                              Due: {formatCurrency(admission.dueAmount)}
-                            </div>
-                            <div className={styles.feeBreakdown}>
-                              <small>A: {formatCurrency(admission.admissionFee)} | T: {formatCurrency(admission.tuitionFee)} | C: {formatCurrency(admission.courseFee)}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={styles.dateCell}>
-                          {formatDate(admission.createdAt)}
-                          {admission.admissionDate && (
-                            <div className={styles.admissionDate}>
-                              Admission: {formatDate(admission.admissionDate)}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div className={styles.actionButtons}>
-                            <button
-                              onClick={() => startEdit(admission)}
-                              className={styles.btnEdit}
-                              title="Edit"
-                              disabled={loading || isUpdating}
-                              type="button"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(admission.registrationId)}
-                              className={styles.btnDelete}
-                              title="Delete"
-                              disabled={loading || isUpdating}
-                              type="button"
-                            >
-                              🗑️
-                            </button>
-                            <button
-                              onClick={() => setPaymentDialog({ open: true, admission })}
-                              className={styles.btnPayment}
-                              title="Add Payment"
-                              disabled={loading || isUpdating || admission.dueAmount <= 0}
-                              type="button"
-                            >
-                              💰
-                            </button>
-                            <select
-                              value={admission.status}
-                              onChange={(e) => handleStatusChange(admission.registrationId, e.target.value as AdmissionStatus)}
-                              className={styles.statusSelect}
-                              disabled={loading || isUpdating}
-                            >
-                              {Object.values(AdmissionStatus).map((status) => (
-                                <option key={status} value={status}>
-                                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -821,43 +889,42 @@ const calculatedStats = useMemo(() => {
 
       {/* Create/Edit Admission Modal */}
       {(open || editingAdmission) && (
-// Update the AdmissionFormModal props in AdmissionPage.tsx:
-<AdmissionFormModal
-  isOpen={open || !!editingAdmission}
-  onClose={() => {
-    setOpen(false);
-    setEditingAdmission(null);
-  }}
-  onSubmit={editingAdmission ? 
-    (data) => handleUpdateAdmission(editingAdmission.registrationId, data) :
-    handleCreateAdmission
-  }
-  initialData={editingAdmission}
-  loading={loading || isUpdating}
-  isEditing={!!editingAdmission}
-  batches={batches}
-  classes={classes}
-  groups={groups}
-  subjects={subjects}
-  dropdownsLoaded={dropdownsLoaded}
-  fetchBatchesByClass={async (classId) => {
-    try {
-      const response = await api.get(`/batches/class/${classId}`);
-      console.log('Batch response for class', classId, ':', response.data);
-      
-      // Handle API response format
-      if (response.data.data) {
-        return response.data.data;
-      } else if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error('Failed to fetch batches:', error);
-      return [];
-    }
-  }}
-/>
+        <AdmissionFormModal
+          isOpen={open || !!editingAdmission}
+          onClose={() => {
+            setOpen(false);
+            setEditingAdmission(null);
+          }}
+          onSubmit={editingAdmission ? 
+            (data) => handleUpdateAdmission(editingAdmission.registrationId, data) :
+            handleCreateAdmission
+          }
+          initialData={editingAdmission}
+          loading={loading || isUpdating}
+          isEditing={!!editingAdmission}
+          batches={batches}
+          classes={classes}
+          groups={groups}
+          subjects={subjects}
+          dropdownsLoaded={dropdownsLoaded}
+          fetchBatchesByClass={async (classId) => {
+            try {
+              const response = await api.get(`/batches/class/${classId}`);
+              console.log('Batch response for class', classId, ':', response.data);
+              
+              // Handle API response format
+              if (response.data.data) {
+                return response.data.data;
+              } else if (Array.isArray(response.data)) {
+                return response.data;
+              }
+              return [];
+            } catch (error) {
+              console.error('Failed to fetch batches:', error);
+              return [];
+            }
+          }}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
@@ -893,26 +960,26 @@ const calculatedStats = useMemo(() => {
               <div className={styles.paymentInfo}>
                 <div className={styles.paymentRow}>
                   <span>Student:</span>
-                  <strong>{paymentDialog.admission.name}</strong>
+                  <strong>{paymentDialog.admission.name || 'Unknown Student'}</strong>
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Registration ID:</span>
-                  <strong>{paymentDialog.admission.registrationId}</strong>
+                  <strong>{paymentDialog.admission.registrationId || 'N/A'}</strong>
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Total Fee:</span>
-                  <strong>{formatCurrency(paymentDialog.admission.totalFee)}</strong>
+                  <strong>{formatCurrency(paymentDialog.admission.totalFee || 0)}</strong>
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Paid Amount:</span>
                   <strong className={styles.paidAmount}>
-                    {formatCurrency(paymentDialog.admission.paidAmount)}
+                    {formatCurrency(paymentDialog.admission.paidAmount || 0)}
                   </strong>
                 </div>
                 <div className={styles.paymentRow}>
                   <span>Due Amount:</span>
                   <strong className={styles.dueAmount}>
-                    {formatCurrency(paymentDialog.admission.dueAmount)}
+                    {formatCurrency(paymentDialog.admission.dueAmount || 0)}
                   </strong>
                 </div>
                 <div className={styles.paymentRow}>
@@ -921,11 +988,11 @@ const calculatedStats = useMemo(() => {
                     <div 
                       className={styles.progressBar} 
                       style={{ 
-                        width: `${(paymentDialog.admission.paidAmount / paymentDialog.admission.totalFee) * 100}%` 
+                        width: `${((paymentDialog.admission.paidAmount || 0) / (paymentDialog.admission.totalFee || 1)) * 100}%` 
                       }}
                     ></div>
                     <span className={styles.progressText}>
-                      {Math.round((paymentDialog.admission.paidAmount / paymentDialog.admission.totalFee) * 100)}%
+                      {Math.round(((paymentDialog.admission.paidAmount || 0) / (paymentDialog.admission.totalFee || 1)) * 100)}%
                     </span>
                   </div>
                 </div>
@@ -942,12 +1009,12 @@ const calculatedStats = useMemo(() => {
                   className={styles.input}
                   placeholder="Enter payment amount"
                   min="0"
-                  max={paymentDialog.admission.dueAmount}
+                  max={paymentDialog.admission.dueAmount || 0}
                   step="1"
                   disabled={loading}
                 />
                 <div className={styles.helpText}>
-                  Maximum amount: {formatCurrency(paymentDialog.admission.dueAmount)}
+                  Maximum amount: {formatCurrency(paymentDialog.admission.dueAmount || 0)}
                 </div>
               </div>
             </div>

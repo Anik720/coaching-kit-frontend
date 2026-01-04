@@ -137,6 +137,7 @@ export interface CreateAdmissionDto {
 
 export interface UpdateAdmissionDto {
   registrationId?: string;
+  _id?: string;
   name?: string;
   instituteName?: string;
   studentGender?: Gender;
@@ -182,6 +183,7 @@ export interface AdmissionStatistics {
   total: number;
   pending: number;
   completed: number;
+  incomplete: number;
   approved: number;
   rejected: number;
   cancelled: number;

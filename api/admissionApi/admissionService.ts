@@ -39,6 +39,10 @@ private toFormData(data: any, isUpdate: boolean = false): FormData {
         formData.append('batches', JSON.stringify(value));
       }
     }
+    // Handle _id field for updates
+    else if (key === '_id' && value) {
+      formData.append('_id', value);
+    }
     // Handle arrays
     else if (Array.isArray(value)) {
       if (value.length > 0) {
@@ -204,46 +208,49 @@ async createAdmission(admissionData: CreateAdmissionDto): Promise<AdmissionItem>
 }
 
   // Update admission (form data)
-  async updateAdmission(registrationId: string, admissionData: UpdateAdmissionDto): Promise<AdmissionItem> {
-    console.log('Updating admission:', registrationId, admissionData);
-    
-    const formData = this.toFormData({
-      ...admissionData,
-      registration_id: admissionData.registrationId || registrationId,
-      name: admissionData.name,
-      name_native: admissionData.nameNative,
-      student_gender: admissionData.studentGender,
-      student_date_of_birth: admissionData.studentDateOfBirth,
-      present_address: admissionData.presentAddress,
-      permanent_address: admissionData.permanentAddress,
-      religion: admissionData.religion,
-      whatsapp_mobile: admissionData.whatsappMobile,
-      student_mobile_number: admissionData.studentMobileNumber,
-      institute_name: admissionData.instituteName,
-      fathers_name: admissionData.fathersName,
-      mothers_name: admissionData.mothersName,
-      guardian_mobile_number: admissionData.guardianMobileNumber,
-      mother_mobile_number: admissionData.motherMobileNumber,
-      admission_type: admissionData.admissionType,
-      course_fee: admissionData.courseFee,
-      admission_fee: admissionData.admissionFee,
-      tution_fee: admissionData.tuitionFee,
-      refer_by: admissionData.referBy,
-      admission_date: admissionData.admissionDate,
-      batch_with_subjects: admissionData.batches,
-      remarks: admissionData.remarks,
-      photo: admissionData.photo,
-      status: admissionData.status,
-      paid_amount: admissionData.paidAmount,
-    }, true);
+// Update admission (form data)
+async updateAdmission(registrationId: string, admissionData: UpdateAdmissionDto): Promise<AdmissionItem> {
+  console.log('Updating admission:', registrationId, admissionData);
+  
+  // Include the _id in the form data for backend reference
+  const formData = this.toFormData({
+    _id: admissionData._id, // Add _id field
+    ...admissionData,
+    registration_id: admissionData.registrationId || registrationId,
+    name: admissionData.name,
+    name_native: admissionData.nameNative,
+    student_gender: admissionData.studentGender,
+    student_date_of_birth: admissionData.studentDateOfBirth,
+    present_address: admissionData.presentAddress,
+    permanent_address: admissionData.permanentAddress,
+    religion: admissionData.religion,
+    whatsapp_mobile: admissionData.whatsappMobile,
+    student_mobile_number: admissionData.studentMobileNumber,
+    institute_name: admissionData.instituteName,
+    fathers_name: admissionData.fathersName,
+    mothers_name: admissionData.mothersName,
+    guardian_mobile_number: admissionData.guardianMobileNumber,
+    mother_mobile_number: admissionData.motherMobileNumber,
+    admission_type: admissionData.admissionType,
+    course_fee: admissionData.courseFee,
+    admission_fee: admissionData.admissionFee,
+    tution_fee: admissionData.tuitionFee,
+    refer_by: admissionData.referBy,
+    admission_date: admissionData.admissionDate,
+    batch_with_subjects: admissionData.batches,
+    remarks: admissionData.remarks,
+    photo: admissionData.photo,
+    status: admissionData.status,
+    paid_amount: admissionData.paidAmount,
+  }, true);
 
-    const response = await api.put<AdmissionItem>(`/admissions/${registrationId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  }
+  const response = await api.put<AdmissionItem>(`/admissions/${registrationId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+}
 
   // Delete admission
   async deleteAdmission(registrationId: string): Promise<void> {
@@ -281,10 +288,14 @@ async createAdmission(admissionData: CreateAdmissionDto): Promise<AdmissionItem>
   }
 
   // Update admission status
-  async updateAdmissionStatus(registrationId: string, status: AdmissionStatus): Promise<AdmissionItem> {
-    const response = await api.put<AdmissionItem>(`/admissions/${registrationId}/status`, { status });
-    return response.data;
-  }
+// Update admission status
+async updateAdmissionStatus(registrationId: string, status: AdmissionStatus): Promise<AdmissionItem> {
+  // This should call the main update endpoint, not /status
+  const response = await api.put<AdmissionItem>(`/admissions/${registrationId}`, { 
+    status 
+  });
+  return response.data;
+}
 
   // Update payment
   async updatePayment(registrationId: string, paidAmount: number): Promise<AdmissionItem> {
