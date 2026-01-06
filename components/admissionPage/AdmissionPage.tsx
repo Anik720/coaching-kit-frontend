@@ -91,7 +91,6 @@ export default function AdmissionPage() {
     const loadDropdownData = async () => {
       try {
         await Promise.all([
-          // dispatch(fetchActiveBatches()),
           dispatch(fetchClasses()),
           dispatch(fetchGroups()),
           dispatch(fetchSubjects()),
@@ -172,6 +171,9 @@ export default function AdmissionPage() {
         sortOrder: 'desc',
       }));
       
+      // Refresh statistics
+      await dispatch(fetchAdmissionStatistics());
+      
     } catch (error: any) {
       console.error('Create admission error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to create admission', 'error');
@@ -184,17 +186,26 @@ export default function AdmissionPage() {
     
     try {
       console.log('Updating admission:', registrationId, admissionData);
-      // Call main update endpoint, not /status endpoint
       await dispatch(updateAdmission({ registrationId, admissionData })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission updated successfully!', 'success');
       setEditingAdmission(null);
+      
+      // Refresh the admissions list
+      await dispatch(fetchAdmissions({
+        page: currentPage,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      }));
+      
     } catch (error: any) {
       console.error('Update admission error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to update admission', 'error');
     } finally {
       setIsUpdating(false);
     }
-  }, [dispatch]);
+  }, [dispatch, currentPage, statusFilter]);
 
   const handleDeleteClick = useCallback((registrationId: string) => {
     setAdmissionToDelete(registrationId);
@@ -209,6 +220,19 @@ export default function AdmissionPage() {
     try {
       await dispatch(deleteAdmission(admissionToDelete)).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission deleted successfully!', 'success');
+      
+      // Refresh the admissions list
+      await dispatch(fetchAdmissions({
+        page: currentPage,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      }));
+      
+      // Refresh statistics
+      await dispatch(fetchAdmissionStatistics());
+      
     } catch (error: any) {
       console.error('Delete admission error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to delete admission', 'error');
@@ -216,7 +240,7 @@ export default function AdmissionPage() {
       setIsDeleting(false);
       setAdmissionToDelete(null);
     }
-  }, [dispatch, admissionToDelete]);
+  }, [dispatch, admissionToDelete, currentPage, statusFilter]);
 
   const handleDeleteCancel = useCallback(() => {
     setAdmissionToDelete(null);
@@ -226,17 +250,31 @@ export default function AdmissionPage() {
     const toastId = toastManager.showLoading('Updating status...');
     
     try {
-      // Use the main update endpoint with status in the body
-      await dispatch(updateAdmission({ 
-        registrationId, 
-        admissionData: { status } 
-      })).unwrap();
+      // Use the main update endpoint with JSON payload
+      await api.put(`/admissions/${registrationId}`, { 
+        status 
+      });
+      
       toastManager.safeUpdateToast(toastId, 'Status updated successfully!', 'success');
+      
+      // Refresh the admissions list
+      await dispatch(fetchAdmissions({
+        search: debouncedSearchTerm || undefined,
+        page: currentPage,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      }));
+      
+      // Refresh statistics
+      await dispatch(fetchAdmissionStatistics());
+      
     } catch (error: any) {
       console.error('Update status error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to update status', 'error');
     }
-  }, [dispatch]);
+  }, [dispatch, debouncedSearchTerm, currentPage, statusFilter]);
 
   const handlePaymentSubmit = useCallback(async () => {
     if (!paymentDialog.admission || !paymentAmount) return;
@@ -264,11 +302,21 @@ export default function AdmissionPage() {
       toastManager.safeUpdateToast(toastId, 'Payment updated successfully!', 'success');
       setPaymentDialog({ open: false, admission: null });
       setPaymentAmount("");
+      
+      // Refresh the admissions list
+      await dispatch(fetchAdmissions({
+        page: currentPage,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      }));
+      
     } catch (error: any) {
       console.error('Update payment error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to update payment', 'error');
     }
-  }, [dispatch, paymentDialog.admission, paymentAmount]);
+  }, [dispatch, paymentDialog.admission, paymentAmount, currentPage, statusFilter]);
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -280,6 +328,7 @@ export default function AdmissionPage() {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
+    setCurrentPage(1);
   }, []);
 
   const handlePageChange = useCallback((newPage: number) => {
@@ -345,11 +394,11 @@ export default function AdmissionPage() {
     
     const totalAdmissions = total;
     const pendingCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.PENDING).length;
+    const incompleteCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.INCOMPLETE).length;
     const completedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.COMPLETED).length;
     const approvedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.APPROVED).length;
     const rejectedCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.REJECTED).length;
     const cancelledCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.CANCELLED).length;
-    const incompleteCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.INCOMPLETE).length;
     
     const today = new Date().toISOString().split('T')[0];
     const todayAdmissions = admissions.filter(a => 
@@ -374,11 +423,11 @@ export default function AdmissionPage() {
     return {
       total: totalAdmissions,
       pending: pendingCount,
+      incomplete: incompleteCount,
       completed: completedCount,
       approved: approvedCount,
       rejected: rejectedCount,
       cancelled: cancelledCount,
-      incomplete: incompleteCount,
       todayAdmissions,
       thisMonthAdmissions,
       totalRevenue,
@@ -482,9 +531,9 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Admissions</p>
-              <p className={styles.statValue}>{displayStats.total.toLocaleString()}</p>
+              <p className={styles.statValue}>{displayStats.total?.toLocaleString() || '0'}</p>
               <span className={styles.statSubtext}>
-                {displayStats.todayAdmissions} today • {displayStats.thisMonthAdmissions} this month
+                {(displayStats.todayAdmissions || 0)} today • {(displayStats.thisMonthAdmissions || 0)} this month
               </span>
             </div>
           </div>
@@ -495,9 +544,9 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Pending</p>
-              <p className={styles.statValue}>{displayStats.pending}</p>
+              <p className={styles.statValue}>{displayStats.pending || 0}</p>
               <span className={styles.statSubtext}>
-                {displayStats.completed} completed • {displayStats.approved} approved
+                {(displayStats.completed || 0)} completed • {(displayStats.approved || 0)} approved
               </span>
             </div>
           </div>
@@ -508,9 +557,9 @@ export default function AdmissionPage() {
             </div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Revenue</p>
-              <p className={styles.statValue}>{formatCurrency(displayStats.totalRevenue)}</p>
+              <p className={styles.statValue}>{formatCurrency(displayStats.totalRevenue || 0)}</p>
               <span className={styles.statSubtext}>
-                Monthly: {formatCurrency(displayStats.monthlyRevenue)}
+                Monthly: {formatCurrency((displayStats.totalRevenue || 0) / 12)}
               </span>
             </div>
           </div>
@@ -523,13 +572,13 @@ export default function AdmissionPage() {
               <p className={styles.statLabel}>Status Overview</p>
               <div className={styles.statusOverview}>
                 <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#e74c3c' }}>
-                  {displayStats.rejected} Rejected
+                  {displayStats.rejected || 0} Rejected
                 </span>
                 <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#95a5a6' }}>
-                  {displayStats.cancelled} Cancelled
+                  {displayStats.cancelled || 0} Cancelled
                 </span>
                 <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#f39c12' }}>
-                  {displayStats.incomplete} Incomplete
+                  {displayStats.incomplete || 0} Incomplete
                 </span>
               </div>
             </div>
@@ -545,7 +594,7 @@ export default function AdmissionPage() {
             onClick={() => setStatusFilter("all")}
             disabled={loading || isUpdating}
           >
-            All ({total})
+            All ({total || 0})
           </button>
           {Object.values(AdmissionStatus).map((status) => (
             <button
@@ -557,14 +606,12 @@ export default function AdmissionPage() {
               {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
               {displayStats && (
                 <span className={styles.statusCount}>
-                  {status === AdmissionStatus.PENDING ? displayStats.pending :
-                   status === AdmissionStatus.COMPLETED ? displayStats.completed :
-                   status === AdmissionStatus.APPROVED ? displayStats.approved :
-                   status === AdmissionStatus.REJECTED ? displayStats.rejected :
-                   status === AdmissionStatus.CANCELLED ? displayStats.cancelled :
-                   status === AdmissionStatus.INCOMPLETE ? displayStats.incomplete : 0
-                   
-                   }
+                  {status === AdmissionStatus.PENDING ? (displayStats.pending || 0) :
+                   status === AdmissionStatus.INCOMPLETE ? (displayStats.incomplete || 0) :
+                   status === AdmissionStatus.COMPLETED ? (displayStats.completed || 0) :
+                   status === AdmissionStatus.APPROVED ? (displayStats.approved || 0) :
+                   status === AdmissionStatus.REJECTED ? (displayStats.rejected || 0) :
+                   status === AdmissionStatus.CANCELLED ? (displayStats.cancelled || 0) : 0}
                 </span>
               )}
             </button>
@@ -577,7 +624,7 @@ export default function AdmissionPage() {
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>
             All Admissions
-            <span className={styles.tableCount}>({total} total)</span>
+            <span className={styles.tableCount}>({total || 0} total)</span>
           </h2>
           {searchInput}
         </div>
