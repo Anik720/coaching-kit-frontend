@@ -4,9 +4,11 @@ import subjectReducer from '../api/subjectApi/subjectSlice'
 import groupReducer from '../api/groupsApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
+import teacherReducer from '@/api/teacherApi/teacherSlice';
 export const store = configureStore({
   reducer: {
     class: classReducer,
+    teacher: teacherReducer,
     subject: subjectReducer,
     group: groupReducer,
     batch: batchReducer,
