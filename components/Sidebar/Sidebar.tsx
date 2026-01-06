@@ -60,7 +60,7 @@ const Sidebar: React.FC = () => {
       category: 'Student Details',
       basePath: '/dashboard/students',
       items: [
-        { label: 'Students List View', href: '/dashboard/students/list', icon: '👨‍🎓' },
+        { label: 'Students List View', href: '/dashboard/students/lists', icon: '👨‍🎓' },
         { label: 'Student Deactivation', href: '/dashboard/students/deactivate', icon: '🚫' },
         { label: 'Batch Transfer', href: '/dashboard/students/batch-transfer', icon: '🔁' },
       ],
