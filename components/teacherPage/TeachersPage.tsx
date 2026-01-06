@@ -99,7 +99,15 @@ export default function TeachersPage() {
     };
 
     loadTeachers();
-  }, [dispatch, debouncedSearchTerm, currentPage, filters]);
+  }, [dispatch,
+  fetchTeachers, // Add this
+  debouncedSearchTerm,
+  currentPage,
+  filters.designation,
+  filters.assignType,
+  filters.status,
+  filters.isActive,
+  filters.gender]);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -458,7 +466,7 @@ export default function TeachersPage() {
         ) : (
           <>
             <div className={styles.tableWrapper}>
-              {teachers.length === 0 ? (
+              {teachers?.length === 0 ? (
                 <div className={styles.emptyState}>
                   <div className={styles.emptyIcon}>👨‍🏫</div>
                   <h3 className={styles.emptyTitle}>No teachers found</h3>
@@ -491,7 +499,7 @@ export default function TeachersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((teacher: TeacherItem) => ( // Fix: Add type annotation
+                    {teachers?.length > 0 && teachers?.map((teacher: TeacherItem) => ( // Fix: Add type annotation
                       <tr key={teacher._id}>
                         <td>
                           <div 

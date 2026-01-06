@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import styles from './Teachers.module.css';
+import styles from './CreateTeacherModal.module.css';  // Scoped with renamed classes
 
 interface CreateTeacherModalProps {
   onClose: () => void;
@@ -31,52 +31,33 @@ export default function CreateTeacherModal({
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    
-    if (!formData.contactNumber.trim()) {
-      newErrors.contactNumber = 'Contact number is required';
-    } else if (!/^\d{11}$/.test(formData.contactNumber)) {
-      newErrors.contactNumber = 'Contact number must be 11 digits';
-    }
-    
+    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
+    if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
+    else if (!/^\d{11}$/.test(formData.contactNumber)) newErrors.contactNumber = 'Contact number must be 11 digits';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (validateForm()) {
-      onCreate(formData);
-    }
+    if (validateForm()) onCreate(formData);
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Add New Teacher</h2>
-          <button 
-            onClick={onClose} 
-            className={styles.modalClose} 
+    <div className={styles.modalOverlayForTeacher} onClick={onClose}>
+      <div className={styles.modalForTeacher} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeaderForTeacher}>
+          <h2 className={styles.modalTitleForTeacher}>Add New Teacher</h2>
+          <button
+            onClick={onClose}
+            className={styles.modalCloseForTeacher}
             disabled={loading}
             type="button"
             aria-label="Close modal"
@@ -84,73 +65,59 @@ export default function CreateTeacherModal({
             ✕
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="fullName">
-                Full Name *
-              </label>
+          <div className={styles.modalBodyForTeacher}>
+            <div className={styles.formGroupForTeacher}>
+              <label className={styles.labelForTeacher} htmlFor="fullName">Full Name *</label>
               <input
                 id="fullName"
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleChange('fullName', e.target.value)}
-                className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
+                className={`${styles.inputForTeacher} ${errors.fullName ? styles.inputErrorForTeacher : ''}`}
                 disabled={loading}
                 placeholder="Enter full name"
               />
-              {errors.fullName && (
-                <div className={styles.errorMessage}>{errors.fullName}</div>
-              )}
+              {errors.fullName && <div className={styles.errorMessageForTeacher}>{errors.fullName}</div>}
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="email">
-                Email *
-              </label>
+            <div className={styles.formGroupForTeacher}>
+              <label className={styles.labelForTeacher} htmlFor="email">Email *</label>
               <input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
-                className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
+                className={`${styles.inputForTeacher} ${errors.email ? styles.inputErrorForTeacher : ''}`}
                 disabled={loading}
                 placeholder="Enter email address"
               />
-              {errors.email && (
-                <div className={styles.errorMessage}>{errors.email}</div>
-              )}
+              {errors.email && <div className={styles.errorMessageForTeacher}>{errors.email}</div>}
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="contactNumber">
-                Contact Number *
-              </label>
+            <div className={styles.formGroupForTeacher}>
+              <label className={styles.labelForTeacher} htmlFor="contactNumber">Contact Number *</label>
               <input
                 id="contactNumber"
                 type="tel"
                 value={formData.contactNumber}
                 onChange={(e) => handleChange('contactNumber', e.target.value)}
-                className={`${styles.input} ${errors.contactNumber ? styles.inputError : ''}`}
+                className={`${styles.inputForTeacher} ${errors.contactNumber ? styles.inputErrorForTeacher : ''}`}
                 disabled={loading}
                 placeholder="Enter 11-digit phone number"
               />
-              {errors.contactNumber && (
-                <div className={styles.errorMessage}>{errors.contactNumber}</div>
-              )}
+              {errors.contactNumber && <div className={styles.errorMessageForTeacher}>{errors.contactNumber}</div>}
             </div>
 
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="designation">
-                  Designation *
-                </label>
+            <div className={styles.formRowForTeacher}>
+              <div className={styles.formGroupForTeacher}>
+                <label className={styles.labelForTeacher} htmlFor="designation">Designation *</label>
                 <select
                   id="designation"
                   value={formData.designation}
                   onChange={(e) => handleChange('designation', e.target.value)}
-                  className={styles.select}
+                  className={styles.selectForTeacher}
                   disabled={loading}
                 >
                   <option value="head_teacher">Head Teacher</option>
@@ -161,15 +128,13 @@ export default function CreateTeacherModal({
                 </select>
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="assignType">
-                  Assign Type *
-                </label>
+              <div className={styles.formGroupForTeacher}>
+                <label className={styles.labelForTeacher} htmlFor="assignType">Assign Type *</label>
                 <select
                   id="assignType"
                   value={formData.assignType}
                   onChange={(e) => handleChange('assignType', e.target.value)}
-                  className={styles.select}
+                  className={styles.selectForTeacher}
                   disabled={loading}
                 >
                   <option value="monthly_basis">Monthly Basis</option>
@@ -179,16 +144,14 @@ export default function CreateTeacherModal({
               </div>
             </div>
 
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="gender">
-                  Gender *
-                </label>
+            <div className={styles.formRowForTeacher}>
+              <div className={styles.formGroupForTeacher}>
+                <label className={styles.labelForTeacher} htmlFor="gender">Gender *</label>
                 <select
                   id="gender"
                   value={formData.gender}
                   onChange={(e) => handleChange('gender', e.target.value)}
-                  className={styles.select}
+                  className={styles.selectForTeacher}
                   disabled={loading}
                 >
                   <option value="male">Male</option>
@@ -197,15 +160,13 @@ export default function CreateTeacherModal({
                 </select>
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="status">
-                  Status *
-                </label>
+              <div className={styles.formGroupForTeacher}>
+                <label className={styles.labelForTeacher} htmlFor="status">Status *</label>
                 <select
                   id="status"
                   value={formData.status}
                   onChange={(e) => handleChange('status', e.target.value)}
-                  className={styles.select}
+                  className={styles.selectForTeacher}
                   disabled={loading}
                 >
                   <option value="active">Active</option>
@@ -216,24 +177,24 @@ export default function CreateTeacherModal({
               </div>
             </div>
           </div>
-          
-          <div className={styles.modalFooter}>
+
+          <div className={styles.modalFooterForTeacher}>
             <button
               type="button"
               onClick={onClose}
-              className={styles.btnSecondary}
+              className={styles.btnSecondaryForTeacher}
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={styles.btnPrimary}
+              className={styles.btnPrimaryForTeacher}
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span className={styles.spinnerSmall}></span>
+                  <span className={styles.spinnerSmallForTeacher}></span>
                   Creating...
                 </>
               ) : (
