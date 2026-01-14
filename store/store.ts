@@ -1,11 +1,13 @@
+// src/store/store.ts
 import { configureStore } from '@reduxjs/toolkit';
-import classReducer from '../api/classApi/classSlice'
-import subjectReducer from '../api/subjectApi/subjectSlice'
-import groupReducer from '../api/groupsApi/groupSlice';
+import classReducer from '../api/classApi/classSlice';
+import teacherReducer from '../api/teacherApi/teacherSlice';
+import subjectReducer from '../api/subjectApi/subjectSlice';
+import groupReducer from '../api/groupApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
-import teacherReducer from '@/api/teacherApi/teacherSlice';
 import studentReducer from '../api/studentApi/studentSlice';
+import attendanceReducer from '../api/attendanceApi/attendanceSlice'; // ADD THIS IMPORT
 
 export const store = configureStore({
   reducer: {
@@ -15,16 +17,9 @@ export const store = configureStore({
     group: groupReducer,
     batch: batchReducer,
     admission: admissionReducer,
-     student: studentReducer,
-    // Add other reducers here
+    student: studentReducer,
+    attendance: attendanceReducer, // ADD THIS LINE
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: ['class/createClass/fulfilled', 'class/updateClass/fulfilled'],
-      },
-    }),
-  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export type RootState = ReturnType<typeof store.getState>;
