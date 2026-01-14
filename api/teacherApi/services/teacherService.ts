@@ -90,6 +90,11 @@ export interface UpdateTeacherDto extends Partial<CreateTeacherDto> {
   updatedBy?: string;
 }
 
+export interface UpdateTeacherParams {
+  id: string;
+  teacherData: UpdateTeacherDto;
+}
+
 export interface TeacherItem {
   _id: string;
   fullName: string;
@@ -181,10 +186,56 @@ export interface TeacherFilterParams {
 }
 
 export interface UpdateStatusParams {
+  id: string;
   status: TeacherStatus;
   isActive: boolean;
 }
 
 export interface ChangePasswordParams {
+  id: string;
   newPassword: string;
+}
+
+export interface BulkUpdateParams {
+  teacherIds: string[];
+  status: TeacherStatus;
+  isActive: boolean;
+}
+
+export interface TeacherQueryParams {
+  search?: string;
+  designation?: string;
+  assignType?: string;
+  status?: TeacherStatus;
+  isActive?: boolean;
+  gender?: string;
+  religion?: string;
+  bloodGroup?: string;
+  createdBy?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface TeachersResponse {
+  teachers: TeacherItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface MyStatsSummary {
+  totalTeachers: number;
+  activeTeachers: number;
+  inactiveTeachers: number;
+  verifiedEmail: number;
+  verifiedPhone: number;
+  byDesignation: Array<{ _id: Designation; count: number }>;
+  byAssignType: Array<{ _id: AssignType; count: number }>;
+  byStatus: Array<{ _id: TeacherStatus; count: number }>;
+  byGender: Array<{ _id: Gender; count: number }>;
+  byReligion: Array<{ _id: Religion; count: number }>;
+  byBloodGroup: Array<{ _id: BloodGroup; count: number }>;
 }
