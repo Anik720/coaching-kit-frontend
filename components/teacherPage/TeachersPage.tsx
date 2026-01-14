@@ -30,6 +30,7 @@ import {
 } from "@/api/teacherApi/types/teacher.types";
 import EditTeacherModal from "./EditTeacherModal";
 
+
 // Debounce hook for search optimization
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -162,21 +163,24 @@ export default function TeachersPage() {
     }
   }, [dispatch]);
 
-  const handleUpdateTeacher = useCallback(async (id: string, teacherData: UpdateTeacherDto) => {
-    setIsUpdating(true);
-    const toastId = toastManager.showLoading('Updating teacher...');
-    
-    try {
-      await dispatch(updateTeacher({ id, teacherData })).unwrap();
-      toastManager.safeUpdateToast(toastId, 'Teacher updated successfully!', 'success');
-      setEditingTeacher(null);
-      setEditFormData(null);
-    } catch (error: any) {
-      toastManager.safeUpdateToast(toastId, error.message || 'Failed to update teacher', 'error');
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [dispatch]);
+const handleUpdateTeacher = useCallback(async (id: string, teacherData: UpdateTeacherDto) => {
+  console.log('Update Teacher Called:', { id, teacherData }); // Add this
+  setIsUpdating(true);
+  const toastId = toastManager.showLoading('Updating teacher...');
+  
+  try {
+    const result = await dispatch(updateTeacher({ id, teacherData })).unwrap();
+    console.log('Update Result:', result); // Add this
+    toastManager.safeUpdateToast(toastId, 'Teacher updated successfully!', 'success');
+    setEditingTeacher(null);
+    setEditFormData(null);
+  } catch (error: any) {
+    console.error('Update Error:', error); // Add this
+    toastManager.safeUpdateToast(toastId, error.message || 'Failed to update teacher', 'error');
+  } finally {
+    setIsUpdating(false);
+  }
+}, [dispatch]);
 
   const handleStatusUpdate = useCallback(async (id: string, status: TeacherStatus, isActive: boolean) => {
     const toastId = toastManager.showLoading('Updating status...');
@@ -269,11 +273,14 @@ export default function TeachersPage() {
     setEditFormData(null);
   };
 
-  const saveEdit = () => {
-    if (editingTeacher && editFormData) {
-      handleUpdateTeacher(editingTeacher._id, editFormData);
-    }
-  };
+const saveEdit = () => {
+  console.log('Save Edit Called:', { editingTeacher, editFormData }); // Add this
+  if (editingTeacher && editFormData) {
+    handleUpdateTeacher(editingTeacher._id, editFormData);
+  } else {
+    console.error('Missing data for save:', { editingTeacher, editFormData });
+  }
+};
 
   const handleEditUpdate = (updatedTeacher: UpdateTeacherDto) => {
     setEditFormData(updatedTeacher);
