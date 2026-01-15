@@ -6,6 +6,7 @@ import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
 import teacherReducer from '@/api/teacherApi/teacherSlice';
 import studentReducer from '../api/studentApi/studentSlice';
+import examCategoryReducer from '../api/result-management/exam-category/examCategorySlice';
 
 export const store = configureStore({
   reducer: {
@@ -15,7 +16,8 @@ export const store = configureStore({
     group: groupReducer,
     batch: batchReducer,
     admission: admissionReducer,
-     student: studentReducer,
+    student: studentReducer,
+    examCategory: examCategoryReducer
     // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>
