@@ -140,8 +140,11 @@ export default function ExamModal({
           }
         ];
 
-        // If exam has marksFields, map them to our structure
-        if (exam.marksFields && Array.isArray(exam.marksFields)) {
+        // Check if showMarksTitle was enabled in existing exam
+        const showMarksTitle = exam.showMarksTitle || false;
+        
+        if (showMarksTitle && exam.marksFields && Array.isArray(exam.marksFields)) {
+          // If showMarksTitle was true, map the existing marks fields
           marksFieldsData = marksFieldsData.map(defaultField => {
             const existingField = exam.marksFields.find((f: any) => f.type === defaultField.type);
             if (existingField) {
@@ -167,7 +170,7 @@ export default function ExamModal({
           subjectId: "",
           examCategoryId: "",
           examDate: exam.examDate ? exam.examDate.split('T')[0] : new Date().toISOString().split('T')[0],
-          showMarksTitle: exam.showMarksTitle || false,
+          showMarksTitle: showMarksTitle,
           marksFields: marksFieldsData,
           totalMarks: exam.totalMarks || 0,
           enableGrading: exam.enableGrading || false,
@@ -267,16 +270,20 @@ export default function ExamModal({
     }
   }, [activeBatches, formData.classId]);
 
-  // Calculate total marks when marks fields change
+  // Calculate total marks based on showMarksTitle selection
   useEffect(() => {
-    const total = formData.marksFields.reduce((sum: number, field: any) => {
-      if (field.enabled) {
-        return sum + (field.totalMarks || 0);
-      }
-      return sum;
-    }, 0);
-    setFormData((prev: any) => ({ ...prev, totalMarks: total }));
-  }, [formData.marksFields]);
+    if (formData.showMarksTitle) {
+      // When showMarksTitle is enabled, calculate total from marks fields
+      const total = formData.marksFields.reduce((sum: number, field: any) => {
+        if (field.enabled) {
+          return sum + (field.totalMarks || 0);
+        }
+        return sum;
+      }, 0);
+      setFormData((prev: any) => ({ ...prev, totalMarks: total }));
+    }
+    // When showMarksTitle is disabled, totalMarks is manually entered by user
+  }, [formData.marksFields, formData.showMarksTitle]);
 
   // Fetch batches when class changes
   const fetchBatchesForClass = async (classId: string) => {
@@ -345,6 +352,24 @@ export default function ExamModal({
         if (!value) return "Exam date is required";
         break;
       
+      case "totalMarks":
+        // Validation depends on whether showMarksTitle is enabled
+        if (formData.showMarksTitle) {
+          // When showMarksTitle is enabled, validate that at least one marks field is enabled
+          const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
+          if (!hasEnabledMarks) {
+            return "At least one marks field must be enabled when 'Show Marks Title' is selected";
+          }
+          if (value <= 0) {
+            return "Total marks must be greater than 0";
+          }
+        } else {
+          // When showMarksTitle is disabled, validate manual total marks input
+          if (!value && value !== 0) return "Total marks is required";
+          if (value <= 0) return "Total marks must be greater than 0";
+        }
+        break;
+      
       case "totalPassMarks":
         if (formData.enableGrading) {
           if (value === undefined || value === null || value === "") {
@@ -354,23 +379,16 @@ export default function ExamModal({
           if (value > formData.totalMarks) return "Pass marks cannot exceed total marks";
         }
         break;
-      
-      case "totalMarks":
-        // Total marks validation depends on whether marks fields are enabled
-        const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
-        if (hasEnabledMarks && value <= 0) {
-          return "Total marks must be greater than 0 when marks fields are enabled";
-        }
-        break;
     }
 
-    // Validate marks fields
-    if (field.startsWith('marksFields')) {
+    // Validate marks fields only when showMarksTitle is enabled
+    if (formData.showMarksTitle && field.startsWith('marksFields')) {
       const fieldIndex = parseInt(field.split('.')[1]);
       const subField = field.split('.')[2];
       const marksField = formData.marksFields[fieldIndex];
       
       if (subField === 'totalMarks' && marksField.enabled) {
+        if (!value && value !== 0) return "Marks are required";
         if (value < 0) return "Marks cannot be negative";
         if (value === 0) return "Marks must be greater than 0";
       }
@@ -388,7 +406,7 @@ export default function ExamModal({
 
   // Validate form
   const validateForm = (): boolean => {
-    const requiredFields = ["examName", "classId", "subjectId", "examCategoryId", "batchIds", "examDate"];
+    const requiredFields = ["examName", "classId", "subjectId", "examCategoryId", "batchIds", "examDate", "totalMarks"];
     const newErrors: Record<string, string> = {};
     
     requiredFields.forEach(field => {
@@ -396,31 +414,31 @@ export default function ExamModal({
       if (error) newErrors[field] = error;
     });
 
-    // Validate total marks only if marks fields are enabled
-    const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
-    if (hasEnabledMarks) {
-      if (formData.totalMarks <= 0) {
-        newErrors.totalMarks = "Total marks must be greater than 0";
+    // Validate marks fields only when showMarksTitle is enabled
+    if (formData.showMarksTitle) {
+      formData.marksFields.forEach((field: any, index: number) => {
+        if (field.enabled) {
+          const totalMarksError = validateField(`marksFields.${index}.totalMarks`, field.totalMarks);
+          if (totalMarksError) newErrors[`marksFields.${index}.totalMarks`] = totalMarksError;
+
+          if (field.enablePassMarks) {
+            const passMarksError = validateField(`marksFields.${index}.passMarks`, field.passMarks);
+            if (passMarksError) newErrors[`marksFields.${index}.passMarks`] = passMarksError;
+          }
+
+          if (field.enableNegativeMarking) {
+            const negativeMarksError = validateField(`marksFields.${index}.negativeMarks`, field.negativeMarks);
+            if (negativeMarksError) newErrors[`marksFields.${index}.negativeMarks`] = negativeMarksError;
+          }
+        }
+      });
+
+      // Validate that at least one marks field is enabled when showMarksTitle is true
+      const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
+      if (!hasEnabledMarks) {
+        newErrors.totalMarks = "At least one marks field must be enabled when 'Show Marks Title' is selected";
       }
     }
-
-    // Validate marks fields only if enabled
-    formData.marksFields.forEach((field: any, index: number) => {
-      if (field.enabled) {
-        const totalMarksError = validateField(`marksFields.${index}.totalMarks`, field.totalMarks);
-        if (totalMarksError) newErrors[`marksFields.${index}.totalMarks`] = totalMarksError;
-
-        if (field.enablePassMarks) {
-          const passMarksError = validateField(`marksFields.${index}.passMarks`, field.passMarks);
-          if (passMarksError) newErrors[`marksFields.${index}.passMarks`] = passMarksError;
-        }
-
-        if (field.enableNegativeMarking) {
-          const negativeMarksError = validateField(`marksFields.${index}.negativeMarks`, field.negativeMarks);
-          if (negativeMarksError) newErrors[`marksFields.${index}.negativeMarks`] = negativeMarksError;
-        }
-      }
-    });
 
     // Validate total pass marks only if grading is enabled
     if (formData.enableGrading) {
@@ -444,16 +462,46 @@ export default function ExamModal({
     }
   };
 
+  // Handle showMarksTitle change - reset marks fields when disabled
+  const handleShowMarksTitleChange = (value: boolean) => {
+    if (!value) {
+      // When disabling showMarksTitle, reset all marks fields
+      const resetMarksFields = formData.marksFields.map((field: any) => ({
+        ...field,
+        enabled: false,
+        totalMarks: 0,
+        enablePassMarks: false,
+        passMarks: 0,
+        enableNegativeMarking: false,
+        negativeMarks: 0
+      }));
+      
+      setFormData((prev: any) => ({ 
+        ...prev, 
+        showMarksTitle: value,
+        marksFields: resetMarksFields,
+        // Keep current totalMarks value for manual input
+      }));
+    } else {
+      // When enabling showMarksTitle, keep marks fields as is but set totalMarks to 0 initially
+      setFormData((prev: any) => ({ 
+        ...prev, 
+        showMarksTitle: value,
+        totalMarks: 0
+      }));
+    }
+  };
+
   // Handle marks field toggle (enable/disable)
   const handleMarksFieldToggle = (index: number, isEnabled: boolean) => {
     const updatedFields = [...formData.marksFields];
     
     if (isEnabled) {
-      // When enabling, set default values like in the image
+      // When enabling, set default values
       updatedFields[index] = { 
         ...updatedFields[index], 
         enabled: true,
-        totalMarks: 0, // Start with 0 like in the image
+        totalMarks: 0, // Start with 0
         enablePassMarks: false,
         passMarks: 0,
         enableNegativeMarking: false,
@@ -521,22 +569,32 @@ export default function ExamModal({
       const selectedCategory = examCategories.find(cat => cat._id === formData.examCategoryId);
       const selectedBatches = localBatches.filter(batch => formData.batchIds.includes(batch._id));
 
-      // Prepare marks fields data - only include enabled ones
-      const filteredMarksFields = formData.marksFields
-        .filter((field: any) => field.enabled && field.totalMarks > 0)
-        .map((field: any) => ({
-          type: field.type,
-          totalMarks: field.totalMarks || 0,
-          enablePassMarks: field.enablePassMarks || false,
-          passMarks: field.enablePassMarks ? (field.passMarks || 0) : undefined,
-          enableNegativeMarking: field.enableNegativeMarking || false,
-          negativeMarks: field.enableNegativeMarking ? (field.negativeMarks || 0) : undefined
-        }));
+      // Prepare marks fields data - only include enabled ones when showMarksTitle is true
+      let filteredMarksFields = [];
+      if (formData.showMarksTitle) {
+        filteredMarksFields = formData.marksFields
+          .filter((field: any) => field.enabled && field.totalMarks > 0)
+          .map((field: any) => ({
+            type: field.type,
+            totalMarks: field.totalMarks || 0,
+            enablePassMarks: field.enablePassMarks || false,
+            passMarks: field.enablePassMarks ? (field.passMarks || 0) : undefined,
+            enableNegativeMarking: field.enableNegativeMarking || false,
+            negativeMarks: field.enableNegativeMarking ? (field.negativeMarks || 0) : undefined
+          }));
+      }
 
-      // Calculate total marks from enabled fields
-      const calculatedTotalMarks = filteredMarksFields.reduce((sum: number, field: any) => {
-        return sum + (field.totalMarks || 0);
-      }, 0);
+      // Calculate total marks
+      let calculatedTotalMarks = 0;
+      if (formData.showMarksTitle) {
+        // Sum from enabled marks fields
+        calculatedTotalMarks = filteredMarksFields.reduce((sum: number, field: any) => {
+          return sum + (field.totalMarks || 0);
+        }, 0);
+      } else {
+        // Use manually entered total marks
+        calculatedTotalMarks = formData.totalMarks || 0;
+      }
 
       // Prepare submission data - MUST match backend DTO format
       const submitData: any = {
@@ -557,8 +615,8 @@ export default function ExamModal({
         submitData.topicName = formData.topicName.trim();
       }
 
-      // Add marks fields if any are enabled - THIS IS OPTIONAL
-      if (filteredMarksFields.length > 0) {
+      // Add marks fields only when showMarksTitle is enabled
+      if (formData.showMarksTitle && filteredMarksFields.length > 0) {
         submitData.marksFields = filteredMarksFields;
       }
 
@@ -822,14 +880,14 @@ export default function ExamModal({
                 {/* Divider */}
                 <hr className={styles.divider} />
 
-                {/* Show Marks Title Checkbox - OPTIONAL */}
+                {/* Show Marks Title Checkbox - Controls which section shows below */}
                 <div className={styles.section}>
                   <div className={styles.checkboxField}>
                     <input
                       type="checkbox"
                       id="showMarksTitle"
                       checked={formData.showMarksTitle}
-                      onChange={(e) => handleInputChange("showMarksTitle", e.target.checked)}
+                      onChange={(e) => handleShowMarksTitleChange(e.target.checked)}
                       disabled={loading}
                       className={styles.checkbox}
                     />
@@ -837,7 +895,7 @@ export default function ExamModal({
                       Show Marks Title (MCQ, CQ, Written) in Result PDF
                     </label>
                     <div className={styles.checkboxHelpText}>
-                      If unchecked, only total marks will be shown in result report.
+                      If checked, you can configure individual marks fields (MCQ, CQ, Written). If unchecked, only total marks will be shown.
                     </div>
                   </div>
                 </div>
@@ -845,173 +903,212 @@ export default function ExamModal({
                 {/* Divider */}
                 <hr className={styles.divider} />
 
-                {/* Select Marks Fields Section - COMPLETELY OPTIONAL */}
-                <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Select Marks Fields (Optional)</h3>
-                  <div className={styles.optionalNote}>
-                    You can enable marks fields if you want to track different types of marks. 
-                    If no marks fields are enabled, only the total marks will be recorded.
-                  </div>
-                  
-                  {formData.marksFields.map((field: any, index: number) => {
-                    const fieldType = MARKS_FIELD_TYPES[index];
+                {/* Conditionally render either Marks Fields section OR Total Marks input */}
+                {formData.showMarksTitle ? (
+                  /* Select Marks Fields Section - Shows when "Show Marks Title" is checked */
+                  <div className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Select Marks Fields</h3>
+                    <div className={styles.optionalNote}>
+                      Configure individual marks fields for MCQ, CQ, and Written sections.
+                    </div>
                     
-                    return (
-                      <div key={fieldType.id} className={styles.marksFieldSection}>
-                        <div className={styles.marksFieldHeader}>
-                          <h4 className={styles.marksFieldTitle}>{fieldType.label}</h4>
-                          <div className={styles.marksFieldToggle}>
-                            <input
-                              type="checkbox"
-                              id={`enable-${fieldType.id}`}
-                              checked={field.enabled}
-                              onChange={(e) => handleMarksFieldToggle(index, e.target.checked)}
-                              disabled={loading}
-                              className={styles.toggleSwitch}
-                            />
-                            <label 
-                              htmlFor={`enable-${fieldType.id}`} 
-                              className={`${styles.toggleLabel} ${field.enabled ? styles.toggleLabelActive : ''}`}
-                            >
-                              {field.enabled ? 'Enabled' : 'Disabled'}
-                            </label>
+                    {formData.marksFields.map((field: any, index: number) => {
+                      const fieldType = MARKS_FIELD_TYPES[index];
+                      
+                      return (
+                        <div key={fieldType.id} className={styles.marksFieldSection}>
+                          <div className={styles.marksFieldHeader}>
+                            <h4 className={styles.marksFieldTitle}>{fieldType.label}</h4>
+                            <div className={styles.marksFieldToggle}>
+                              <input
+                                type="checkbox"
+                                id={`enable-${fieldType.id}`}
+                                checked={field.enabled}
+                                onChange={(e) => handleMarksFieldToggle(index, e.target.checked)}
+                                disabled={loading}
+                                className={styles.toggleSwitch}
+                              />
+                              <label 
+                                htmlFor={`enable-${fieldType.id}`} 
+                                className={`${styles.toggleLabel} ${field.enabled ? styles.toggleLabelActive : ''}`}
+                              >
+                                {field.enabled ? 'Enabled' : 'Disabled'}
+                              </label>
+                            </div>
+                          </div>
+
+                          {field.enabled && (
+                            <div className={styles.marksFieldContent}>
+                              {/* Total Marks - Required if field is enabled */}
+                              <div className={styles.formRow}>
+                                <label className={styles.label}>
+                                  {fieldType.label} <span className={styles.required}>*</span>
+                                </label>
+                                <div className={styles.inputContainer}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={field.totalMarks}
+                                    onChange={(e) => handleMarksFieldChange(index, 'totalMarks', parseInt(e.target.value) || 0)}
+                                    onBlur={() => handleBlur(`marksFields.${index}.totalMarks`)}
+                                    className={`${styles.input} ${
+                                      errors[`marksFields.${index}.totalMarks`] ? styles.inputError : ""
+                                    }`}
+                                    disabled={loading}
+                                  />
+                                  {errors[`marksFields.${index}.totalMarks`] && (
+                                    <div className={styles.errorMessage}>
+                                      {errors[`marksFields.${index}.totalMarks`]}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Enable Pass Marks Checkbox - Optional */}
+                              <div className={styles.checkboxField}>
+                                <input
+                                  type="checkbox"
+                                  id={`pass-${fieldType.id}`}
+                                  checked={field.enablePassMarks}
+                                  onChange={(e) => handleMarksFieldChange(index, 'enablePassMarks', e.target.checked)}
+                                  disabled={loading}
+                                  className={styles.checkbox}
+                                />
+                                <label htmlFor={`pass-${fieldType.id}`} className={styles.checkboxLabel}>
+                                  Enable Pass Marks? (Optional)
+                                </label>
+                              </div>
+
+                              {field.enablePassMarks && (
+                                <div className={styles.formRow}>
+                                  <label className={styles.label}>
+                                    Pass Marks
+                                  </label>
+                                  <div className={styles.inputContainer}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={field.totalMarks}
+                                      value={field.passMarks}
+                                      onChange={(e) => handleMarksFieldChange(index, 'passMarks', parseInt(e.target.value) || 0)}
+                                      onBlur={() => handleBlur(`marksFields.${index}.passMarks`)}
+                                      className={`${styles.input} ${
+                                        errors[`marksFields.${index}.passMarks`] ? styles.inputError : ""
+                                      }`}
+                                      disabled={loading}
+                                    />
+                                    {errors[`marksFields.${index}.passMarks`] && (
+                                      <div className={styles.errorMessage}>
+                                        {errors[`marksFields.${index}.passMarks`]}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Enable Negative Marking Checkbox - Optional */}
+                              <div className={styles.checkboxField}>
+                                <input
+                                  type="checkbox"
+                                  id={`neg-${fieldType.id}`}
+                                  checked={field.enableNegativeMarking}
+                                  onChange={(e) => handleMarksFieldChange(index, 'enableNegativeMarking', e.target.checked)}
+                                  disabled={loading}
+                                  className={styles.checkbox}
+                                />
+                                <label htmlFor={`neg-${fieldType.id}`} className={styles.checkboxLabel}>
+                                  Enable Negative Marking? (Optional)
+                                </label>
+                              </div>
+
+                              {field.enableNegativeMarking && (
+                                <div className={styles.formRow}>
+                                  <label className={styles.label}>
+                                    Negative Marks per Wrong Answer
+                                  </label>
+                                  <div className={styles.inputContainer}>
+                                    <input
+                                      type="number"
+                                      step="0.25"
+                                      min="0"
+                                      value={field.negativeMarks}
+                                      onChange={(e) => handleMarksFieldChange(index, 'negativeMarks', parseFloat(e.target.value) || 0)}
+                                      onBlur={() => handleBlur(`marksFields.${index}.negativeMarks`)}
+                                      className={`${styles.input} ${
+                                        errors[`marksFields.${index}.negativeMarks`] ? styles.inputError : ""
+                                      }`}
+                                      disabled={loading}
+                                    />
+                                    {errors[`marksFields.${index}.negativeMarks`] && (
+                                      <div className={styles.errorMessage}>
+                                        {errors[`marksFields.${index}.negativeMarks`]}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Total Marks Display (Read-only, calculated from marks fields) */}
+                    <div className={styles.totalMarksSection}>
+                      <div className={styles.formRow}>
+                        <label className={styles.label}>
+                          Total Marks <span className={styles.required}>*</span>
+                        </label>
+                        <div className={styles.inputContainer}>
+                          <input
+                            type="number"
+                            value={formData.totalMarks}
+                            readOnly
+                            className={`${styles.input} ${styles.readonlyInput} ${
+                              errors.totalMarks ? styles.inputError : ""
+                            }`}
+                          />
+                          {errors.totalMarks && (
+                            <div className={styles.errorMessage}>{errors.totalMarks}</div>
+                          )}
+                          <div className={styles.infoText}>
+                            Calculated from enabled marks fields above.
                           </div>
                         </div>
-
-                        {field.enabled && (
-                          <div className={styles.marksFieldContent}>
-                            {/* Total Marks - Required if field is enabled */}
-                            <div className={styles.formRow}>
-                              <label className={styles.label}>
-                                {fieldType.label} <span className={styles.required}>*</span>
-                              </label>
-                              <div className={styles.inputContainer}>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={field.totalMarks}
-                                  onChange={(e) => handleMarksFieldChange(index, 'totalMarks', parseInt(e.target.value) || 0)}
-                                  onBlur={() => handleBlur(`marksFields.${index}.totalMarks`)}
-                                  className={`${styles.input} ${
-                                    errors[`marksFields.${index}.totalMarks`] ? styles.inputError : ""
-                                  }`}
-                                  disabled={loading}
-                                />
-                                {errors[`marksFields.${index}.totalMarks`] && (
-                                  <div className={styles.errorMessage}>
-                                    {errors[`marksFields.${index}.totalMarks`]}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Enable Pass Marks Checkbox - Optional */}
-                            <div className={styles.checkboxField}>
-                              <input
-                                type="checkbox"
-                                id={`pass-${fieldType.id}`}
-                                checked={field.enablePassMarks}
-                                onChange={(e) => handleMarksFieldChange(index, 'enablePassMarks', e.target.checked)}
-                                disabled={loading}
-                                className={styles.checkbox}
-                              />
-                              <label htmlFor={`pass-${fieldType.id}`} className={styles.checkboxLabel}>
-                                Enable Pass Marks? (Optional)
-                              </label>
-                            </div>
-
-                            {field.enablePassMarks && (
-                              <div className={styles.formRow}>
-                                <label className={styles.label}>
-                                  Pass Marks
-                                </label>
-                                <div className={styles.inputContainer}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={field.totalMarks}
-                                    value={field.passMarks}
-                                    onChange={(e) => handleMarksFieldChange(index, 'passMarks', parseInt(e.target.value) || 0)}
-                                    onBlur={() => handleBlur(`marksFields.${index}.passMarks`)}
-                                    className={`${styles.input} ${
-                                      errors[`marksFields.${index}.passMarks`] ? styles.inputError : ""
-                                    }`}
-                                    disabled={loading}
-                                  />
-                                  {errors[`marksFields.${index}.passMarks`] && (
-                                    <div className={styles.errorMessage}>
-                                      {errors[`marksFields.${index}.passMarks`]}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Enable Negative Marking Checkbox - Optional */}
-                            <div className={styles.checkboxField}>
-                              <input
-                                type="checkbox"
-                                id={`neg-${fieldType.id}`}
-                                checked={field.enableNegativeMarking}
-                                onChange={(e) => handleMarksFieldChange(index, 'enableNegativeMarking', e.target.checked)}
-                                disabled={loading}
-                                className={styles.checkbox}
-                              />
-                              <label htmlFor={`neg-${fieldType.id}`} className={styles.checkboxLabel}>
-                                Enable Negative Marking? (Optional)
-                              </label>
-                            </div>
-
-                            {field.enableNegativeMarking && (
-                              <div className={styles.formRow}>
-                                <label className={styles.label}>
-                                  Negative Marks per Wrong Answer
-                                </label>
-                                <div className={styles.inputContainer}>
-                                  <input
-                                    type="number"
-                                    step="0.25"
-                                    min="0"
-                                    value={field.negativeMarks}
-                                    onChange={(e) => handleMarksFieldChange(index, 'negativeMarks', parseFloat(e.target.value) || 0)}
-                                    onBlur={() => handleBlur(`marksFields.${index}.negativeMarks`)}
-                                    className={`${styles.input} ${
-                                      errors[`marksFields.${index}.negativeMarks`] ? styles.inputError : ""
-                                    }`}
-                                    disabled={loading}
-                                  />
-                                  {errors[`marksFields.${index}.negativeMarks`] && (
-                                    <div className={styles.errorMessage}>
-                                      {errors[`marksFields.${index}.negativeMarks`]}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
-
-                  {/* Total Marks Display */}
-                  <div className={styles.totalMarksSection}>
+                    </div>
+                  </div>
+                ) : (
+                  /* Total Marks Input - Shows when "Show Marks Title" is NOT checked */
+                  <div className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Total Marks</h3>
                     <div className={styles.formRow}>
-                      <label className={styles.label}>Total Marks</label>
+                      <label className={styles.label}>
+                        Total Marks <span className={styles.required}>*</span>
+                      </label>
                       <div className={styles.inputContainer}>
                         <input
                           type="number"
+                          min="1"
                           value={formData.totalMarks}
-                          readOnly
-                          className={`${styles.input} ${styles.readonlyInput}`}
+                          onChange={(e) => handleInputChange("totalMarks", parseInt(e.target.value) || 0)}
+                          onBlur={() => handleBlur("totalMarks")}
+                          className={`${styles.input} ${
+                            errors.totalMarks ? styles.inputError : ""
+                          }`}
+                          disabled={loading}
+                          placeholder="Enter total marks for the exam"
                         />
                         {errors.totalMarks && (
                           <div className={styles.errorMessage}>{errors.totalMarks}</div>
                         )}
+                        <div className={styles.infoText}>
+                          Enter the total marks for this exam. This will be the only marks shown in the result PDF.
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Divider */}
                 <hr className={styles.divider} />
