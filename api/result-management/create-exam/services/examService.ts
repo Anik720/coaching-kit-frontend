@@ -13,10 +13,10 @@ class ExamService {
 
     if (params?.search) query.append('search', params.search);
     if (params?.isActive !== undefined) query.append('isActive', String(params.isActive));
-    if (params?.classId) query.append('classId', params.classId);
-    if (params?.subjectId) query.append('subjectId', params.subjectId);
-    if (params?.examCategoryId) query.append('examCategoryId', params.examCategoryId);
-    if (params?.batchId) query.append('batchId', params.batchId);
+    if (params?.className) query.append('className', params.className);
+    if (params?.subjectName) query.append('subjectName', params.subjectName);
+    if (params?.examCategory) query.append('examCategory', params.examCategory);
+    if (params?.batchName) query.append('batchName', params.batchName);
     if (params?.fromDate) query.append('fromDate', params.fromDate);
     if (params?.toDate) query.append('toDate', params.toDate);
     if (params?.page) query.append('page', String(params.page));
@@ -55,24 +55,15 @@ class ExamService {
 
   // ==================== DROPDOWN DATA METHODS ====================
 
-async getClasses(): Promise<any[]> {
+  async getClasses(): Promise<any[]> {
     try {
       console.log('🟡 [ExamService] Fetching classes...');
       const response = await api.get<any>('/academic/class');
       console.log('🟢 [ExamService] Classes API response:', response);
       
-      // Debug: Check the full response structure
-      console.log('🔍 [ExamService] Response data structure:', {
-        hasData: !!response.data,
-        hasDataData: !!(response.data && response.data.data),
-        isDataArray: Array.isArray(response.data),
-        isDataDataArray: Array.isArray(response.data?.data),
-        responseKeys: Object.keys(response.data || {}),
-      });
-      
+      // Handle different response formats
       let classesData: any[] = [];
       
-      // Check different possible response formats
       if (response.data) {
         // Format 1: { data: [], total, page, limit, totalPages }
         if (response.data.data && Array.isArray(response.data.data)) {
@@ -86,7 +77,6 @@ async getClasses(): Promise<any[]> {
         }
         // Format 3: Maybe it's just the data property itself
         else if (typeof response.data === 'object') {
-          console.log('📦 [ExamService] Checking if response.data is an object');
           // Check if it has the structure we expect
           if (response.data.classname) {
             // Single class object
@@ -101,7 +91,7 @@ async getClasses(): Promise<any[]> {
       const mappedClasses = classesData.map((cls: any) => ({
         _id: cls._id,
         classname: cls.classname,
-        name: cls.classname, // Add name for consistency
+        name: cls.classname || cls.name,
         description: cls.description,
         isActive: cls.isActive,
       }));
@@ -118,7 +108,6 @@ async getClasses(): Promise<any[]> {
       return [];
     }
   }
-
 
   async getBatchesByClass(classId: string): Promise<any[]> {
     try {
@@ -160,7 +149,7 @@ async getClasses(): Promise<any[]> {
         return response.data.data.map((subject: any) => ({
           _id: subject._id,
           subjectName: subject.subjectName,
-          name: subject.subjectName, // Add name for consistency
+          name: subject.subjectName,
           description: subject.description,
           isActive: subject.isActive,
         }));
@@ -174,20 +163,11 @@ async getClasses(): Promise<any[]> {
     }
   }
 
-async getExamCategories(): Promise<any[]> {
+  async getExamCategories(): Promise<any[]> {
     try {
       console.log('🟡 [ExamService] Fetching exam categories...');
       const response = await api.get<any>('/academic/exam-category');
       console.log('🟢 [ExamService] Exam categories API response:', response);
-      
-      // Debug: Check the full response structure
-      console.log('🔍 [ExamService] Exam categories response structure:', {
-        hasData: !!response.data,
-        hasDataData: !!(response.data && response.data.data),
-        isDataArray: Array.isArray(response.data),
-        isDataDataArray: Array.isArray(response.data?.data),
-        responseKeys: Object.keys(response.data || {}),
-      });
       
       let categoriesData: any[] = [];
       
@@ -209,7 +189,7 @@ async getExamCategories(): Promise<any[]> {
       const mappedCategories = categoriesData.map((category: any) => ({
         _id: category._id,
         categoryName: category.categoryName,
-        name: category.categoryName, // Add name for consistency
+        name: category.categoryName,
         description: category.description,
         isActive: category.isActive,
       }));
@@ -226,7 +206,6 @@ async getExamCategories(): Promise<any[]> {
       return [];
     }
   }
-
 
   async getActiveBatches(): Promise<any[]> {
     try {
@@ -283,6 +262,29 @@ async getExamCategories(): Promise<any[]> {
       }));
     } catch (error: any) {
       console.error('Failed to fetch all batches:', error.response?.data?.message || error.message);
+      return [];
+    }
+  }
+
+  // Get suggestions for dropdowns (for autocomplete)
+  async getClassSuggestions(): Promise<string[]> {
+    try {
+      const response = await api.get<ExamsPaginatedResponse>('/academic/exam?limit=100');
+      const classes = [...new Set(response.data.data.map(exam => exam.className).filter(Boolean))];
+      return classes.sort();
+    } catch (error) {
+      console.error('Failed to fetch class suggestions:', error);
+      return [];
+    }
+  }
+
+  async getBatchSuggestions(): Promise<string[]> {
+    try {
+      const response = await api.get<ExamsPaginatedResponse>('/academic/exam?limit=100');
+      const batches = [...new Set(response.data.data.map(exam => exam.batchName).filter(Boolean))];
+      return batches.sort();
+    } catch (error) {
+      console.error('Failed to fetch batch suggestions:', error);
       return [];
     }
   }

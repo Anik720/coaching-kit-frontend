@@ -18,6 +18,7 @@ import {
   fetchSubjects,
   toggleExamActive,
   updateExam,
+  fetchBatchesByClass,
 } from "@/api/result-management/create-exam/examSlice";
 import { useExam } from "@/hooks/result-management/useExam";
 import { CreateExamDto, Exam } from "@/api/result-management/create-exam/types/exam.types";
@@ -52,6 +53,8 @@ export default function ExamPage() {
     subjects,
     examCategories,
     activeBatches,
+    classSuggestions,
+    batchSuggestions,
     dispatch,
   } = useExam();
 
@@ -66,10 +69,7 @@ export default function ExamPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  console.log("classes",classes)
 
-  console.log("subjecyt", subjects)
-  console.log("examCategories",examCategories)
   // Fetch dropdown data on mount
   useEffect(() => {
     const loadDropdownData = async () => {
@@ -223,7 +223,7 @@ export default function ExamPage() {
     }
   }, []);
 
-  // Stats (using real exam data)
+  // Stats
   const stats = useMemo(() => {
     const totalExams = total;
     const activeExams = exams.filter((e) => e.isActive).length;
@@ -257,7 +257,19 @@ export default function ExamPage() {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Calculate marks summary
+  const getMarksSummary = (exam: Exam) => {
+    const mcqField = exam.marksFields?.find(f => f.type === 'mcq');
+    const cqField = exam.marksFields?.find(f => f.type === 'cq');
+    const writtenField = exam.marksFields?.find(f => f.type === 'written');
+    
+    const parts = [];
+    if (mcqField?.totalMarks) parts.push(`MCQ: ${mcqField.totalMarks}`);
+    if (cqField?.totalMarks) parts.push(`CQ: ${cqField.totalMarks}`);
+    if (writtenField?.totalMarks) parts.push(`Written: ${writtenField.totalMarks}`);
+    
+    return parts.length > 0 ? parts.join(', ') : `Total: ${exam.totalMarks}`;
+  };
 
   return (
     <div className={styles.pageContainer}>
@@ -394,11 +406,12 @@ export default function ExamPage() {
                     <th>Exam Name</th>
                     <th>Topic</th>
                     <th>Class</th>
+                    <th>Batch</th>
                     <th>Subject</th>
                     <th>Category</th>
                     <th>Date</th>
-                    <th>Total Marks</th>
-                    <th>Batches</th>
+                    <th>Marks</th>
+                    <th>Grading</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -409,35 +422,28 @@ export default function ExamPage() {
                       <td>
                         <span className={styles.examName}>{exam.examName}</span>
                       </td>
-                      <td>
-                        {exam.topicName || "—"}
-                      </td>
-                      <td>{exam.class?.classname || "—"}</td>
-                      <td>{exam.subject?.subjectName || "—"}</td>
-                      <td>{exam.examCategory?.categoryName || "—"}</td>
+                      <td>{exam.topicName || "—"}</td>
+                      <td>{exam.className || "—"}</td>
+                      <td>{exam.batchName || "—"}</td>
+                      <td>{exam.subjectName || "—"}</td>
+                      <td>{exam.examCategory || "—"}</td>
                       <td>
                         {formatDate(exam.examDate)}
                       </td>
-                      <td>{exam.totalMarks}</td>
                       <td>
-                        <div className={styles.batchesCell}>
-                          {exam.batches && exam.batches.length > 0 ? (
-                            <>
-                              {exam.batches.slice(0, 2).map((batch, index) => (
-                                <span key={index} className={styles.batchTag}>
-                                  {batch.batchName || batch.name}
-                                </span>
-                              ))}
-                              {exam.batches.length > 2 && (
-                                <span className={styles.moreBatches}>
-                                  +{exam.batches.length - 2} more
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </div>
+                        <span className={styles.marksSummary}>
+                          {getMarksSummary(exam)}
+                        </span>
+                      </td>
+                      <td>
+                        {exam.enableGrading ? (
+                          <span className={styles.gradingBadge}>
+                            {exam.showPercentageInResult ? '%' : ''}
+                            {exam.showGPAInResult ? 'GPA' : ''}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td>
                         <span

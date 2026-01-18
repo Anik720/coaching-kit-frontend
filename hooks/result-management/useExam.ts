@@ -7,7 +7,6 @@ export const useExam = () => {
 
   const examState = useSelector((state: RootState) => state.exam);
 
-  // Destructure with type safety
   const {
     exams,
     currentExam,
@@ -21,11 +20,13 @@ export const useExam = () => {
     page,
     limit,
     totalPages,
-    classes = [],
-    batches = [],
-    subjects = [],
-    examCategories = [],
-    activeBatches = [],
+    classes,
+    batches,
+    subjects,
+    examCategories,
+    activeBatches,
+    classSuggestions,
+    batchSuggestions,
   } = examState;
 
   return {
@@ -46,6 +47,8 @@ export const useExam = () => {
     subjects,
     examCategories,
     activeBatches,
+    classSuggestions,
+    batchSuggestions,
     dispatch,
   };
 };

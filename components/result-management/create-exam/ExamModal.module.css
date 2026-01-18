@@ -1,5 +1,4 @@
 /* components/result-management/ExamModal.module.css */
-
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -12,59 +11,53 @@
   align-items: center;
   z-index: 1000;
   padding: 20px;
-  overflow: hidden;
 }
 
 .modalContainer {
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  overflow: hidden;
 }
 
 .modal {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  max-height: 100%;
+  max-height: 90vh;
 }
 
 .modalHeader {
-  padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .modalTitle {
-  margin: 0;
-  font-size: 1.5rem;
+  font-size: 24px;
   font-weight: 600;
-  color: #111827;
+  margin: 0;
 }
 
 .modalClose {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 24px;
   cursor: pointer;
-  color: #6b7280;
-  padding: 4px;
-  line-height: 1;
-  border-radius: 4px;
-  transition: all 0.15s ease;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
 }
 
 .modalClose:hover {
-  color: #374151;
-  background-color: #f3f4f6;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .modalClose:disabled {
@@ -72,11 +65,29 @@
   cursor: not-allowed;
 }
 
-.modalContent {
+.modalLoading {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+}
+
+.spinnerLarge {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.modalContent {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .form {
@@ -86,237 +97,242 @@
 }
 
 .modalBody {
-  padding: 24px;
-  overflow-y: auto;
+  padding: 32px;
   flex: 1;
-  max-height: calc(90vh - 140px); /* Account for header and footer */
-}
-
-.modalFooter {
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
+  overflow-y: auto;
 }
 
 .section {
-  margin-bottom: 24px;
-}
-
-.section:last-child {
-  margin-bottom: 0;
+  margin-bottom: 32px;
 }
 
 .sectionTitle {
-  font-size: 1.125rem;
+  font-size: 18px;
   font-weight: 600;
-  color: #111827;
-  margin: 0 0 16px 0;
-}
-
-.divider {
-  border: none;
-  height: 1px;
-  background-color: #e5e7eb;
-  margin: 24px 0;
+  color: #374151;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
 }
 
-.formField {
-  margin-bottom: 16px;
-}
-
-.formField:last-child {
-  margin-bottom: 0;
+.formRow {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 
 .label {
-  display: block;
-  font-size: 0.875rem;
+  flex: 0 0 150px;
   font-weight: 500;
-  color: #374151;
-  margin-bottom: 6px;
+  color: #4b5563;
+  padding-top: 8px;
+  font-size: 14px;
 }
 
-.required {
-  color: #dc2626;
+.required::after {
+  content: "*";
+  color: #ef4444;
+  margin-left: 4px;
+}
+
+.inputContainer {
+  flex: 1;
 }
 
 .input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.875rem;
-  color: #111827;
-  background-color: white;
-  transition: border-color 0.15s ease;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input:disabled {
+  background-color: #f9fafb;
+  cursor: not-allowed;
 }
 
 .inputError {
-  border-color: #dc2626;
+  border-color: #ef4444;
 }
 
 .inputError:focus {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.smallInput {
+  max-width: 150px;
+}
+
+.readonlyInput {
+  background-color: #f9fafb;
+  cursor: not-allowed;
 }
 
 .errorMessage {
-  font-size: 0.75rem;
-  color: #dc2626;
+  color: #ef4444;
+  font-size: 12px;
   margin-top: 4px;
 }
 
-.batchesContainer {
-  background-color: #f9fafb;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 16px;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.checkboxGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.checkboxOption {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 32px 0;
 }
 
 .checkboxField {
+  margin-bottom: 20px;
+}
+
+.checkboxRow {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .checkbox {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
   cursor: pointer;
-  margin: 0;
-  transition: all 0.15s ease;
-}
-
-.checkbox:checked {
-  background-color: #3b82f6;
-  border-color: #3b82f6;
-}
-
-.checkbox:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .checkboxLabel {
-  font-size: 0.875rem;
-  color: #374151;
+  font-weight: 500;
+  color: #4b5563;
   cursor: pointer;
-  user-select: none;
-}
-
-.checkboxLabel:has(+ .checkbox:disabled) {
-  opacity: 0.5;
-  cursor: not-allowed;
+  font-size: 14px;
 }
 
 .checkboxHelpText {
-  font-size: 0.75rem;
   color: #6b7280;
-  margin-top: 2px;
+  font-size: 13px;
+  margin-top: 4px;
+  margin-left: 28px;
 }
 
-.radioGroup {
+.marksFieldSection {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.marksFieldHeader {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-.radioOption {
+.marksFieldTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.marksFieldToggle {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
-.radio {
+.toggleCheckbox {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  appearance: none;
+  background-color: #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 8px;
+}
+
+.toggleCheckbox:checked {
+  background-color: #10b981;
+}
+
+.toggleCheckbox::before {
+  content: '';
+  position: absolute;
   width: 16px;
   height: 16px;
-  cursor: pointer;
-  margin: 0;
-  transition: all 0.15s ease;
+  background-color: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
 }
 
-.radio:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.toggleCheckbox:checked::before {
+  transform: translateX(20px);
 }
 
-.radioLabel {
-  font-size: 0.875rem;
-  color: #374151;
-  cursor: pointer;
-  user-select: none;
-}
-
-.radioLabel:has(+ .radio:disabled) {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.infoBox {
-  background-color: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
-  font-size: 0.875rem;
+.toggleLabel {
+  font-size: 14px;
   color: #6b7280;
-  margin-top: 16px;
+  font-weight: 500;
+}
+
+.marksFieldContent {
+  padding-left: 20px;
+  border-left: 2px solid #e5e7eb;
+}
+
+.totalMarksSection {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
 }
 
 .infoText {
-  font-size: 0.875rem;
   color: #6b7280;
-  text-align: center;
-  padding: 12px;
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
 .btnCancel {
-  padding: 8px 16px;
+  padding: 10px 20px;
   background-color: white;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
   color: #374151;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
-  min-width: 80px;
+  transition: all 0.2s;
 }
 
 .btnCancel:hover:not(:disabled) {
   background-color: #f9fafb;
-  border-color: #9ca3af;
 }
 
 .btnCancel:disabled {
@@ -325,21 +341,18 @@
 }
 
 .btnSave {
-  padding: 8px 20px;
-  background-color: #3b82f6;
-  border: 1px solid #3b82f6;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
   border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
   color: white;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
-  min-width: 100px;
+  transition: opacity 0.2s;
 }
 
 .btnSave:hover:not(:disabled) {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  opacity: 0.9;
 }
 
 .btnSave:disabled {
@@ -352,107 +365,25 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px;
-  gap: 16px;
-}
-
-.spinnerLarge {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  padding: 60px;
 }
 
 .loadingText {
-  font-size: 0.875rem;
+  margin-top: 16px;
   color: #6b7280;
 }
 
-.modalLoading {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10;
-  border-radius: 8px;
+/* Add to ExamModal.module.css */
+.required {
+  color: #ff4d4f;
 }
 
-/* Custom scrollbar for modal body */
-.modalBody::-webkit-scrollbar {
-  width: 8px;
-}
-
-.modalBody::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.optionalNote {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
   border-radius: 4px;
-}
-
-.modalBody::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-.modalBody::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* Custom scrollbar for batches container */
-.batchesContainer::-webkit-scrollbar {
-  width: 6px;
-}
-
-.batchesContainer::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.batchesContainer::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.batchesContainer::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .modalContainer {
-    max-height: 95vh;
-  }
-  
-  .modalBody {
-    max-height: calc(95vh - 140px);
-    padding: 16px;
-  }
-  
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
-  
-  .checkboxGrid {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .modalHeader {
-    padding: 16px;
-  }
-  
-  .modalFooter {
-    padding: 16px;
-  }
+  border-left: 3px solid #1890ff;
 }

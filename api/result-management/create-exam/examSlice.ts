@@ -3,7 +3,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { CreateExamDto, Exam, ExamQueryParams, ExamsPaginatedResponse, UpdateExamDto } from './types/exam.types';
 import examService from './services/examService';
 
-// Define the complete ExamState interface
 export interface ExamState {
   exams: Exam[];
   currentExam: Exam | null;
@@ -23,6 +22,9 @@ export interface ExamState {
   subjects: any[];
   examCategories: any[];
   activeBatches: any[];
+  // Suggestions for autocomplete
+  classSuggestions: string[];
+  batchSuggestions: string[];
 }
 
 const initialState: ExamState = {
@@ -43,6 +45,8 @@ const initialState: ExamState = {
   subjects: [],
   examCategories: [],
   activeBatches: [],
+  classSuggestions: [],
+  batchSuggestions: [],
 };
 
 // ── Thunks ────────────────────────────────────────────────────────────────
@@ -166,6 +170,31 @@ export const fetchBatchesByClass = createAsyncThunk<
     return await examService.getBatchesByClass(classId);
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Failed to fetch batches by class');
+  }
+});
+
+// Suggestion thunks
+export const fetchClassSuggestions = createAsyncThunk<
+  string[],
+  void,
+  { rejectValue: string }
+>('exam/fetchClassSuggestions', async (_, { rejectWithValue }) => {
+  try {
+    return await examService.getClassSuggestions();
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to fetch class suggestions');
+  }
+});
+
+export const fetchBatchSuggestions = createAsyncThunk<
+  string[],
+  void,
+  { rejectValue: string }
+>('exam/fetchBatchSuggestions', async (_, { rejectWithValue }) => {
+  try {
+    return await examService.getBatchSuggestions();
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to fetch batch suggestions');
   }
 });
 
@@ -325,6 +354,14 @@ const examSlice = createSlice({
       .addCase(fetchBatchesByClass.rejected, (state) => {
         state.loading = false;
         state.batches = [];
+      })
+
+      // Suggestions
+      .addCase(fetchClassSuggestions.fulfilled, (state, action) => {
+        state.classSuggestions = action.payload;
+      })
+      .addCase(fetchBatchSuggestions.fulfilled, (state, action) => {
+        state.batchSuggestions = action.payload;
       });
   },
 });

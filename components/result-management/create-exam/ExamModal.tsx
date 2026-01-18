@@ -1,13 +1,16 @@
 // components/result-management/ExamModal.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import styles from "./ExamModal.module.css";
 
 // Types for dropdown options
 export interface DropdownOption {
   _id: string;
   name: string;
+  classname?: string;
+  subjectName?: string;
+  categoryName?: string;
   [key: string]: any;
 }
 
@@ -16,7 +19,7 @@ export interface ExamModalProps {
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
   loading: boolean;
-  exam?: any | null; // For edit mode
+  exam?: any | null;
   // Dropdown data
   classes: DropdownOption[];
   activeBatches: DropdownOption[];
@@ -26,14 +29,11 @@ export interface ExamModalProps {
   fetchBatchesByClass: (classId: string) => Promise<DropdownOption[]>;
 }
 
-// Import types from exam service
-import { CreateExamDto } from "@/api/result-management/create-exam/types/exam.types";
-
-// Predefined marks fields
-const PREDEFINED_MARKS_FIELDS = [
-  { id: 'mcq', label: 'MCQ' },
-  { id: 'cq', label: 'CQ' },
-  { id: 'written', label: 'Written' }
+// Predefined marks field types
+const MARKS_FIELD_TYPES = [
+  { id: 'mcq', label: 'MCQ Total Marks' },
+  { id: 'cq', label: 'CQ Total Marks' },
+  { id: 'written', label: 'Written Total Marks' }
 ];
 
 export default function ExamModal({
@@ -59,16 +59,41 @@ export default function ExamModal({
     examCategoryId: "",
     examDate: new Date().toISOString().split('T')[0],
     showMarksTitle: false,
-    selectedMarksFields: [],
+    marksFields: [
+      { 
+        type: 'mcq', 
+        enabled: false,
+        totalMarks: 0, 
+        enablePassMarks: false, 
+        passMarks: 0, 
+        enableNegativeMarking: false, 
+        negativeMarks: 0 
+      },
+      { 
+        type: 'cq', 
+        enabled: false,
+        totalMarks: 0, 
+        enablePassMarks: false, 
+        passMarks: 0, 
+        enableNegativeMarking: false, 
+        negativeMarks: 0 
+      },
+      { 
+        type: 'written', 
+        enabled: false,
+        totalMarks: 0, 
+        enablePassMarks: false, 
+        passMarks: 0, 
+        enableNegativeMarking: false, 
+        negativeMarks: 0 
+      }
+    ],
+    totalMarks: 0,
     enableGrading: false,
-    passMarks: 40,
+    totalPassMarks: 0,
     showPercentageInResult: false,
     showGPAInResult: false,
     useGPASystem: false,
-    totalMarks: 100,
-    instructions: "",
-    duration: 180,
-    isActive: true,
   });
 
   // Local batches state (fetched based on selected class)
@@ -80,61 +105,160 @@ export default function ExamModal({
 
   // Initialize form with exam data when in edit mode
   useEffect(() => {
-    if (exam && isOpen) {
-      const formattedData = {
-        examName: exam.examName || "",
-        topicName: exam.topicName || "",
-        classId: exam.class?._id || "",
-        batchIds: exam.batches?.map((b: any) => b._id) || [],
-        subjectId: exam.subject?._id || "",
-        examCategoryId: exam.examCategory?._id || "",
-        examDate: exam.examDate ? exam.examDate.split('T')[0] : new Date().toISOString().split('T')[0],
-        showMarksTitle: exam.showMarksTitle || false,
-        selectedMarksFields: exam.selectedMarksFields || [],
-        enableGrading: exam.enableGrading || false,
-        passMarks: exam.passMarks || 40,
-        showPercentageInResult: exam.showPercentageInResult || false,
-        showGPAInResult: exam.showGPAInResult || false,
-        useGPASystem: exam.useGPASystem || false,
-        totalMarks: exam.totalMarks || 100,
-        instructions: exam.instructions || "",
-        duration: exam.duration || 180,
-        isActive: exam.isActive !== undefined ? exam.isActive : true,
-      };
-      
-      setFormData(formattedData);
-      
-      // If class is selected, fetch batches for that class
-      if (exam.class?._id) {
-        fetchBatchesForClass(exam.class._id);
+    const initializeForm = async () => {
+      if (exam && isOpen) {
+        console.log("Edit mode - Exam data:", exam);
+        
+        // Parse marksFields from exam data
+        let marksFieldsData = [
+          { 
+            type: 'mcq', 
+            enabled: false,
+            totalMarks: 0, 
+            enablePassMarks: false, 
+            passMarks: 0, 
+            enableNegativeMarking: false, 
+            negativeMarks: 0 
+          },
+          { 
+            type: 'cq', 
+            enabled: false,
+            totalMarks: 0, 
+            enablePassMarks: false, 
+            passMarks: 0, 
+            enableNegativeMarking: false, 
+            negativeMarks: 0 
+          },
+          { 
+            type: 'written', 
+            enabled: false,
+            totalMarks: 0, 
+            enablePassMarks: false, 
+            passMarks: 0, 
+            enableNegativeMarking: false, 
+            negativeMarks: 0 
+          }
+        ];
+
+        // If exam has marksFields, map them to our structure
+        if (exam.marksFields && Array.isArray(exam.marksFields)) {
+          marksFieldsData = marksFieldsData.map(defaultField => {
+            const existingField = exam.marksFields.find((f: any) => f.type === defaultField.type);
+            if (existingField) {
+              return {
+                ...defaultField,
+                enabled: true,
+                totalMarks: existingField.totalMarks || 0,
+                enablePassMarks: existingField.enablePassMarks || false,
+                passMarks: existingField.passMarks || 0,
+                enableNegativeMarking: existingField.enableNegativeMarking || false,
+                negativeMarks: existingField.negativeMarks || 0
+              };
+            }
+            return defaultField;
+          });
+        }
+
+        const formattedData = {
+          examName: exam.examName || "",
+          topicName: exam.topicName || "",
+          classId: "",
+          batchIds: [],
+          subjectId: "",
+          examCategoryId: "",
+          examDate: exam.examDate ? exam.examDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          showMarksTitle: exam.showMarksTitle || false,
+          marksFields: marksFieldsData,
+          totalMarks: exam.totalMarks || 0,
+          enableGrading: exam.enableGrading || false,
+          totalPassMarks: exam.totalPassMarks || 0,
+          showPercentageInResult: exam.showPercentageInResult || false,
+          showGPAInResult: exam.showGPAInResult || false,
+          useGPASystem: exam.useGPASystem || false,
+        };
+
+        // Find IDs from names for edit mode
+        const classObj = classes.find(c => c.classname === exam.className || c.name === exam.className);
+        const subjectObj = subjects.find(s => s.subjectName === exam.subjectName || s.name === exam.subjectName);
+        const categoryObj = examCategories.find(c => c.categoryName === exam.examCategory || c.name === exam.examCategory);
+        
+        if (classObj) {
+          formattedData.classId = classObj._id;
+          
+          // Fetch batches for the class
+          const batches = await fetchBatchesForClass(classObj._id);
+          
+          // For edit mode, we need to find batch IDs from batchName string
+          if (exam.batchName) {
+            const batchNames = exam.batchName.split(',').map((b: string) => b.trim());
+            const selectedBatchIds = batches
+              .filter(batch => batchNames.includes(batch.name))
+              .map(batch => batch._id);
+            formattedData.batchIds = selectedBatchIds;
+          }
+        }
+        
+        if (subjectObj) formattedData.subjectId = subjectObj._id;
+        if (categoryObj) formattedData.examCategoryId = categoryObj._id;
+        
+        console.log("Formatted data for edit:", formattedData);
+        setFormData(formattedData);
+      } else if (isOpen) {
+        // Reset form for create mode
+        console.log("Create mode - resetting form");
+        setFormData({
+          examName: "",
+          topicName: "",
+          classId: "",
+          batchIds: [],
+          subjectId: "",
+          examCategoryId: "",
+          examDate: new Date().toISOString().split('T')[0],
+          showMarksTitle: false,
+          marksFields: [
+            { 
+              type: 'mcq', 
+              enabled: false,
+              totalMarks: 0, 
+              enablePassMarks: false, 
+              passMarks: 0, 
+              enableNegativeMarking: false, 
+              negativeMarks: 0 
+            },
+            { 
+              type: 'cq', 
+              enabled: false,
+              totalMarks: 0, 
+              enablePassMarks: false, 
+              passMarks: 0, 
+              enableNegativeMarking: false, 
+              negativeMarks: 0 
+            },
+            { 
+              type: 'written', 
+              enabled: false,
+              totalMarks: 0, 
+              enablePassMarks: false, 
+              passMarks: 0, 
+              enableNegativeMarking: false, 
+              negativeMarks: 0 
+            }
+          ],
+          totalMarks: 0,
+          enableGrading: false,
+          totalPassMarks: 0,
+          showPercentageInResult: false,
+          showGPAInResult: false,
+          useGPASystem: false,
+        });
+        setLocalBatches(activeBatches);
+        setErrors({});
+        setTouched({});
       }
-    } else if (isOpen) {
-      // Reset form for create mode
-      setFormData({
-        examName: "",
-        topicName: "",
-        classId: "",
-        batchIds: [],
-        subjectId: "",
-        examCategoryId: "",
-        examDate: new Date().toISOString().split('T')[0],
-        showMarksTitle: false,
-        selectedMarksFields: [],
-        enableGrading: false,
-        passMarks: 40,
-        showPercentageInResult: false,
-        showGPAInResult: false,
-        useGPASystem: false,
-        totalMarks: 100,
-        instructions: "",
-        duration: 180,
-        isActive: true,
-      });
-      setLocalBatches(activeBatches);
-      setErrors({});
-      setTouched({});
-    }
-  }, [exam, isOpen, activeBatches]);
+    };
+
+    initializeForm();
+  }, [exam, isOpen, activeBatches, classes, subjects, examCategories]);
 
   // Update local batches when activeBatches changes
   useEffect(() => {
@@ -143,14 +267,27 @@ export default function ExamModal({
     }
   }, [activeBatches, formData.classId]);
 
+  // Calculate total marks when marks fields change
+  useEffect(() => {
+    const total = formData.marksFields.reduce((sum: number, field: any) => {
+      if (field.enabled) {
+        return sum + (field.totalMarks || 0);
+      }
+      return sum;
+    }, 0);
+    setFormData((prev: any) => ({ ...prev, totalMarks: total }));
+  }, [formData.marksFields]);
+
   // Fetch batches when class changes
   const fetchBatchesForClass = async (classId: string) => {
     try {
       const batches = await fetchBatchesByClass(classId);
       setLocalBatches(batches);
+      return batches;
     } catch (error) {
       console.error('Failed to fetch batches:', error);
       setLocalBatches([]);
+      return [];
     }
   };
 
@@ -160,7 +297,6 @@ export default function ExamModal({
       ...prev,
       classId,
       batchIds: [], // Reset batches when class changes
-      subjectId: "", // Reset subject when class changes
     }));
     
     if (classId) {
@@ -170,6 +306,15 @@ export default function ExamModal({
     }
   };
 
+  // Handle batch selection
+  const handleBatchToggle = (batchId: string) => {
+    const newBatchIds = formData.batchIds.includes(batchId)
+      ? formData.batchIds.filter((id: string) => id !== batchId)
+      : [...formData.batchIds, batchId];
+    
+    handleInputChange("batchIds", newBatchIds);
+  };
+
   // Validate field
   const validateField = (field: string, value: any): string => {
     if (!touched[field]) return "";
@@ -177,12 +322,7 @@ export default function ExamModal({
     switch (field) {
       case "examName":
         if (!value?.trim()) return "Exam name is required";
-        if (value.trim().length < 3) return "Exam name must be at least 3 characters";
-        if (value.trim().length > 100) return "Exam name must be less than 100 characters";
-        break;
-      
-      case "topicName":
-        if (value?.length > 150) return "Topic name must be less than 150 characters";
+        if (value.trim().length < 2) return "Exam name must be at least 2 characters";
         break;
       
       case "classId":
@@ -205,19 +345,42 @@ export default function ExamModal({
         if (!value) return "Exam date is required";
         break;
       
-      case "passMarks":
-        if (value < 0) return "Pass marks cannot be negative";
-        if (value > formData.totalMarks) return "Pass marks cannot exceed total marks";
+      case "totalPassMarks":
+        if (formData.enableGrading) {
+          if (value === undefined || value === null || value === "") {
+            return "Total pass marks is required when grading is enabled";
+          }
+          if (value < 0) return "Pass marks cannot be negative";
+          if (value > formData.totalMarks) return "Pass marks cannot exceed total marks";
+        }
         break;
       
       case "totalMarks":
-        if (!value || value <= 0) return "Total marks must be greater than 0";
-        if (value > 1000) return "Total marks cannot exceed 1000";
+        // Total marks validation depends on whether marks fields are enabled
+        const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
+        if (hasEnabledMarks && value <= 0) {
+          return "Total marks must be greater than 0 when marks fields are enabled";
+        }
         break;
+    }
+
+    // Validate marks fields
+    if (field.startsWith('marksFields')) {
+      const fieldIndex = parseInt(field.split('.')[1]);
+      const subField = field.split('.')[2];
+      const marksField = formData.marksFields[fieldIndex];
       
-      case "duration":
-        if (value && value < 1) return "Duration must be at least 1 minute";
-        break;
+      if (subField === 'totalMarks' && marksField.enabled) {
+        if (value < 0) return "Marks cannot be negative";
+        if (value === 0) return "Marks must be greater than 0";
+      }
+      if (subField === 'passMarks' && marksField.enablePassMarks) {
+        if (value < 0) return "Pass marks cannot be negative";
+        if (value > marksField.totalMarks) return "Pass marks cannot exceed total marks";
+      }
+      if (subField === 'negativeMarks' && marksField.enableNegativeMarking) {
+        if (value < 0) return "Negative marks cannot be negative";
+      }
     }
 
     return "";
@@ -233,9 +396,39 @@ export default function ExamModal({
       if (error) newErrors[field] = error;
     });
 
-    // Validate pass marks
-    const passMarksError = validateField("passMarks", formData.passMarks);
-    if (passMarksError) newErrors.passMarks = passMarksError;
+    // Validate total marks only if marks fields are enabled
+    const hasEnabledMarks = formData.marksFields.some((field: any) => field.enabled);
+    if (hasEnabledMarks) {
+      if (formData.totalMarks <= 0) {
+        newErrors.totalMarks = "Total marks must be greater than 0";
+      }
+    }
+
+    // Validate marks fields only if enabled
+    formData.marksFields.forEach((field: any, index: number) => {
+      if (field.enabled) {
+        const totalMarksError = validateField(`marksFields.${index}.totalMarks`, field.totalMarks);
+        if (totalMarksError) newErrors[`marksFields.${index}.totalMarks`] = totalMarksError;
+
+        if (field.enablePassMarks) {
+          const passMarksError = validateField(`marksFields.${index}.passMarks`, field.passMarks);
+          if (passMarksError) newErrors[`marksFields.${index}.passMarks`] = passMarksError;
+        }
+
+        if (field.enableNegativeMarking) {
+          const negativeMarksError = validateField(`marksFields.${index}.negativeMarks`, field.negativeMarks);
+          if (negativeMarksError) newErrors[`marksFields.${index}.negativeMarks`] = negativeMarksError;
+        }
+      }
+    });
+
+    // Validate total pass marks only if grading is enabled
+    if (formData.enableGrading) {
+      const passMarksError = validateField("totalPassMarks", formData.totalPassMarks);
+      if (passMarksError) {
+        newErrors.totalPassMarks = passMarksError;
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -251,29 +444,64 @@ export default function ExamModal({
     }
   };
 
+  // Handle marks field toggle (enable/disable)
+  const handleMarksFieldToggle = (index: number, isEnabled: boolean) => {
+    const updatedFields = [...formData.marksFields];
+    
+    if (isEnabled) {
+      // When enabling, set default values like in the image
+      updatedFields[index] = { 
+        ...updatedFields[index], 
+        enabled: true,
+        totalMarks: 0, // Start with 0 like in the image
+        enablePassMarks: false,
+        passMarks: 0,
+        enableNegativeMarking: false,
+        negativeMarks: 0
+      };
+    } else {
+      // When disabling, reset everything
+      updatedFields[index] = { 
+        ...updatedFields[index], 
+        enabled: false,
+        totalMarks: 0,
+        enablePassMarks: false,
+        passMarks: 0,
+        enableNegativeMarking: false,
+        negativeMarks: 0
+      };
+    }
+    
+    setFormData((prev: any) => ({ ...prev, marksFields: updatedFields }));
+  };
+
+  // Handle marks field change
+  const handleMarksFieldChange = (index: number, field: string, value: any) => {
+    const updatedFields = [...formData.marksFields];
+    updatedFields[index] = { ...updatedFields[index], [field]: value };
+    
+    // If disabling pass marks or negative marking, reset the corresponding value
+    if (field === 'enablePassMarks' && !value) {
+      updatedFields[index].passMarks = 0;
+    }
+    if (field === 'enableNegativeMarking' && !value) {
+      updatedFields[index].negativeMarks = 0;
+    }
+    
+    setFormData((prev: any) => ({ ...prev, marksFields: updatedFields }));
+    
+    const errorField = `marksFields.${index}.${field}`;
+    if (touched[errorField]) {
+      const error = validateField(errorField, value);
+      setErrors(prev => ({ ...prev, [errorField]: error }));
+    }
+  };
+
   // Handle blur
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const error = validateField(field, formData[field]);
     setErrors(prev => ({ ...prev, [field]: error }));
-  };
-
-  // Handle batch selection
-  const handleBatchToggle = (batchId: string) => {
-    const newBatchIds = formData.batchIds.includes(batchId)
-      ? formData.batchIds.filter((id: string) => id !== batchId)
-      : [...formData.batchIds, batchId];
-    
-    handleInputChange("batchIds", newBatchIds);
-  };
-
-  // Handle marks field toggle
-  const handleMarksFieldToggle = (fieldId: string) => {
-    const newSelectedFields = formData.selectedMarksFields.includes(fieldId)
-      ? formData.selectedMarksFields.filter((id: string) => id !== fieldId)
-      : [...formData.selectedMarksFields, fieldId];
-    
-    handleInputChange("selectedMarksFields", newSelectedFields);
   };
 
   // Handle form submission
@@ -287,27 +515,73 @@ export default function ExamModal({
     setTouched(newTouched);
 
     if (validateForm()) {
-      // Prepare data for API
-      const submitData: CreateExamDto = {
+      // Find selected options by their IDs to get names
+      const selectedClass = classes.find(cls => cls._id === formData.classId);
+      const selectedSubject = subjects.find(subj => subj._id === formData.subjectId);
+      const selectedCategory = examCategories.find(cat => cat._id === formData.examCategoryId);
+      const selectedBatches = localBatches.filter(batch => formData.batchIds.includes(batch._id));
+
+      // Prepare marks fields data - only include enabled ones
+      const filteredMarksFields = formData.marksFields
+        .filter((field: any) => field.enabled && field.totalMarks > 0)
+        .map((field: any) => ({
+          type: field.type,
+          totalMarks: field.totalMarks || 0,
+          enablePassMarks: field.enablePassMarks || false,
+          passMarks: field.enablePassMarks ? (field.passMarks || 0) : undefined,
+          enableNegativeMarking: field.enableNegativeMarking || false,
+          negativeMarks: field.enableNegativeMarking ? (field.negativeMarks || 0) : undefined
+        }));
+
+      // Calculate total marks from enabled fields
+      const calculatedTotalMarks = filteredMarksFields.reduce((sum: number, field: any) => {
+        return sum + (field.totalMarks || 0);
+      }, 0);
+
+      // Prepare submission data - MUST match backend DTO format
+      const submitData: any = {
         examName: formData.examName.trim(),
-        topicName: formData.topicName.trim(),
-        classId: formData.classId,
-        batchIds: formData.batchIds,
-        subjectId: formData.subjectId,
-        examCategoryId: formData.examCategoryId,
+        // Send NAMES not IDs to backend
+        className: selectedClass?.classname || selectedClass?.name || '',
+        batchName: selectedBatches.map(b => b.name).join(', '),
+        subjectName: selectedSubject?.subjectName || selectedSubject?.name || '',
+        examCategory: selectedCategory?.categoryName || selectedCategory?.name || '',
         examDate: formData.examDate,
         showMarksTitle: formData.showMarksTitle,
-        selectedMarksFields: formData.selectedMarksFields,
-        totalMarks: formData.totalMarks,
+        totalMarks: calculatedTotalMarks,
         enableGrading: formData.enableGrading,
-        passMarks: formData.passMarks,
-        showPercentageInResult: formData.showPercentageInResult,
-        showGPAInResult: formData.showGPAInResult,
-        useGPASystem: formData.useGPASystem,
-        instructions: formData.instructions,
-        duration: formData.duration,
-        isActive: formData.isActive,
       };
+
+      // Add optional fields if they have values
+      if (formData.topicName.trim()) {
+        submitData.topicName = formData.topicName.trim();
+      }
+
+      // Add marks fields if any are enabled - THIS IS OPTIONAL
+      if (filteredMarksFields.length > 0) {
+        submitData.marksFields = filteredMarksFields;
+      }
+
+      // Add total pass marks only if grading is enabled
+      if (formData.enableGrading) {
+        submitData.totalPassMarks = formData.totalPassMarks || 0;
+      }
+
+      // Add grading display options - these are optional even when grading is enabled
+      if (formData.showPercentageInResult) {
+        submitData.showPercentageInResult = formData.showPercentageInResult;
+      }
+
+      if (formData.showGPAInResult) {
+        submitData.showGPAInResult = formData.showGPAInResult;
+      }
+
+      // GPA system is separate from grading
+      if (formData.useGPASystem) {
+        submitData.useGPASystem = formData.useGPASystem;
+      }
+
+      console.log("Submitting data to backend:", submitData);
       
       await onSubmit(submitData);
     }
@@ -355,311 +629,477 @@ export default function ExamModal({
           <div className={styles.modalContent}>
             <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.modalBody}>
-                {/* New Exam Details Section */}
+                {/* Basic Information Section - REQUIRED */}
                 <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>New Exam Details</h3>
+                  <h3 className={styles.sectionTitle}>Exam Details</h3>
                   
                   <div className={styles.formGrid}>
-                    <div className={styles.formField}>
+                    {/* Exam Name */}
+                    <div className={styles.formRow}>
                       <label className={styles.label}>
                         Exam Name <span className={styles.required}>*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={formData.examName}
-                        onChange={(e) => handleInputChange("examName", e.target.value)}
-                        onBlur={() => handleBlur("examName")}
-                        placeholder="Topic Name"
-                        className={`${styles.input} ${
-                          errors.examName ? styles.inputError : ""
-                        }`}
-                        disabled={loading}
-                        maxLength={100}
-                      />
-                      {errors.examName && (
-                        <div className={styles.errorMessage}>{errors.examName}</div>
-                      )}
+                      <div className={styles.inputContainer}>
+                        <input
+                          type="text"
+                          value={formData.examName}
+                          onChange={(e) => handleInputChange("examName", e.target.value)}
+                          onBlur={() => handleBlur("examName")}
+                          className={`${styles.input} ${
+                            errors.examName ? styles.inputError : ""
+                          }`}
+                          disabled={loading}
+                        />
+                        {errors.examName && (
+                          <div className={styles.errorMessage}>{errors.examName}</div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className={styles.formField}>
+                    {/* Topic Name - OPTIONAL */}
+                    <div className={styles.formRow}>
+                      <label className={styles.label}>
+                        Topic Name
+                      </label>
+                      <div className={styles.inputContainer}>
+                        <input
+                          type="text"
+                          value={formData.topicName}
+                          onChange={(e) => handleInputChange("topicName", e.target.value)}
+                          className={styles.input}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Class - REQUIRED */}
+                    <div className={styles.formRow}>
                       <label className={styles.label}>
                         Class <span className={styles.required}>*</span>
                       </label>
-                      <select
-                        value={formData.classId}
-                        onChange={(e) => handleClassChange(e.target.value)}
-                        onBlur={() => handleBlur("classId")}
-                        className={`${styles.input} ${
-                          errors.classId ? styles.inputError : ""
-                        }`}
-                        disabled={loading || classes.length === 0}
-                      >
-                        <option value="">Select Class</option>
-                        {classes.map((cls) => (
-                          <option key={cls._id} value={cls._id}>
-                            {cls.classname || cls.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.classId && (
-                        <div className={styles.errorMessage}>{errors.classId}</div>
-                      )}
+                      <div className={styles.inputContainer}>
+                        <select
+                          value={formData.classId}
+                          onChange={(e) => handleClassChange(e.target.value)}
+                          onBlur={() => handleBlur("classId")}
+                          className={`${styles.input} ${
+                            errors.classId ? styles.inputError : ""
+                          }`}
+                          disabled={loading || classes.length === 0}
+                        >
+                          <option value="">Select Class</option>
+                          {classes.map((cls) => (
+                            <option key={cls._id} value={cls._id}>
+                              {cls.classname || cls.name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.classId && (
+                          <div className={styles.errorMessage}>{errors.classId}</div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className={styles.formField}>
+                    {/* Subject - REQUIRED */}
+                    <div className={styles.formRow}>
                       <label className={styles.label}>
                         Subject <span className={styles.required}>*</span>
                       </label>
-                      <select
-                        value={formData.subjectId}
-                        onChange={(e) => handleInputChange("subjectId", e.target.value)}
-                        onBlur={() => handleBlur("subjectId")}
-                        className={`${styles.input} ${
-                          errors.subjectId ? styles.inputError : ""
-                        }`}
-                        disabled={loading || subjects.length === 0}
-                      >
-                        <option value="">Select subject</option>
-                        {subjects.map((subject) => (
-                          <option key={subject._id} value={subject._id}>
-                            {subject.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.subjectId && (
-                        <div className={styles.errorMessage}>{errors.subjectId}</div>
-                      )}
+                      <div className={styles.inputContainer}>
+                        <select
+                          value={formData.subjectId}
+                          onChange={(e) => handleInputChange("subjectId", e.target.value)}
+                          onBlur={() => handleBlur("subjectId")}
+                          className={`${styles.input} ${
+                            errors.subjectId ? styles.inputError : ""
+                          }`}
+                          disabled={loading || subjects.length === 0}
+                        >
+                          <option value="">Select subject</option>
+                          {subjects.map((subject) => (
+                            <option key={subject._id} value={subject._id}>
+                              {subject.subjectName || subject.name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.subjectId && (
+                          <div className={styles.errorMessage}>{errors.subjectId}</div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className={styles.formField}>
+                    {/* Exam Category - REQUIRED */}
+                    <div className={styles.formRow}>
+                      <label className={styles.label}>
+                        Exam Category <span className={styles.required}>*</span>
+                      </label>
+                      <div className={styles.inputContainer}>
+                        <select
+                          value={formData.examCategoryId}
+                          onChange={(e) => handleInputChange("examCategoryId", e.target.value)}
+                          onBlur={() => handleBlur("examCategoryId")}
+                          className={`${styles.input} ${
+                            errors.examCategoryId ? styles.inputError : ""
+                          }`}
+                          disabled={loading || examCategories.length === 0}
+                        >
+                          <option value="">Select category</option>
+                          {examCategories.map((category) => (
+                            <option key={category._id} value={category._id}>
+                              {category.categoryName || category.name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.examCategoryId && (
+                          <div className={styles.errorMessage}>{errors.examCategoryId}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Exam Date - REQUIRED */}
+                    <div className={styles.formRow}>
                       <label className={styles.label}>
                         Exam Date <span className={styles.required}>*</span>
                       </label>
-                      <input
-                        type="date"
-                        value={formData.examDate}
-                        onChange={(e) => handleInputChange("examDate", e.target.value)}
-                        onBlur={() => handleBlur("examDate")}
-                        className={`${styles.input} ${
-                          errors.examDate ? styles.inputError : ""
-                        }`}
-                        disabled={loading}
-                      />
-                      {errors.examDate && (
-                        <div className={styles.errorMessage}>{errors.examDate}</div>
-                      )}
+                      <div className={styles.inputContainer}>
+                        <input
+                          type="date"
+                          value={formData.examDate}
+                          onChange={(e) => handleInputChange("examDate", e.target.value)}
+                          onBlur={() => handleBlur("examDate")}
+                          className={`${styles.input} ${
+                            errors.examDate ? styles.inputError : ""
+                          }`}
+                          disabled={loading}
+                        />
+                        {errors.examDate && (
+                          <div className={styles.errorMessage}>{errors.examDate}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Batches Section - moved inside New Exam Details */}
-                  <div className={styles.formField}>
-                    <label className={styles.label}>Batches</label>
-                    <div className={styles.batchesContainer}>
-                      {localBatches.length > 0 ? (
-                        <div className={styles.checkboxGrid}>
-                          {localBatches.map((batch) => (
-                            <div key={batch._id} className={styles.checkboxOption}>
+                  {/* Batches Section - REQUIRED */}
+                  <div className={styles.formRow}>
+                    <label className={styles.label}>
+                      Batches <span className={styles.required}>*</span>
+                    </label>
+                    <div className={styles.inputContainer}>
+                      <div className={styles.batchesContainer}>
+                        {localBatches.length > 0 ? (
+                          <div className={styles.checkboxGrid}>
+                            {localBatches.map((batch) => (
+                              <div key={batch._id} className={styles.checkboxOption}>
+                                <input
+                                  type="checkbox"
+                                  id={`batch-${batch._id}`}
+                                  checked={formData.batchIds.includes(batch._id)}
+                                  onChange={() => handleBatchToggle(batch._id)}
+                                  disabled={loading || !formData.classId}
+                                  className={styles.checkbox}
+                                />
+                                <label htmlFor={`batch-${batch._id}`} className={styles.checkboxLabel}>
+                                  {batch.name}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.infoText}>
+                            {formData.classId 
+                              ? "No batches available for this class" 
+                              : "Select a class to see available batches"}
+                          </div>
+                        )}
+                      </div>
+                      {errors.batchIds && (
+                        <div className={styles.errorMessage}>{errors.batchIds}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <hr className={styles.divider} />
+
+                {/* Show Marks Title Checkbox - OPTIONAL */}
+                <div className={styles.section}>
+                  <div className={styles.checkboxField}>
+                    <input
+                      type="checkbox"
+                      id="showMarksTitle"
+                      checked={formData.showMarksTitle}
+                      onChange={(e) => handleInputChange("showMarksTitle", e.target.checked)}
+                      disabled={loading}
+                      className={styles.checkbox}
+                    />
+                    <label htmlFor="showMarksTitle" className={styles.checkboxLabel}>
+                      Show Marks Title (MCQ, CQ, Written) in Result PDF
+                    </label>
+                    <div className={styles.checkboxHelpText}>
+                      If unchecked, only total marks will be shown in result report.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <hr className={styles.divider} />
+
+                {/* Select Marks Fields Section - COMPLETELY OPTIONAL */}
+                <div className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Select Marks Fields (Optional)</h3>
+                  <div className={styles.optionalNote}>
+                    You can enable marks fields if you want to track different types of marks. 
+                    If no marks fields are enabled, only the total marks will be recorded.
+                  </div>
+                  
+                  {formData.marksFields.map((field: any, index: number) => {
+                    const fieldType = MARKS_FIELD_TYPES[index];
+                    
+                    return (
+                      <div key={fieldType.id} className={styles.marksFieldSection}>
+                        <div className={styles.marksFieldHeader}>
+                          <h4 className={styles.marksFieldTitle}>{fieldType.label}</h4>
+                          <div className={styles.marksFieldToggle}>
+                            <input
+                              type="checkbox"
+                              id={`enable-${fieldType.id}`}
+                              checked={field.enabled}
+                              onChange={(e) => handleMarksFieldToggle(index, e.target.checked)}
+                              disabled={loading}
+                              className={styles.toggleSwitch}
+                            />
+                            <label 
+                              htmlFor={`enable-${fieldType.id}`} 
+                              className={`${styles.toggleLabel} ${field.enabled ? styles.toggleLabelActive : ''}`}
+                            >
+                              {field.enabled ? 'Enabled' : 'Disabled'}
+                            </label>
+                          </div>
+                        </div>
+
+                        {field.enabled && (
+                          <div className={styles.marksFieldContent}>
+                            {/* Total Marks - Required if field is enabled */}
+                            <div className={styles.formRow}>
+                              <label className={styles.label}>
+                                {fieldType.label} <span className={styles.required}>*</span>
+                              </label>
+                              <div className={styles.inputContainer}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={field.totalMarks}
+                                  onChange={(e) => handleMarksFieldChange(index, 'totalMarks', parseInt(e.target.value) || 0)}
+                                  onBlur={() => handleBlur(`marksFields.${index}.totalMarks`)}
+                                  className={`${styles.input} ${
+                                    errors[`marksFields.${index}.totalMarks`] ? styles.inputError : ""
+                                  }`}
+                                  disabled={loading}
+                                />
+                                {errors[`marksFields.${index}.totalMarks`] && (
+                                  <div className={styles.errorMessage}>
+                                    {errors[`marksFields.${index}.totalMarks`]}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Enable Pass Marks Checkbox - Optional */}
+                            <div className={styles.checkboxField}>
                               <input
                                 type="checkbox"
-                                id={`batch-${batch._id}`}
-                                checked={formData.batchIds.includes(batch._id)}
-                                onChange={() => handleBatchToggle(batch._id)}
-                                disabled={loading || !formData.classId}
+                                id={`pass-${fieldType.id}`}
+                                checked={field.enablePassMarks}
+                                onChange={(e) => handleMarksFieldChange(index, 'enablePassMarks', e.target.checked)}
+                                disabled={loading}
                                 className={styles.checkbox}
                               />
-                              <label htmlFor={`batch-${batch._id}`} className={styles.checkboxLabel}>
-                                {batch.name}
+                              <label htmlFor={`pass-${fieldType.id}`} className={styles.checkboxLabel}>
+                                Enable Pass Marks? (Optional)
                               </label>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className={styles.infoText}>
-                          {formData.classId 
-                            ? "No batches available for this class" 
-                            : "Select a class to see available batches"}
-                        </div>
-                      )}
-                    </div>
-                    {errors.batchIds && (
-                      <div className={styles.errorMessage}>{errors.batchIds}</div>
-                    )}
-                  </div>
 
-                  {/* Categories Section */}
-                  <div className={styles.formField}>
-                    <label className={styles.label}>
-                      Categories <span className={styles.required}>*</span>
-                    </label>
-                    <select
-                      value={formData.examCategoryId}
-                      onChange={(e) => handleInputChange("examCategoryId", e.target.value)}
-                      onBlur={() => handleBlur("examCategoryId")}
-                      className={`${styles.input} ${
-                        errors.examCategoryId ? styles.inputError : ""
-                      }`}
-                      disabled={loading || examCategories.length === 0}
-                    >
-                      <option value="">Select categories</option>
-                      {examCategories.map((category) => (
-                        <option key={category._id} value={category._id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.examCategoryId && (
-                      <div className={styles.errorMessage}>{errors.examCategoryId}</div>
-                    )}
-                  </div>
+                            {field.enablePassMarks && (
+                              <div className={styles.formRow}>
+                                <label className={styles.label}>
+                                  Pass Marks
+                                </label>
+                                <div className={styles.inputContainer}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={field.totalMarks}
+                                    value={field.passMarks}
+                                    onChange={(e) => handleMarksFieldChange(index, 'passMarks', parseInt(e.target.value) || 0)}
+                                    onBlur={() => handleBlur(`marksFields.${index}.passMarks`)}
+                                    className={`${styles.input} ${
+                                      errors[`marksFields.${index}.passMarks`] ? styles.inputError : ""
+                                    }`}
+                                    disabled={loading}
+                                  />
+                                  {errors[`marksFields.${index}.passMarks`] && (
+                                    <div className={styles.errorMessage}>
+                                      {errors[`marksFields.${index}.passMarks`]}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
-                  {/* Show Marks Title Checkbox */}
-                  <div className={styles.formField}>
-                    <div className={styles.checkboxField}>
-                      <input
-                        type="checkbox"
-                        id="showMarksTitle"
-                        checked={formData.showMarksTitle}
-                        onChange={(e) => handleInputChange("showMarksTitle", e.target.checked)}
-                        disabled={loading}
-                        className={styles.checkbox}
-                      />
-                      <label htmlFor="showMarksTitle" className={styles.checkboxLabel}>
-                        Show Marks Title (MCQ, CQ, Written) in Result PDF
-                      </label>
-                      <div className={styles.checkboxHelpText}>
-                        If unchecked, only total marks will be shown in result report.
+                            {/* Enable Negative Marking Checkbox - Optional */}
+                            <div className={styles.checkboxField}>
+                              <input
+                                type="checkbox"
+                                id={`neg-${fieldType.id}`}
+                                checked={field.enableNegativeMarking}
+                                onChange={(e) => handleMarksFieldChange(index, 'enableNegativeMarking', e.target.checked)}
+                                disabled={loading}
+                                className={styles.checkbox}
+                              />
+                              <label htmlFor={`neg-${fieldType.id}`} className={styles.checkboxLabel}>
+                                Enable Negative Marking? (Optional)
+                              </label>
+                            </div>
+
+                            {field.enableNegativeMarking && (
+                              <div className={styles.formRow}>
+                                <label className={styles.label}>
+                                  Negative Marks per Wrong Answer
+                                </label>
+                                <div className={styles.inputContainer}>
+                                  <input
+                                    type="number"
+                                    step="0.25"
+                                    min="0"
+                                    value={field.negativeMarks}
+                                    onChange={(e) => handleMarksFieldChange(index, 'negativeMarks', parseFloat(e.target.value) || 0)}
+                                    onBlur={() => handleBlur(`marksFields.${index}.negativeMarks`)}
+                                    className={`${styles.input} ${
+                                      errors[`marksFields.${index}.negativeMarks`] ? styles.inputError : ""
+                                    }`}
+                                    disabled={loading}
+                                  />
+                                  {errors[`marksFields.${index}.negativeMarks`] && (
+                                    <div className={styles.errorMessage}>
+                                      {errors[`marksFields.${index}.negativeMarks`]}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </div>
+                    );
+                  })}
 
-                {/* Horizontal Divider */}
-                <hr className={styles.divider} />
-
-                {/* Select Marks Fields Section */}
-                <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Select Marks Fields</h3>
-                  <div className={styles.checkboxGrid}>
-                    {PREDEFINED_MARKS_FIELDS.map((field) => (
-                      <div key={field.id} className={styles.checkboxOption}>
+                  {/* Total Marks Display */}
+                  <div className={styles.totalMarksSection}>
+                    <div className={styles.formRow}>
+                      <label className={styles.label}>Total Marks</label>
+                      <div className={styles.inputContainer}>
                         <input
-                          type="checkbox"
-                          id={`marks-${field.id}`}
-                          checked={formData.selectedMarksFields.includes(field.id)}
-                          onChange={() => handleMarksFieldToggle(field.id)}
-                          disabled={loading}
-                          className={styles.checkbox}
+                          type="number"
+                          value={formData.totalMarks}
+                          readOnly
+                          className={`${styles.input} ${styles.readonlyInput}`}
                         />
-                        <label htmlFor={`marks-${field.id}`} className={styles.checkboxLabel}>
-                          {field.label}
-                        </label>
+                        {errors.totalMarks && (
+                          <div className={styles.errorMessage}>{errors.totalMarks}</div>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Horizontal Divider */}
+                {/* Divider */}
                 <hr className={styles.divider} />
 
-                {/* Grading System Section */}
+                {/* Grading System Section - COMPLETELY OPTIONAL */}
                 <div className={styles.section}>
-                  <div className={styles.formField}>
-                    <div className={styles.checkboxField}>
-                      <input
-                        type="checkbox"
-                        id="enableGrading"
-                        checked={formData.enableGrading}
-                        onChange={(e) => handleInputChange("enableGrading", e.target.checked)}
-                        disabled={loading}
-                        className={styles.checkbox}
-                      />
-                      <label htmlFor="enableGrading" className={styles.checkboxLabel}>
-                        Enable Grading System?
-                      </label>
-                      <div className={styles.checkboxHelpText}>
-                        Turn this on to configure grading and pass mark options.
-                      </div>
+                  <div className={styles.checkboxField}>
+                    <input
+                      type="checkbox"
+                      id="enableGrading"
+                      checked={formData.enableGrading}
+                      onChange={(e) => handleInputChange("enableGrading", e.target.checked)}
+                      disabled={loading}
+                      className={styles.checkbox}
+                    />
+                    <label htmlFor="enableGrading" className={styles.checkboxLabel}>
+                      Enable Grading System? (Optional)
+                    </label>
+                    <div className={styles.checkboxHelpText}>
+                      Turn this on to configure grading and pass mark options.
                     </div>
                   </div>
 
                   {formData.enableGrading && (
                     <>
-                      {/* Total Pass Marks */}
-                      <div className={styles.formField}>
-                        <label className={styles.label}>Total Pass Marks</label>
-                        <input
-                          type="number"
-                          value={formData.passMarks}
-                          onChange={(e) => handleInputChange("passMarks", parseInt(e.target.value) || 0)}
-                          onBlur={() => handleBlur("passMarks")}
-                          placeholder="e.g. 40"
-                          className={`${styles.input} ${
-                            errors.passMarks ? styles.inputError : ""
-                          }`}
-                          disabled={loading}
-                          min="0"
-                          max={formData.totalMarks}
-                        />
-                        {errors.passMarks && (
-                          <div className={styles.errorMessage}>{errors.passMarks}</div>
-                        )}
-                      </div>
-
-                      {/* Show Grading in Result Options */}
-                      <div className={styles.formField}>
-                        <label className={styles.label}>Show Grading in Result as % marks?</label>
-                        <div className={styles.radioGroup}>
-                          <div className={styles.radioOption}>
-                            <input
-                              type="radio"
-                              id="showPercentage"
-                              name="gradingDisplay"
-                              checked={formData.showPercentageInResult}
-                              onChange={() => handleInputChange("showPercentageInResult", true)}
-                              disabled={loading}
-                              className={styles.radio}
-                            />
-                            <label htmlFor="showPercentage" className={styles.radioLabel}>
-                              Include % marks in result reports
-                            </label>
-                          </div>
-                          <div className={styles.radioOption}>
-                            <input
-                              type="radio"
-                              id="showGPA"
-                              name="gradingDisplay"
-                              checked={formData.showGPAInResult}
-                              onChange={() => handleInputChange("showGPAInResult", true)}
-                              disabled={loading}
-                              className={styles.radio}
-                            />
-                            <label htmlFor="showGPA" className={styles.radioLabel}>
-                              Include GPA grading in result reports
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* GPA System Checkbox */}
-                      <div className={styles.formField}>
-                        <div className={styles.checkboxField}>
+                      {/* Total Pass Marks - Required only when grading is enabled */}
+                      <div className={styles.formRow}>
+                        <label className={styles.label}>
+                          Total Pass Marks <span className={styles.required}>*</span>
+                        </label>
+                        <div className={styles.inputContainer}>
                           <input
-                            type="checkbox"
-                            id="useGPASystem"
-                            checked={formData.useGPASystem}
-                            onChange={(e) => handleInputChange("useGPASystem", e.target.checked)}
+                            type="number"
+                            value={formData.totalPassMarks}
+                            onChange={(e) => handleInputChange("totalPassMarks", parseInt(e.target.value) || 0)}
+                            onBlur={() => handleBlur("totalPassMarks")}
+                            placeholder="e.g. 40"
+                            className={`${styles.input} ${
+                              errors.totalPassMarks ? styles.inputError : ""
+                            }`}
                             disabled={loading}
-                            className={styles.checkbox}
+                            min="0"
+                            max={formData.totalMarks}
                           />
-                          <label htmlFor="useGPASystem" className={styles.checkboxLabel}>
-                            As GPA system?
-                          </label>
+                          {errors.totalPassMarks && (
+                            <div className={styles.errorMessage}>{errors.totalPassMarks}</div>
+                          )}
                         </div>
                       </div>
 
                       {/* Info Text */}
-                      <div className={styles.infoBox}>
+                      <div className={styles.infoText}>
                         Minimum marks required to pass the exam.
+                      </div>
+
+                      {/* Show Grading in Result Options - Optional even when grading is enabled */}
+                      <div className={styles.checkboxField}>
+                        <input
+                          type="checkbox"
+                          id="showPercentageInResult"
+                          checked={formData.showPercentageInResult}
+                          onChange={(e) => handleInputChange("showPercentageInResult", e.target.checked)}
+                          disabled={loading}
+                          className={styles.checkbox}
+                        />
+                        <label htmlFor="showPercentageInResult" className={styles.checkboxLabel}>
+                          Show Grading in Result as % marks?
+                        </label>
+                        <div className={styles.checkboxHelpText}>
+                          Include % marks in result reports
+                        </div>
+                      </div>
+
+                      <div className={styles.checkboxField}>
+                        <input
+                          type="checkbox"
+                          id="showGPAInResult"
+                          checked={formData.showGPAInResult}
+                          onChange={(e) => handleInputChange("showGPAInResult", e.target.checked)}
+                          disabled={loading}
+                          className={styles.checkbox}
+                        />
+                        <label htmlFor="showGPAInResult" className={styles.checkboxLabel}>
+                          As GPA system?
+                        </label>
+                        <div className={styles.checkboxHelpText}>
+                          Include GPA grading in result reports
+                        </div>
                       </div>
                     </>
                   )}

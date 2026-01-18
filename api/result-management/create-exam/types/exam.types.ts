@@ -1,3 +1,13 @@
+// api/result-management/create-exam/types/exam.types.ts
+export interface MarksField {
+  type: string; // 'mcq', 'cq', 'written'
+  totalMarks: number;
+  enablePassMarks?: boolean;
+  passMarks?: number;
+  enableNegativeMarking?: boolean;
+  negativeMarks?: number;
+}
+
 export interface UserRef {
   _id: string;
   username: string;
@@ -5,59 +15,23 @@ export interface UserRef {
   role: string;
 }
 
-export interface ClassRef {
-  _id: string;
-  classname: string;
-  description?: string;
-}
-
-export interface BatchRef {
-  _id: string;
-  batchName: string;
-  sessionYear?: string;
-}
-
-export interface SubjectRef {
-  _id: string;
-  subjectName: string;
-  subjectCode?: string;
-}
-
-export interface ExamCategoryRef {
-  _id: string;
-  categoryName: string;
-}
-
-export interface MarkTitle {
-  title: string;
-  marks: number;
-  passMarks?: number;
-}
-
-export interface Grade {
-  grade: string;
-  description?: string;
-  minPercentage: number;
-  maxPercentage: number;
-}
-
 export interface Exam {
   _id: string;
   examName: string;
   topicName: string;
-  class: ClassRef;
-  batches: BatchRef[];
-  subject: SubjectRef;
-  examCategory: ExamCategoryRef;
+  className: string;
+  batchName: string;
+  subjectName: string;
+  examCategory: string;
   examDate: string;
   showMarksTitle: boolean;
-  markTitles: MarkTitle[];
+  marksFields: MarksField[];
   totalMarks: number;
   enableGrading: boolean;
-  passMarksPercentage?: number;
-  grades: Grade[];
-  instructions?: string;
-  duration?: number;
+  totalPassMarks?: number;
+  showPercentageInResult: boolean;
+  showGPAInResult: boolean;
+  useGPASystem: boolean;
   isActive: boolean;
   createdBy: UserRef;
   updatedBy?: UserRef | null;
@@ -76,48 +50,46 @@ export interface ExamsPaginatedResponse {
 export interface CreateExamDto {
   examName: string;
   topicName: string;
-  classId: string;
-  batchIds: string[];
-  subjectId: string;
-  examCategoryId: string;
-  examDate: string; // "YYYY-MM-DD" or ISO
+  className: string;
+  batchName: string;
+  subjectName: string;
+  examCategory: string;
+  examDate: string;
   showMarksTitle?: boolean;
-  markTitles?: MarkTitle[];
+  marksFields?: MarksField[];
   totalMarks: number;
   enableGrading?: boolean;
-  passMarksPercentage?: number;
-  grades?: Grade[];
-  instructions?: string;
-  duration?: number;
-  isActive?: boolean;
+  totalPassMarks?: number;
+  showPercentageInResult?: boolean;
+  showGPAInResult?: boolean;
+  useGPASystem?: boolean;
 }
 
 export interface UpdateExamDto {
   examName?: string;
   topicName?: string;
-  classId?: string;
-  batchIds?: string[];
-  subjectId?: string;
-  examCategoryId?: string;
+  className?: string;
+  batchName?: string;
+  subjectName?: string;
+  examCategory?: string;
   examDate?: string;
   showMarksTitle?: boolean;
-  markTitles?: MarkTitle[];
+  marksFields?: MarksField[];
   totalMarks?: number;
   enableGrading?: boolean;
-  passMarksPercentage?: number;
-  grades?: Grade[];
-  instructions?: string;
-  duration?: number;
-  isActive?: boolean;
+  totalPassMarks?: number;
+  showPercentageInResult?: boolean;
+  showGPAInResult?: boolean;
+  useGPASystem?: boolean;
 }
 
 export interface ExamQueryParams {
   search?: string;
   isActive?: boolean;
-  classId?: string;
-  subjectId?: string;
-  examCategoryId?: string;
-  batchId?: string;
+  className?: string;
+  subjectName?: string;
+  examCategory?: string;
+  batchName?: string;
   fromDate?: string;
   toDate?: string;
   page?: number;
