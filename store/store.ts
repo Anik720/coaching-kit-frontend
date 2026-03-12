@@ -1,13 +1,13 @@
-// src/store/store.ts
 import { configureStore } from '@reduxjs/toolkit';
 import classReducer from '../api/classApi/classSlice';
-import teacherReducer from '../api/teacherApi/teacherSlice';
 import subjectReducer from '../api/subjectApi/subjectSlice';
-import groupReducer from '../api/groupApi/groupSlice';
+import groupReducer from '../api/groupsApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
+import teacherReducer from '@/api/teacherApi/teacherSlice';
 import studentReducer from '../api/studentApi/studentSlice';
-import attendanceReducer from '../api/attendanceApi/attendanceSlice'; // ADD THIS IMPORT
+import examCategoryReducer from '../api/result-management/exam-category/examCategorySlice';
+import examReducer from '../api/result-management/create-exam/examSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,8 +18,16 @@ export const store = configureStore({
     batch: batchReducer,
     admission: admissionReducer,
     student: studentReducer,
-    attendance: attendanceReducer, // ADD THIS LINE
+    exam: examReducer,          // ← was 'createExam', must match state.exam in useExam
+    examCategory: examCategoryReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['class/createClass/fulfilled', 'class/updateClass/fulfilled'],
+      },
+    }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export type RootState = ReturnType<typeof store.getState>;

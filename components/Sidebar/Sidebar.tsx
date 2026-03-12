@@ -66,6 +66,18 @@ const Sidebar: React.FC = () => {
       ],
     },
 
+    {
+      category: 'Result Management',
+      basePath: '/dashboard/result',
+      items: [
+        { label: 'Create Exam', href: '/dashboard/result/create-exam', icon: '📝' },
+        { label: 'Exam List', href: '/dashboard/result/exam-list', icon: '📋' },
+        { label: 'Create Combine Result', href: '/dashboard/result/create-combine', icon: '📊' },
+        { label: 'Combine Result List', href: '/dashboard/result/combine-list', icon: '🗂️' },
+        { label: 'Exam Category', href: '/dashboard/result/exam-category', icon: '🏷️' },
+      ],
+    },
+
     { label: 'Admission', href: '/dashboard/admission', icon: '🎓' },
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
     { label: 'Fee Collection', href: '/dashboard/fee-collection', icon: '💰' },
@@ -191,18 +203,11 @@ interface NavLinkProps {
   isActive: boolean;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({
-  href,
-  label,
-  icon,
-  isActive,
-}) => {
+const NavLink: React.FC<NavLinkProps> = ({ href, label, icon, isActive }) => {
   return (
     <Link
       href={href}
-      className={`${styles.navLink} ${
-        isActive ? styles.active : ''
-      }`}
+      className={`${styles.navLink} ${isActive ? styles.active : ''}`}
     >
       <span className={styles.navIcon}>{icon}</span>
       <span className={styles.navLabel}>{label}</span>

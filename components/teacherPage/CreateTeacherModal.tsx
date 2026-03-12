@@ -266,14 +266,14 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
   }, [formData.fullName]);
 
   return (
-    <div className={styles.modalOverlayForTeacher} onClick={onClose}>
-      <div className={styles.modalForTeacher} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit} className={styles.modalForm}>
-          <div className={styles.modalHeaderForTeacher}>
-            <h2 className={styles.modalTitleForTeacher}>Create New Teacher Profile</h2>
+          <div className={styles.modalHeader}>
+            <h2 className={styles.modalTitle}>Create New Teacher Profile</h2>
             <button 
               onClick={onClose} 
-              className={styles.modalCloseForTeacher} 
+              className={styles.modalClose} 
               disabled={loading}
               type="button"
               aria-label="Close modal"
@@ -282,14 +282,14 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             </button>
           </div>
           
-          <div className={styles.modalBodyForTeacher}>
+          <div className={styles.modalBody}>
             {/* Basic Information Section */}
             <div className={styles.sectionTitle}>Basic Information</div>
             
-            <div className={styles.formRowForTeacher}>
+            <div className={styles.formRow}>
               {/* Full Name */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="fullName">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="fullName">
                   Full Name *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -300,8 +300,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('fullName', e.target.value)}
                     onBlur={() => handleBlur('fullName')}
                     placeholder="Enter full name"
-                    className={`${styles.inputForTeacher} ${
-                      errors.fullName ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.fullName ? styles.inputError : ''
                     }`}
                     autoFocus
                     disabled={loading}
@@ -310,13 +310,13 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('fullName')}
                 </div>
                 {errors.fullName && (
-                  <div className={styles.errorMessageForTeacher}>{errors.fullName}</div>
+                  <div className={styles.errorMessage}>{errors.fullName}</div>
                 )}
               </div>
 
               {/* Father's Name */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="fatherName">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="fatherName">
                   Father's Name *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -327,8 +327,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('fatherName', e.target.value)}
                     onBlur={() => handleBlur('fatherName')}
                     placeholder="Enter father's name"
-                    className={`${styles.inputForTeacher} ${
-                      errors.fatherName ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.fatherName ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={50}
@@ -336,13 +336,13 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('fatherName')}
                 </div>
                 {errors.fatherName && (
-                  <div className={styles.errorMessageForTeacher}>{errors.fatherName}</div>
+                  <div className={styles.errorMessage}>{errors.fatherName}</div>
                 )}
               </div>
 
               {/* Mother's Name */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="motherName">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="motherName">
                   Mother's Name *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -353,8 +353,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('motherName', e.target.value)}
                     onBlur={() => handleBlur('motherName')}
                     placeholder="Enter mother's name"
-                    className={`${styles.inputForTeacher} ${
-                      errors.motherName ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.motherName ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={50}
@@ -362,20 +362,20 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('motherName')}
                 </div>
                 {errors.motherName && (
-                  <div className={styles.errorMessageForTeacher}>{errors.motherName}</div>
+                  <div className={styles.errorMessage}>{errors.motherName}</div>
                 )}
               </div>
 
               {/* Religion */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="religion">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="religion">
                   Religion *
                 </label>
                 <select
                   id="religion"
                   value={formData.religion}
                   onChange={(e) => handleChange('religion', e.target.value as Religion)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   {getReligionValues().map(religion => (
@@ -387,15 +387,15 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               </div>
 
               {/* Gender */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="gender">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="gender">
                   Gender *
                 </label>
                 <select
                   id="gender"
                   value={formData.gender}
                   onChange={(e) => handleChange('gender', e.target.value as Gender)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   <option value="">Select Gender</option>
@@ -408,8 +408,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               </div>
 
               {/* Date of Birth */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="dateOfBirth">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="dateOfBirth">
                   Date of Birth *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -419,8 +419,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     value={formData.dateOfBirth}
                     onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                     onBlur={() => handleBlur('dateOfBirth')}
-                    className={`${styles.inputForTeacher} ${
-                      errors.dateOfBirth ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.dateOfBirth ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     max={new Date().toISOString().split('T')[0]}
@@ -428,13 +428,13 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('dateOfBirth')}
                 </div>
                 {errors.dateOfBirth && (
-                  <div className={styles.errorMessageForTeacher}>{errors.dateOfBirth}</div>
+                  <div className={styles.errorMessage}>{errors.dateOfBirth}</div>
                 )}
               </div>
 
               {/* Contact Number */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="contactNumber">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="contactNumber">
                   Contact Number *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -445,8 +445,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('contactNumber', e.target.value)}
                     onBlur={() => handleBlur('contactNumber')}
                     placeholder="01XXXXXXXXX"
-                    className={`${styles.inputForTeacher} ${
-                      errors.contactNumber ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.contactNumber ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={11}
@@ -454,14 +454,14 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('contactNumber')}
                 </div>
                 {errors.contactNumber && (
-                  <div className={styles.errorMessageForTeacher}>{errors.contactNumber}</div>
+                  <div className={styles.errorMessage}>{errors.contactNumber}</div>
                 )}
                 <div className={styles.helpText}>Must be 11 digits starting with 01</div>
               </div>
 
               {/* Emergency Contact */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="emergencyContactNumber">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="emergencyContactNumber">
                   Emergency Contact Number *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -472,8 +472,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('emergencyContactNumber', e.target.value)}
                     onBlur={() => handleBlur('emergencyContactNumber')}
                     placeholder="01XXXXXXXXX"
-                    className={`${styles.inputForTeacher} ${
-                      errors.emergencyContactNumber ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.emergencyContactNumber ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={11}
@@ -481,13 +481,13 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('emergencyContactNumber')}
                 </div>
                 {errors.emergencyContactNumber && (
-                  <div className={styles.errorMessageForTeacher}>{errors.emergencyContactNumber}</div>
+                  <div className={styles.errorMessage}>{errors.emergencyContactNumber}</div>
                 )}
               </div>
 
               {/* WhatsApp Number */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="whatsappNumber">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="whatsappNumber">
                   WhatsApp Number *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -498,8 +498,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('whatsappNumber', e.target.value)}
                     onBlur={() => handleBlur('whatsappNumber')}
                     placeholder="01XXXXXXXXX"
-                    className={`${styles.inputForTeacher} ${
-                      errors.whatsappNumber ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.whatsappNumber ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={11}
@@ -507,13 +507,13 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('whatsappNumber')}
                 </div>
                 {errors.whatsappNumber && (
-                  <div className={styles.errorMessageForTeacher}>{errors.whatsappNumber}</div>
+                  <div className={styles.errorMessage}>{errors.whatsappNumber}</div>
                 )}
               </div>
 
               {/* National ID */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="nationalId">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="nationalId">
                   National ID / Birth Reg. No *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -524,8 +524,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('nationalId', e.target.value)}
                     onBlur={() => handleBlur('nationalId')}
                     placeholder="Enter national ID (10-17 digits)"
-                    className={`${styles.inputForTeacher} ${
-                      errors.nationalId ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.nationalId ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     maxLength={17}
@@ -533,20 +533,20 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('nationalId')}
                 </div>
                 {errors.nationalId && (
-                  <div className={styles.errorMessageForTeacher}>{errors.nationalId}</div>
+                  <div className={styles.errorMessage}>{errors.nationalId}</div>
                 )}
               </div>
 
               {/* Blood Group */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="bloodGroup">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="bloodGroup">
                   Blood Group *
                 </label>
                 <select
                   id="bloodGroup"
                   value={formData.bloodGroup}
                   onChange={(e) => handleChange('bloodGroup', e.target.value as BloodGroup)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   <option value="">Select Blood Group</option>
@@ -559,8 +559,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               </div>
 
               {/* Email */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="email">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="email">
                   Personal Email *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -571,21 +571,21 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('email', e.target.value)}
                     onBlur={() => handleBlur('email')}
                     placeholder="personal@example.com"
-                    className={`${styles.inputForTeacher} ${
-                      errors.email ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.email ? styles.inputError : ''
                     }`}
                     disabled={loading}
                   />
                   {getValidationIcon('email')}
                 </div>
                 {errors.email && (
-                  <div className={styles.errorMessageForTeacher}>{errors.email}</div>
+                  <div className={styles.errorMessage}>{errors.email}</div>
                 )}
               </div>
 
               {/* Secondary Email */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="secondaryEmail">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="secondaryEmail">
                   Secondary Email
                 </label>
                 <div className={styles.inputWrapper}>
@@ -596,15 +596,15 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('secondaryEmail', e.target.value)}
                     onBlur={() => handleBlur('secondaryEmail')}
                     placeholder="secondary@example.com"
-                    className={`${styles.inputForTeacher} ${
-                      errors.secondaryEmail ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.secondaryEmail ? styles.inputError : ''
                     }`}
                     disabled={loading}
                   />
                   {getValidationIcon('secondaryEmail')}
                 </div>
                 {errors.secondaryEmail && (
-                  <div className={styles.errorMessageForTeacher}>{errors.secondaryEmail}</div>
+                  <div className={styles.errorMessage}>{errors.secondaryEmail}</div>
                 )}
               </div>
             </div>
@@ -612,8 +612,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             {/* Address Information */}
             <div className={styles.sectionTitle}>Address Information</div>
             
-            <div className={styles.formGroupForTeacher}>
-              <label className={styles.labelForTeacher} htmlFor="presentAddress">
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="presentAddress">
                 Present Address *
               </label>
               <textarea
@@ -623,19 +623,19 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                 onBlur={() => handleBlur('presentAddress')}
                 placeholder="Enter complete present address"
                 className={`${styles.textarea} ${
-                  errors.presentAddress ? styles.inputErrorForTeacher : ''
+                  errors.presentAddress ? styles.inputError : ''
                 }`}
                 disabled={loading}
                 rows={3}
                 maxLength={500}
               />
               {errors.presentAddress && (
-                <div className={styles.errorMessageForTeacher}>{errors.presentAddress}</div>
+                <div className={styles.errorMessage}>{errors.presentAddress}</div>
               )}
             </div>
 
-            <div className={styles.formGroupForTeacher}>
-              <label className={styles.labelForTeacher} htmlFor="permanentAddress">
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="permanentAddress">
                 Permanent Address *
               </label>
               <textarea
@@ -645,24 +645,24 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                 onBlur={() => handleBlur('permanentAddress')}
                 placeholder="Enter complete permanent address"
                 className={`${styles.textarea} ${
-                  errors.permanentAddress ? styles.inputErrorForTeacher : ''
+                  errors.permanentAddress ? styles.inputError : ''
                 }`}
                 disabled={loading}
                 rows={3}
                 maxLength={500}
               />
               {errors.permanentAddress && (
-                <div className={styles.errorMessageForTeacher}>{errors.permanentAddress}</div>
+                <div className={styles.errorMessage}>{errors.permanentAddress}</div>
               )}
             </div>
 
             {/* System Access Section */}
             <div className={styles.sectionTitle}>System Access</div>
             
-            <div className={styles.formRowForTeacher}>
+            <div className={styles.formRow}>
               {/* System Email */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="systemEmail">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="systemEmail">
                   System Email Address *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -673,21 +673,21 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     onChange={(e) => handleChange('systemEmail', e.target.value)}
                     onBlur={() => handleBlur('systemEmail')}
                     placeholder="teacher@academy.edu"
-                    className={`${styles.inputForTeacher} ${
-                      errors.systemEmail ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.systemEmail ? styles.inputError : ''
                     }`}
                     disabled={loading}
                   />
                   {getValidationIcon('systemEmail')}
                 </div>
                 {errors.systemEmail && (
-                  <div className={styles.errorMessageForTeacher}>{errors.systemEmail}</div>
+                  <div className={styles.errorMessage}>{errors.systemEmail}</div>
                 )}
               </div>
 
               {/* Password */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="password">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="password">
                   Password *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -697,15 +697,15 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
                     onBlur={() => handleBlur('password')}
-                    className={`${styles.inputForTeacher} ${
-                      errors.password ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.password ? styles.inputError : ''
                     }`}
                     disabled={loading}
                   />
                   {getValidationIcon('password')}
                 </div>
                 {errors.password && (
-                  <div className={styles.errorMessageForTeacher}>{errors.password}</div>
+                  <div className={styles.errorMessage}>{errors.password}</div>
                 )}
                 <div className={styles.helpText}>Default: Teacher@123 (can be changed later)</div>
               </div>
@@ -714,17 +714,17 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             {/* Job Information Section */}
             <div className={styles.sectionTitle}>Job Information</div>
             
-            <div className={styles.formRowForTeacher}>
+            <div className={styles.formRow}>
               {/* Designation */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="designation">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="designation">
                   Designation *
                 </label>
                 <select
                   id="designation"
                   value={formData.designation}
                   onChange={(e) => handleChange('designation', e.target.value as Designation)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   {getDesignationValues().map(designation => (
@@ -736,15 +736,15 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               </div>
 
               {/* Assign Type */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="assignType">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="assignType">
                   Assign Type *
                 </label>
                 <select
                   id="assignType"
                   value={formData.assignType}
                   onChange={(e) => handleChange('assignType', e.target.value as AssignType)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   {getAssignTypeValues().map(type => (
@@ -758,8 +758,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               {(formData.assignType === AssignType.MONTHLY_BASIS || formData.assignType === AssignType.BOTH) && (
                 <>
                   {/* Monthly Total Class */}
-                  <div className={styles.formGroupForTeacher}>
-                    <label className={styles.labelForTeacher} htmlFor="monthlyTotalClass">
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="monthlyTotalClass">
                       Monthly Total Class
                     </label>
                     <input
@@ -767,7 +767,7 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                       type="number"
                       value={formData.monthlyTotalClass || 0}
                       onChange={(e) => handleChange('monthlyTotalClass', parseInt(e.target.value) || 0)}
-                      className={styles.inputForTeacher}
+                      className={styles.input}
                       disabled={loading}
                       min="0"
                       step="1"
@@ -775,8 +775,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   </div>
 
                   {/* Salary */}
-                  <div className={styles.formGroupForTeacher}>
-                    <label className={styles.labelForTeacher} htmlFor="salary">
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="salary">
                       Salary (৳)
                     </label>
                     <input
@@ -784,7 +784,7 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                       type="number"
                       value={formData.salary || 0}
                       onChange={(e) => handleChange('salary', parseInt(e.target.value) || 0)}
-                      className={styles.inputForTeacher}
+                      className={styles.input}
                       disabled={loading}
                       min="0"
                       step="100"
@@ -794,8 +794,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
               )}
 
               {/* Joining Date */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="joiningDate">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="joiningDate">
                   Joining Date *
                 </label>
                 <div className={styles.inputWrapper}>
@@ -805,8 +805,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                     value={formData.joiningDate}
                     onChange={(e) => handleChange('joiningDate', e.target.value)}
                     onBlur={() => handleBlur('joiningDate')}
-                    className={`${styles.inputForTeacher} ${
-                      errors.joiningDate ? styles.inputErrorForTeacher : ''
+                    className={`${styles.input} ${
+                      errors.joiningDate ? styles.inputError : ''
                     }`}
                     disabled={loading}
                     max={new Date().toISOString().split('T')[0]}
@@ -814,20 +814,20 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
                   {getValidationIcon('joiningDate')}
                 </div>
                 {errors.joiningDate && (
-                  <div className={styles.errorMessageForTeacher}>{errors.joiningDate}</div>
+                  <div className={styles.errorMessage}>{errors.joiningDate}</div>
                 )}
               </div>
 
               {/* Status */}
-              <div className={styles.formGroupForTeacher}>
-                <label className={styles.labelForTeacher} htmlFor="status">
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="status">
                   Status
                 </label>
                 <select
                   id="status"
                   value={formData.status}
                   onChange={(e) => handleChange('status', e.target.value as TeacherStatus)}
-                  className={styles.selectForTeacher}
+                  className={styles.select}
                   disabled={loading}
                 >
                   {getStatusValues().map(status => (
@@ -840,8 +840,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             </div>
 
             {/* Remarks */}
-            <div className={styles.formGroupForTeacher}>
-              <label className={styles.labelForTeacher} htmlFor="remarks">
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="remarks">
                 Remarks
               </label>
               <textarea
@@ -857,8 +857,8 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             </div>
 
             {/* Profile Picture (Optional) */}
-            <div className={styles.formGroupForTeacher}>
-              <label className={styles.labelForTeacher} htmlFor="profilePicture">
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="profilePicture">
                 Profile Picture (Optional)
               </label>
               <div className={styles.fileUpload}>
@@ -903,23 +903,23 @@ export default function CreateTeacherModal({ onClose, onCreate, loading }: Creat
             </div>
           </div>
           
-          <div className={styles.modalFooterForTeacher}>
+          <div className={styles.modalFooter}>
             <button
               type="button"
               onClick={onClose}
-              className={styles.btnSecondaryForTeacher}
+              className={styles.btnSecondary}
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={styles.btnPrimaryForTeacher}
+              className={styles.btnPrimary}
               disabled={loading || !isFormValid()}
             >
               {loading ? (
                 <>
-                  <span className={styles.spinnerSmallForTeacher}></span>
+                  <span className={styles.spinnerSmall}></span>
                   Creating...
                 </>
               ) : (
