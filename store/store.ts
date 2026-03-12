@@ -1,12 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
-import classReducer from '../api/classApi/classSlice'
-import subjectReducer from '../api/subjectApi/subjectSlice'
+import classReducer from '../api/classApi/classSlice';
+import subjectReducer from '../api/subjectApi/subjectSlice';
 import groupReducer from '../api/groupsApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
 import teacherReducer from '@/api/teacherApi/teacherSlice';
 import studentReducer from '../api/studentApi/studentSlice';
 import examCategoryReducer from '../api/result-management/exam-category/examCategorySlice';
+import examReducer from '../api/result-management/create-exam/examSlice';
 
 export const store = configureStore({
   reducer: {
@@ -17,8 +18,8 @@ export const store = configureStore({
     batch: batchReducer,
     admission: admissionReducer,
     student: studentReducer,
+    exam: examReducer,          // ← was 'createExam', must match state.exam in useExam
     examCategory: examCategoryReducer,
-    // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
