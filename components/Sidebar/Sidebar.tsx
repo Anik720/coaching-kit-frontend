@@ -68,7 +68,7 @@ const Sidebar: React.FC = () => {
 
     {
       category: 'Result Management',
-      basePath: '/dashboard/results',
+      basePath: '/dashboard/result',
       items: [
         { label: 'Create Exam', href: '/dashboard/result/create-exam', icon: '📝' },
         { label: 'Exam List', href: '/dashboard/result/exam-list', icon: '📋' },
@@ -203,12 +203,7 @@ interface NavLinkProps {
   isActive: boolean;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({
-  href,
-  label,
-  icon,
-  isActive,
-}) => {
+const NavLink: React.FC<NavLinkProps> = ({ href, label, icon, isActive }) => {
   return (
     <Link
       href={href}

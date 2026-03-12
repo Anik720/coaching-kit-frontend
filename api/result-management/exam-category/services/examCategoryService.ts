@@ -1,13 +1,18 @@
-// src/services/examCategoryService.ts
+// api/result-management/exam-category/services/examCategoryService.ts
 import api from '@/api/axios';
-import { CreateExamCategoryDto, ExamCategoriesResponse, ExamCategoryItem, ExamCategoryQueryParams, UpdateExamCategoryDto } from '../types/examCategory.types';
-
+import {
+  CategoryStatus,
+  CreateExamCategoryDto,
+  ExamCategoriesResponse,
+  ExamCategoryItem,
+  ExamCategoryQueryParams,
+  UpdateExamCategoryDto,
+} from '../types/examCategory.types';
 
 class ExamCategoryService {
   // Get all exam categories with pagination and filtering
   async getAllCategories(params?: ExamCategoryQueryParams): Promise<ExamCategoriesResponse> {
     const queryParams = new URLSearchParams();
-
     if (params) {
       if (params.search) queryParams.append('search', params.search);
       if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
@@ -16,7 +21,6 @@ class ExamCategoryService {
       if (params.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     }
-
     const url = `/academic/exam-category${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const response = await api.get<ExamCategoriesResponse>(url);
     return response.data;
@@ -51,9 +55,9 @@ class ExamCategoryService {
     return response.data;
   }
 
-  // Optional: Get category status & statistics (if you implement it later)
-  async getCategoryStatus(id: string): Promise<any> {
-    const response = await api.get(`/academic/exam-category/${id}/status`);
+  // Get category status & statistics
+  async getCategoryStatus(id: string): Promise<CategoryStatus> {
+    const response = await api.get<CategoryStatus>(`/academic/exam-category/${id}/status`);
     return response.data;
   }
 }

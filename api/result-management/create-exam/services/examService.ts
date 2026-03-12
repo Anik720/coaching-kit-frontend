@@ -60,34 +60,21 @@ class ExamService {
       console.log('🟡 [ExamService] Fetching classes...');
       const response = await api.get<any>('/academic/class');
       console.log('🟢 [ExamService] Classes API response:', response);
-      
-      // Handle different response formats
+
       let classesData: any[] = [];
-      
+
       if (response.data) {
-        // Format 1: { data: [], total, page, limit, totalPages }
         if (response.data.data && Array.isArray(response.data.data)) {
-          console.log('📦 [ExamService] Using data.data format');
           classesData = response.data.data;
-        } 
-        // Format 2: Direct array in response.data
-        else if (Array.isArray(response.data)) {
-          console.log('📦 [ExamService] Using direct array format');
+        } else if (Array.isArray(response.data)) {
           classesData = response.data;
-        }
-        // Format 3: Maybe it's just the data property itself
-        else if (typeof response.data === 'object') {
-          // Check if it has the structure we expect
-          if (response.data.classname) {
-            // Single class object
-            classesData = [response.data];
-          }
+        } else if (typeof response.data === 'object' && response.data.classname) {
+          classesData = [response.data];
         }
       }
-      
+
       console.log('📊 [ExamService] Extracted classes:', classesData.length, 'items');
-      
-      // Map to consistent format
+
       const mappedClasses = classesData.map((cls: any) => ({
         _id: cls._id,
         classname: cls.classname,
@@ -95,10 +82,9 @@ class ExamService {
         description: cls.description,
         isActive: cls.isActive,
       }));
-      
+
       console.log('✅ [ExamService] Mapped classes:', mappedClasses);
       return mappedClasses;
-      
     } catch (error: any) {
       console.error('🔴 [ExamService] Failed to fetch classes:', {
         error: error.message,
@@ -113,20 +99,16 @@ class ExamService {
     try {
       const response = await api.get(`/batches/class/${classId}`);
       console.log('Batches by class response:', response.data);
-      
-      // Handle different response formats
+
       let batches: any[] = [];
-      
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         batches = response.data.data;
       } else if (Array.isArray(response.data)) {
         batches = response.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        batches = response.data;
       }
-      
-      // Add name property for consistency
-      return batches.map(batch => ({
+
+      return batches.map((batch) => ({
         _id: batch._id,
         batchName: batch.batchName || batch.name,
         name: batch.batchName || batch.name || 'Unnamed Batch',
@@ -143,9 +125,8 @@ class ExamService {
     try {
       const response = await api.get<any>('/academic/subject');
       console.log('Subjects API response:', response.data);
-      
-      // Handle response format: { data: [], meta: { total, page, limit, totalPages } }
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         return response.data.data.map((subject: any) => ({
           _id: subject._id,
           subjectName: subject.subjectName,
@@ -154,8 +135,7 @@ class ExamService {
           isActive: subject.isActive,
         }));
       }
-      
-      // Fallback if data structure is different
+
       return response.data || [];
     } catch (error: any) {
       console.error('Failed to fetch subjects:', error.response?.data?.message || error.message);
@@ -168,24 +148,19 @@ class ExamService {
       console.log('🟡 [ExamService] Fetching exam categories...');
       const response = await api.get<any>('/academic/exam-category');
       console.log('🟢 [ExamService] Exam categories API response:', response);
-      
+
       let categoriesData: any[] = [];
-      
+
       if (response.data) {
-        // Format: { data: [], total, page, limit, totalPages }
         if (response.data.data && Array.isArray(response.data.data)) {
-          console.log('📦 [ExamService] Categories: Using data.data format');
           categoriesData = response.data.data;
-        }
-        // Direct array
-        else if (Array.isArray(response.data)) {
-          console.log('📦 [ExamService] Categories: Using direct array format');
+        } else if (Array.isArray(response.data)) {
           categoriesData = response.data;
         }
       }
-      
+
       console.log('📊 [ExamService] Extracted categories:', categoriesData.length, 'items');
-      
+
       const mappedCategories = categoriesData.map((category: any) => ({
         _id: category._id,
         categoryName: category.categoryName,
@@ -193,10 +168,9 @@ class ExamService {
         description: category.description,
         isActive: category.isActive,
       }));
-      
+
       console.log('✅ [ExamService] Mapped categories:', mappedCategories);
       return mappedCategories;
-      
     } catch (error: any) {
       console.error('🔴 [ExamService] Failed to fetch exam categories:', {
         error: error.message,
@@ -207,24 +181,22 @@ class ExamService {
     }
   }
 
+  // FIX: /batches/active → 400 because backend matches it as /batches/:id with id="active"
+  // Use /batches?isActive=true query param instead
   async getActiveBatches(): Promise<any[]> {
     try {
-      const response = await api.get<any>('/batches/active');
+      const response = await api.get<any>('/batches?isActive=true&limit=200');
       console.log('Active batches API response:', response.data);
-      
+
       let batches: any[] = [];
-      
-      // Handle different response formats
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         batches = response.data.data;
       } else if (Array.isArray(response.data)) {
         batches = response.data;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        batches = response.data.data;
       }
-      
-      // Add name property for consistency
-      return batches.map(batch => ({
+
+      return batches.map((batch) => ({
         _id: batch._id,
         batchName: batch.batchName || batch.name,
         name: batch.batchName || batch.name || 'Unnamed Batch',
@@ -238,21 +210,20 @@ class ExamService {
     }
   }
 
-  // Utility method to get all batches (not filtered by class)
   async getAllBatches(): Promise<any[]> {
     try {
       const response = await api.get<any>('/batches');
       console.log('All batches API response:', response.data);
-      
+
       let batches: any[] = [];
-      
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         batches = response.data.data;
       } else if (Array.isArray(response.data)) {
         batches = response.data;
       }
-      
-      return batches.map(batch => ({
+
+      return batches.map((batch) => ({
         _id: batch._id,
         batchName: batch.batchName || batch.name,
         name: batch.batchName || batch.name || 'Unnamed Batch',
@@ -266,11 +237,10 @@ class ExamService {
     }
   }
 
-  // Get suggestions for dropdowns (for autocomplete)
   async getClassSuggestions(): Promise<string[]> {
     try {
       const response = await api.get<ExamsPaginatedResponse>('/academic/exam?limit=100');
-      const classes = [...new Set(response.data.data.map(exam => exam.className).filter(Boolean))];
+      const classes = [...new Set(response.data.data.map((exam) => exam.className).filter(Boolean))];
       return classes.sort();
     } catch (error) {
       console.error('Failed to fetch class suggestions:', error);
@@ -281,7 +251,7 @@ class ExamService {
   async getBatchSuggestions(): Promise<string[]> {
     try {
       const response = await api.get<ExamsPaginatedResponse>('/academic/exam?limit=100');
-      const batches = [...new Set(response.data.data.map(exam => exam.batchName).filter(Boolean))];
+      const batches = [...new Set(response.data.data.map((exam) => exam.batchName).filter(Boolean))];
       return batches.sort();
     } catch (error) {
       console.error('Failed to fetch batch suggestions:', error);

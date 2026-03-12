@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
-import classReducer from '../api/classApi/classSlice'
-import subjectReducer from '../api/subjectApi/subjectSlice'
+import classReducer from '../api/classApi/classSlice';
+import subjectReducer from '../api/subjectApi/subjectSlice';
 import groupReducer from '../api/groupsApi/groupSlice';
 import batchReducer from '../api/batchApi/batchSlice';
 import admissionReducer from '../api/admissionApi/admissionSlice';
@@ -18,9 +18,8 @@ export const store = configureStore({
     batch: batchReducer,
     admission: admissionReducer,
     student: studentReducer,
+    exam: examReducer,          // ← was 'createExam', must match state.exam in useExam
     examCategory: examCategoryReducer,
-    exam: examReducer,
-    // Add other reducers here
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

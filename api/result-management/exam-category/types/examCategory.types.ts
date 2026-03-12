@@ -1,4 +1,4 @@
-// src/types/examCategory.types.ts
+// api/result-management/exam-category/types/examCategory.types.ts
 
 export interface User {
   _id: string;
@@ -46,10 +46,24 @@ export interface ExamCategoryQueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface CategoryStatus {
+  category: {
+    _id: string;
+    categoryName: string;
+    isActive: boolean;
+    createdBy: User;
+    updatedBy: User | null;
+  };
+  totalExams: number;
+  activeExams: number;
+}
+
 export interface ExamCategoryState {
   categories: ExamCategoryItem[];
   currentCategory: ExamCategoryItem | null;
+  categoryStatus: CategoryStatus | null;
   loading: boolean;
+  statusLoading: boolean;
   error: string | null;
   success: boolean;
   total: number;
