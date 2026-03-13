@@ -9,6 +9,7 @@ import studentReducer from '../api/studentApi/studentSlice';
 import examCategoryReducer from '../api/result-management/exam-category/examCategorySlice';
 import examReducer from '../api/result-management/create-exam/examSlice';
 import resultReducer from '../api/result-management/result/resultSlice';
+import combineResultReducer from '../api/result-management/combine-result/combineResultSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     exam: examReducer,
     examCategory: examCategoryReducer,
     result: resultReducer,
+    combineResult: combineResultReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
