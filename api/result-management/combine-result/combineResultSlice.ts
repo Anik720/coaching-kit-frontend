@@ -25,6 +25,10 @@ export interface CombineResultState {
   page: number;
   limit: number;
   totalPages: number;
+  studentResults: any[];
+  studentsLoading: boolean;
+  studentTotal: number;
+  studentTotalPages: number;
 }
 
 const initialState: CombineResultState = {
@@ -42,6 +46,10 @@ const initialState: CombineResultState = {
   page: 1,
   limit: 10,
   totalPages: 0,
+  studentResults: [],
+  studentsLoading: false,
+  studentTotal: 0,
+  studentTotalPages: 0,
 };
 
 // Thunks
@@ -54,6 +62,30 @@ export const fetchCombineResults = createAsyncThunk<
     return await combineResultService.getAll(params);
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Failed to load combine results');
+  }
+});
+
+export const fetchCombineResultById = createAsyncThunk<
+  CombineResultResponseDto,
+  string,
+  { rejectValue: string }
+>('combineResult/fetchCombineResultById', async (id, { rejectWithValue }) => {
+  try {
+    return await combineResultService.getById(id);
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to load combine result');
+  }
+});
+
+export const fetchCombineResultStudents = createAsyncThunk<
+  any,
+  { id: string; params?: { search?: string; batch?: string; page?: number; limit?: number } },
+  { rejectValue: string }
+>('combineResult/fetchCombineResultStudents', async ({ id, params }, { rejectWithValue }) => {
+  try {
+    return await combineResultService.getStudentResults(id, params);
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to load student results');
   }
 });
 
@@ -224,6 +256,36 @@ const combineResultSlice = createSlice({
       .addCase(toggleCombineResultActive.rejected, (state, action) => {
         state.toggling = false;
         state.error = action.payload || 'Failed to toggle active status';
+      })
+
+      // Fetch combine result by ID
+      .addCase(fetchCombineResultById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCombineResultById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentCombineResult = action.payload;
+      })
+      .addCase(fetchCombineResultById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch combine result';
+      })
+
+      // Fetch student results
+      .addCase(fetchCombineResultStudents.pending, (state) => {
+        state.studentsLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCombineResultStudents.fulfilled, (state, action) => {
+        state.studentsLoading = false;
+        state.studentResults = action.payload.data;
+        state.studentTotal = action.payload.total;
+        state.studentTotalPages = action.payload.totalPages;
+      })
+      .addCase(fetchCombineResultStudents.rejected, (state, action) => {
+        state.studentsLoading = false;
+        state.error = action.payload || 'Failed to fetch student results';
       });
   },
 });

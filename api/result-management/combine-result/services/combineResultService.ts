@@ -42,6 +42,17 @@ class CombineResultService {
     return response.data;
   }
 
+  async getStudentResults(id: string, params?: { search?: string; batch?: string; page?: number; limit?: number }): Promise<any> {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.batch) query.append('batch', params.batch);
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    const url = `/results/combine/${id}/students${query.toString() ? `?${query.toString()}` : ''}`;
+    const response = await api.get<any>(url);
+    return response.data;
+  }
+
   async delete(id: string): Promise<void> {
     await api.delete(`/results/combine/${id}`);
   }
