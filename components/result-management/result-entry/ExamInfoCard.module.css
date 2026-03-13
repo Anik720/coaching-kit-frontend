@@ -1,0 +1,79 @@
+.cardContainer {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #1e293b;
+}
+
+.headerTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.icon {
+  color: #3b82f6;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.infoLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.infoValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-left: auto;
+}
+
+.marksGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.markBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.markPass {
+  color: #ef4444;
+}
