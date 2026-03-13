@@ -33,6 +33,7 @@ export interface Exam {
   showGPAInResult: boolean;
   useGPASystem: boolean;
   isActive: boolean;
+  isPublished: boolean;
   createdBy: UserRef;
   updatedBy?: UserRef | null;
   createdAt: string;
@@ -63,6 +64,7 @@ export interface CreateExamDto {
   showPercentageInResult?: boolean;
   showGPAInResult?: boolean;
   useGPASystem?: boolean;
+  isPublished?: boolean;
 }
 
 export interface UpdateExamDto {
@@ -81,6 +83,7 @@ export interface UpdateExamDto {
   showPercentageInResult?: boolean;
   showGPAInResult?: boolean;
   useGPASystem?: boolean;
+  isPublished?: boolean;
 }
 
 export interface ExamQueryParams {

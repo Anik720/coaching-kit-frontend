@@ -21,6 +21,7 @@ interface Exam {
   marksFields?: MarksField[];
   enableGrading: boolean;
   isActive: boolean;
+  isPublished: boolean;
 }
 
 interface ExamListTableProps {
@@ -31,6 +32,7 @@ interface ExamListTableProps {
   onPageChange: (page: number) => void;
   onDeleteClick?: (id: string) => void;
   onEditClick?: (exam: Exam) => void;
+  onTogglePublish?: (id: string, isPublished: boolean) => void;
 }
 
 export default function ExamListTable({ 
@@ -40,7 +42,8 @@ export default function ExamListTable({
   totalPages, 
   onPageChange,
   onDeleteClick,
-  onEditClick
+  onEditClick,
+  onTogglePublish
 }: ExamListTableProps) {
 
   const formatDate = (dateStr: string) => {
@@ -108,10 +111,13 @@ export default function ExamListTable({
                   <td>{getMarksByType(exam.marksFields, 'cq')}</td>
                   <td>{getMarksByType(exam.marksFields, 'written')}</td>
                   <td>
-                     {/* Placeholder for real result status */}
-                     <span className={`${styles.statusBadge} ${styles.unpublished}`}>
-                        Unpublished
-                     </span>
+                     <button 
+                       className={`${styles.statusBadge} ${exam.isPublished ? styles.published : styles.unpublished}`}
+                       onClick={() => onTogglePublish && onTogglePublish(exam._id, exam.isPublished)}
+                       style={{ cursor: 'pointer', border: 'none' }}
+                     >
+                        {exam.isPublished ? 'Published' : 'Unpublished'}
+                     </button>
                   </td>
                   <td>
                     <div className={styles.actionGroup}>
@@ -126,8 +132,12 @@ export default function ExamListTable({
                       </Link>
                       
                       {/* Optional standard action icons */}
-                      <button className={`${styles.actionBtn} ${styles.view}`} title="View">
-                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <button 
+                        className={styles.actionBtn}
+                        onClick={() => onTogglePublish && onTogglePublish(exam._id, exam.isPublished)}
+                        title={exam.isPublished ? "Unpublish" : "Publish"}
+                      >
+                         <svg width="16" height="16" fill={exam.isPublished ? "#10b981" : "none"} stroke="currentColor" viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                          </svg>

@@ -10,7 +10,8 @@ import {
   fetchExams, 
   fetchClasses, 
   fetchActiveBatches, 
-  fetchExamCategories 
+  fetchExamCategories,
+  updateExam
 } from "@/api/result-management/create-exam/examSlice";
 
 export default function ExamListPage() {
@@ -61,6 +62,15 @@ export default function ExamListPage() {
     setCurrentPage(1); // Reset to first page on new filter
   }, []);
 
+  const handleTogglePublish = async (id: string, currentPublishedStatus: boolean) => {
+    try {
+      await dispatch(updateExam({ id, data: { isPublished: !currentPublishedStatus } })).unwrap();
+    } catch (error) {
+      console.error("Failed to toggle publish status:", error);
+      alert(error || "Failed to update publish status");
+    }
+  };
+
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -89,6 +99,7 @@ export default function ExamListPage() {
         page={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        onTogglePublish={handleTogglePublish}
       />
     </div>
   );
