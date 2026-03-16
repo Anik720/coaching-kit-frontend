@@ -1,0 +1,205 @@
+.pageContainer {
+  padding: 24px;
+  background-color: #f3f4f6;
+  min-height: 100vh;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.backBtn {
+  background: none;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.2s;
+}
+
+.backBtn:hover {
+  background-color: #f3f4f6;
+}
+
+.printBtn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.printBtn:hover {
+  background-color: #2563eb;
+}
+
+.reportCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.reportTitleArea {
+  padding: 24px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.reportTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.infoBlock {
+  padding: 16px 24px;
+  border: 1px solid #e5e7eb;
+  margin: 16px 24px;
+  border-radius: 6px;
+  background-color: #fafafa;
+}
+
+.infoBlock p {
+  margin: 4px 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  padding: 0 0 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.table th {
+  background-color: #374151;
+  color: white;
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  border: 1px solid #4b5563;
+}
+
+.table td {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+  color: #1f2937;
+}
+
+.table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.examHeader {
+  vertical-align: top;
+  min-width: 100px;
+}
+
+.examHeaderTop {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.examHeaderName {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.examHeaderSub {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.6rem;
+  opacity: 0.75;
+  margin-top: 2px;
+  gap: 1px;
+}
+
+.studentId {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.markCell {
+  font-weight: 500;
+}
+
+.mark {
+  color: #f59e0b;
+}
+
+.absent {
+  color: #9ca3af;
+}
+
+.grade {
+  font-weight: 700;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px;
+  gap: 16px;
+  color: #6b7280;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.emptyMessage {
+  padding: 48px;
+  text-align: center;
+  color: #6b7280;
+}
+
+@media print {
+  .backBtn, .printBtn {
+    display: none;
+  }
+  .pageContainer {
+    padding: 0;
+    background: white;
+  }
+  .reportCard {
+    box-shadow: none;
+  }
+}

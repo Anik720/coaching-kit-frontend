@@ -56,6 +56,7 @@ export interface BatchItem {
   admissionFee: number;
   tuitionFee: number;
   courseFee: number;
+  monthlyClassCount: number; // নতুন ফিচার: ডাইনামিক মান্থলি ক্লাস ইনপুট
   totalFee?: number;
   daysRemaining?: number;
   isActiveSession?: boolean;
@@ -88,6 +89,7 @@ export interface CreateBatchDto {
   admissionFee: number;
   tuitionFee: number;
   courseFee: number;
+  monthlyClassCount: number; // নতুন ফিচার: ডাইনামিক মান্থলি ক্লাস ইনপুট
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
   description?: string;
@@ -106,6 +108,7 @@ export interface UpdateBatchDto {
   admissionFee?: number;
   tuitionFee?: number;
   courseFee?: number;
+  monthlyClassCount?: number; // নতুন ফিচার: অপশনাল হিসেবে আপডেট করার জন্য
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
   description?: string;
@@ -153,6 +156,7 @@ export interface CreateBatchResponse {
   admissionFee: number;
   tuitionFee: number;
   courseFee: number;
+  monthlyClassCount: number; // নতুন ফিচার
   status: string;
   isActive: boolean;
   description: string;
