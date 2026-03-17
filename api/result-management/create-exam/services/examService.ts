@@ -116,6 +116,10 @@ class ExamService {
         isActive: batch.isActive,
       }));
     } catch (error: any) {
+      // Backend throws 404 when no batches found - treat that as empty, not an error
+      if (error.response?.status === 404) {
+        return [];
+      }
       console.error('Failed to fetch batches by class:', error.response?.data?.message || error.message);
       return [];
     }

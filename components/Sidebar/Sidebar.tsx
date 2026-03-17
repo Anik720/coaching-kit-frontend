@@ -81,6 +81,16 @@ const Sidebar: React.FC = () => {
     { label: 'Admission', href: '/dashboard/admission', icon: '🎓' },
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
     { label: 'Fee Collection', href: '/dashboard/fee-collection', icon: '💰' },
+    {
+      category: 'Student Attendance',
+      basePath: '/dashboard/student-attendance',
+      items: [
+        { label: 'Create Attendance', href: '/dashboard/student-attendance/submit', icon: '➕' },
+        { label: 'Attendance List', href: '/dashboard/student-attendance', icon: '📋' },
+        { label: 'Monthly Attendance List', href: '/dashboard/student-attendance/monthly', icon: '📅' },
+        { label: 'Download Attendance Blank Sheet', href: '#', icon: '📥' },
+      ],
+    },
   ];
 
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);

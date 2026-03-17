@@ -4,7 +4,8 @@ import type { TypedUseSelectorHook } from 'react-redux';
 import type { RootState, AppDispatch } from '../store/store';
 import {
   fetchAttendanceRecords,
-  fetchAttendanceStats,
+  fetchMonthlyGrid,
+  fetchMonthlySummary,
   fetchStudentsByClassBatch,
   submitAttendance,
   updateAttendance,
@@ -25,7 +26,8 @@ export const useAttendance = () => {
   const {
     attendanceRecords,
     currentAttendance,
-    attendanceStats,
+    monthlyGridData,
+    monthlySummaryData,
     loading,
     error,
     success,
@@ -39,7 +41,8 @@ export const useAttendance = () => {
   const attendanceState = {
     attendanceRecords,
     currentAttendance,
-    attendanceStats,
+    monthlyGridData,
+    monthlySummaryData,
     loading,
     error,
     success,
@@ -56,8 +59,10 @@ export const useAttendance = () => {
     // Actions
     fetchAttendanceRecords: (filters: AttendanceFilters) => 
       dispatch(fetchAttendanceRecords(filters)),
-    fetchAttendanceStats: (filters: AttendanceFilters) => 
-      dispatch(fetchAttendanceStats(filters)),
+    fetchMonthlySummary: (studentId: string, batchId: string, month: number, year: number) => 
+      dispatch(fetchMonthlySummary({ studentId, batchId, month, year })),
+    fetchMonthlyGrid: (classId: string, batchId: string, month: number, year: number) => 
+      dispatch(fetchMonthlyGrid({ classId, batchId, month, year })),
     fetchStudentsByClassBatch: (classId: string, batchId: string) => 
       dispatch(fetchStudentsByClassBatch({ classId, batchId })),
     submitAttendance: (attendanceData: AttendanceFormData) => 

@@ -1057,3 +1057,60 @@
     width: 100%;
   }
 }
+
+/* ── New session-based table elements ──────────────────────────────── */
+
+/* Clickable attendance name (opens detail modal) */
+.attendanceNameBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+.attendanceNameBtn:hover {
+  color: #3730a3;
+}
+
+/* Clickable batch badge */
+.batchBadgeBtn {
+  display: inline-block;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  color: #9f1239;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.batchBadgeBtn:hover {
+  background: linear-gradient(135deg, #f9a8d4 0%, #f472b6 100%);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(236, 72, 153, 0.3);
+}
+
+/* Count badges in summary columns */
+.countBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.presentBadge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.absentBadge {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}

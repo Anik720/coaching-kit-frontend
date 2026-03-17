@@ -50,15 +50,14 @@ export interface AttendanceRecord {
 }
 
 export interface AttendanceFormData {
-  classId: string;
-  batchId: string;
+  class: string;
+  batch: string;
   attendanceDate: string;
-  classStartingTime: string;
-  classEndingTime: string;
-  attendanceType: string;
-  students: Array<{
-    studentId: string;
-    attendanceType: string;
+  classStartTime?: string;
+  classEndTime?: string;
+  records: Array<{
+    student: string;
+    status: string;
     remarks?: string;
   }>;
 }
@@ -89,7 +88,8 @@ export interface AttendanceFilters {
 interface AttendanceState {
   attendanceRecords: AttendanceRecord[];
   currentAttendance: AttendanceRecord | null;
-  attendanceStats: AttendanceStats | null;
+  monthlyGridData: any | null;
+  monthlySummaryData: any | null;
   loading: boolean;
   error: string | null;
   success: boolean;
@@ -103,7 +103,8 @@ interface AttendanceState {
 const initialState: AttendanceState = {
   attendanceRecords: [],
   currentAttendance: null,
-  attendanceStats: null,
+  monthlyGridData: null,
+  monthlySummaryData: null,
   loading: false,
   error: null,
   success: false,
@@ -127,14 +128,26 @@ export const fetchAttendanceRecords = createAsyncThunk(
   }
 );
 
-export const fetchAttendanceStats = createAsyncThunk(
-  'attendance/fetchStats',
-  async (filters: AttendanceFilters = {}, { rejectWithValue }) => {
+export const fetchMonthlySummary = createAsyncThunk(
+  'attendance/fetchMonthlySummary',
+  async ({ studentId, batchId, month, year }: { studentId: string; batchId: string; month: number; year: number }, { rejectWithValue }) => {
     try {
-      const response = await attendanceApi.getAttendanceStats(filters);
+      const response = await attendanceApi.getMonthlySummary(studentId, batchId, month, year);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch attendance statistics');
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch monthly summary');
+    }
+  }
+);
+
+export const fetchMonthlyGrid = createAsyncThunk(
+  'attendance/fetchMonthlyGrid',
+  async ({ classId, batchId, month, year }: { classId: string; batchId: string; month: number; year: number }, { rejectWithValue }) => {
+    try {
+      const response = await attendanceApi.getMonthlyGrid(classId, batchId, month, year);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch monthly grid');
     }
   }
 );
@@ -214,8 +227,12 @@ const attendanceSlice = createSlice({
       })
       .addCase(fetchAttendanceRecords.fulfilled, (state, action) => {
         state.loading = false;
-        state.attendanceRecords = action.payload.records || action.payload;
-        state.total = action.payload.total || action.payload.length;
+        state.attendanceRecords = action.payload.data || action.payload.records || action.payload || [];
+        // Ensure it's an array
+        if (!Array.isArray(state.attendanceRecords)) {
+          state.attendanceRecords = [];
+        }
+        state.total = action.payload.total || (Array.isArray(action.payload) ? action.payload.length : 0);
         state.page = action.payload.page || 1;
         state.limit = action.payload.limit || 10;
         state.totalPages = action.payload.totalPages || 1;
@@ -225,16 +242,16 @@ const attendanceSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // Fetch Attendance Stats
-      .addCase(fetchAttendanceStats.pending, (state) => {
+      // Fetch Monthly Summary
+      .addCase(fetchMonthlySummary.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchAttendanceStats.fulfilled, (state, action) => {
+      .addCase(fetchMonthlySummary.fulfilled, (state, action) => {
         state.loading = false;
-        state.attendanceStats = action.payload;
+        state.monthlySummaryData = action.payload;
       })
-      .addCase(fetchAttendanceStats.rejected, (state, action) => {
+      .addCase(fetchMonthlySummary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -249,6 +266,20 @@ const attendanceSlice = createSlice({
         // Store students data temporarily for form
       })
       .addCase(fetchStudentsByClassBatch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Fetch Monthly Grid
+      .addCase(fetchMonthlyGrid.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMonthlyGrid.fulfilled, (state, action) => {
+        state.loading = false;
+        state.monthlyGridData = action.payload;
+      })
+      .addCase(fetchMonthlyGrid.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -280,7 +311,7 @@ const attendanceSlice = createSlice({
       .addCase(updateAttendance.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        const index = state.attendanceRecords.findIndex(record => record._id === action.payload._id);
+        const index = state.attendanceRecords.findIndex((record: AttendanceRecord) => record._id === action.payload._id);
         if (index !== -1) {
           state.attendanceRecords[index] = action.payload;
         }
@@ -298,7 +329,7 @@ const attendanceSlice = createSlice({
       .addCase(deleteAttendance.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        state.attendanceRecords = state.attendanceRecords.filter(record => record._id !== action.payload);
+        state.attendanceRecords = state.attendanceRecords.filter((record: AttendanceRecord) => record._id !== action.payload);
         state.total -= 1;
       })
       .addCase(deleteAttendance.rejected, (state, action) => {

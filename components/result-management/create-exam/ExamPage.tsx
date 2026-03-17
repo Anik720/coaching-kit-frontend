@@ -198,7 +198,6 @@ export default function ExamPage() {
     [totalPages]
   );
 
-  // Function to fetch batches by class
   const fetchBatchesForClass = useCallback(async (classId: string) => {
     try {
       const response = await api.get(`/batches/class/${classId}`);
@@ -217,7 +216,11 @@ export default function ExamPage() {
         }));
       }
       return [];
-    } catch (error) {
+    } catch (error: any) {
+      // Backend throws 404 when no batches exist for this class - treat as empty
+      if (error.response?.status === 404) {
+        return [];
+      }
       console.error('Failed to fetch batches:', error);
       return [];
     }
