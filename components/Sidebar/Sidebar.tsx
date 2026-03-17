@@ -88,7 +88,7 @@ const Sidebar: React.FC = () => {
         { label: 'Create Attendance', href: '/dashboard/student-attendance/submit', icon: '➕' },
         { label: 'Attendance List', href: '/dashboard/student-attendance', icon: '📋' },
         { label: 'Monthly Attendance List', href: '/dashboard/student-attendance/monthly', icon: '📅' },
-        { label: 'Download Attendance Blank Sheet', href: '#', icon: '📥' },
+        { label: 'Download Attendance Blank Sheet', href: '/dashboard/student-attendance/blank-sheet', icon: '📥' },
       ],
     },
   ];
