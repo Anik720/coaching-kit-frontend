@@ -68,9 +68,12 @@ const attendanceApi = {
   },
 
   // Get previous attendance summary for all students in a batch (bulk, one call)
-  getBatchAttendanceSummary: (batchId: string, date?: string) => {
-    const params = date ? `?date=${date}` : '';
-    return api.get(`/academic/student-attendance/batch-summary/${batchId}${params}`);
+  getBatchAttendanceSummary: (batchId: string, date?: string, startDate?: string) => {
+    const p = new URLSearchParams();
+    if (date) p.append('date', date);
+    if (startDate) p.append('startDate', startDate);
+    const qs = p.toString() ? `?${p.toString()}` : '';
+    return api.get(`/academic/student-attendance/batch-summary/${batchId}${qs}`);
   },
 };
 

@@ -15,7 +15,8 @@ function formatMonthLabel(year: number, month: number) {
 function formatDateShort(date: Date) {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
-const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+// 2-letter abbreviations — safely fit in a 6.8mm column at 8pt
+const DAY_NAMES = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
 // ── PDF layout constants ────────────────────────────────────────────────────
 const PAGE_W   = 297;   // landscape A4 mm
@@ -70,11 +71,14 @@ export default function BlankSheetPage() {
 
     setGenerating(true);
     try {
-      // Probe monthly grid to see if sessions exist
-      const gridRes = await attendanceApi.getMonthlyGrid(selectedClass, selectedBatch, selectedMonth, selectedYear);
+      // Fetch the monthly grid — same data scope as the submit-page Prev badge
+      const gridRes = await attendanceApi.getMonthlyGrid(
+        selectedClass, selectedBatch, selectedMonth, selectedYear,
+      );
       const dates: string[] = gridRes.data?.dates || [];
+
       if (dates.length === 0) {
-        // No sessions → ask user for blank column count
+        // No sessions recorded this month → offer blank sheet
         setShowBlankModal(true);
       } else {
         await generatePDF(dates, gridRes.data?.students || [], false);
@@ -158,28 +162,35 @@ export default function BlankSheetPage() {
         doc.setTextColor(90, 90, 90);
         doc.text(monthLabel, MARGIN, 27);
 
+        // Use getTextWidth so labels never overlap their values
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
         doc.setTextColor(30, 30, 30);
-        doc.text(`Class: `, MARGIN, 35);
+
+        const labelClass = "Class:";
+        doc.text(labelClass, MARGIN, 35);
         doc.setFont("helvetica", "normal");
-        doc.text(className, MARGIN + 12, 35);
+        doc.text(className, MARGIN + doc.getTextWidth(labelClass) + 2, 35);
 
         doc.setFont("helvetica", "bold");
-        doc.text(`Batch: `, MARGIN, 41);
+        const labelBatch = "Batch:";
+        doc.text(labelBatch, MARGIN, 41);
         doc.setFont("helvetica", "normal");
-        doc.text(batchName, MARGIN + 12, 41);
+        doc.text(batchName, MARGIN + doc.getTextWidth(labelBatch) + 2, 41);
 
         doc.setFont("helvetica", "bold");
-        doc.text(`Total Students: `, MARGIN, 47);
+        const labelTotal = "Total Students:";
+        doc.text(labelTotal, MARGIN, 47);
         doc.setFont("helvetica", "normal");
-        doc.text(String(allStudents.length), MARGIN + 30, 47);
+        doc.text(String(allStudents.length), MARGIN + doc.getTextWidth(labelTotal) + 2, 47);
 
         if (!isBlank) {
+          const col2X = MARGIN + 90; // well clear of class/batch text
           doc.setFont("helvetica", "bold");
-          doc.text(`Sessions: `, MARGIN + 65, 35);
+          const labelSessions = "Sessions:";
+          doc.text(labelSessions, col2X, 35);
           doc.setFont("helvetica", "normal");
-          doc.text(String(dates.length), MARGIN + 80, 35);
+          doc.text(String(dates.length), col2X + doc.getTextWidth(labelSessions) + 2, 35);
         }
 
         // Logo box (top-right)
@@ -205,17 +216,24 @@ export default function BlankSheetPage() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(30, 30, 30);
-        doc.text("Generated:", MARGIN, 61);
+
+        // Generated row — use getTextWidth so values never overlap labels
+        const genLabel = "Generated:";
+        doc.text(genLabel, MARGIN, 61);
         doc.setFont("helvetica", "normal");
-        doc.text(formatDateShort(new Date()), MARGIN + 20, 61);
+        doc.text(formatDateShort(new Date()), MARGIN + doc.getTextWidth(genLabel) + 2, 61);
+
         doc.setFont("helvetica", "bold");
-        doc.text("Prepared By:", 105, 61);
+        const prepLabel = "Prepared By:";
+        doc.text(prepLabel, 105, 61);
         doc.setFont("helvetica", "normal");
-        doc.text("_______________________", 124, 61);
+        doc.text("_______________________", 105 + doc.getTextWidth(prepLabel) + 2, 61);
+
         doc.setFont("helvetica", "bold");
-        doc.text("Signature:", 218, 61);
+        const sigLabel = "Signature:";
+        doc.text(sigLabel, 220, 61);
         doc.setFont("helvetica", "normal");
-        doc.text("_______________", 233, 61);
+        doc.text("_______________", 220 + doc.getTextWidth(sigLabel) + 2, 61);
 
       } else {
         // Continuation page mini-header
@@ -430,7 +448,7 @@ export default function BlankSheetPage() {
             <div>
               <h1 className={styles.pageTitle}>Download Attendance Sheet</h1>
               <p className={styles.pageSubtitle}>
-                Generate a print-ready PDF with actual P/A data — or a blank sheet if no sessions are recorded
+                Generates a monthly PDF and Prev badge — both scoped to the same selected month so the counts always match
               </p>
             </div>
           </div>
@@ -509,12 +527,12 @@ export default function BlankSheetPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
           {[
-            { icon: "📊", title: "Attendance Data", color: "#6366f1", bg: "#eef2ff",
-              desc: "If attendance has been recorded for the selected month, each session appears as a column with color-coded P / A / L / LV marks." },
+            { icon: "📊", title: "Monthly Session Data", color: "#6366f1", bg: "#eef2ff",
+              desc: "Shows sessions for the selected month with color-coded P/A/L/LV marks — same scope as the Prev badge on the submit page." },
             { icon: "📝", title: "Blank Sheet Fallback", color: "#059669", bg: "#d1fae5",
-              desc: "If no sessions are recorded yet, you'll be asked how many blank day-columns to include — perfect for pre-printing sheets." },
+              desc: "If no sessions have been recorded yet, you'll be asked how many blank day-columns to include — perfect for pre-printing sheets." },
             { icon: "🖨️", title: "Multi-Page Layout", color: "#d97706", bg: "#fef3c7",
-              desc: "Sessions automatically split across pages (up to ~29 per page) so nothing is ever cut off — landscape A4, fully print-ready." },
+              desc: "Sessions split automatically (~29 per page) so nothing is ever cut off. Landscape A4, color-coded, fully print-ready." },
           ].map(c => (
             <div key={c.title} style={{ display: "flex", gap: 14, padding: "18px 20px",
               borderRadius: 14, background: c.bg, border: `1px solid ${c.color}22` }}>

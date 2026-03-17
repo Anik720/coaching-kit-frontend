@@ -74,7 +74,10 @@ export default function CreateAttendancePage() {
 
   useEffect(() => {
     if (!selectedBatch || !attendanceDate) { setBatchSummary(null); return; }
-    attendanceApi.getBatchAttendanceSummary(selectedBatch, attendanceDate)
+    // Scope Prev badge to the same month: startDate = first day of the attendance month
+    const [y, m] = attendanceDate.split('-');
+    const startDate = `${y}-${m}-01`;
+    attendanceApi.getBatchAttendanceSummary(selectedBatch, attendanceDate, startDate)
       .then(r => setBatchSummary(r.data || null))
       .catch(() => setBatchSummary(null));
   }, [selectedBatch, attendanceDate]);
