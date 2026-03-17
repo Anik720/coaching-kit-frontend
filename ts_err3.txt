@@ -1,0 +1,20 @@
+.next/dev/types/validator.ts(150,39): error TS2306: File 'G:/MERN/CoachingKit/coaching-kit-frontend/app/dashboard/result/page.tsx' is not a module.
+api/batchApi/batchSlice.ts(292,46): error TS2339: Property '_id' does not exist on type 'User'.
+components/attendancePage/AttendancePage.tsx(179,15): error TS2571: Object is of type 'unknown'.
+components/attendancePage/AttendancePage.tsx(179,24): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<unknown, string, { arg: AttendanceFilters; requestId: string; requestStatus: "rejected"; aborted: boolean; condition: boolean; } & ({ ...; } | ({ ...; } & {})), SerializedError>> & { ...' is not assignable to parameter of type 'UnknownAction'.
+      Property 'type' is missing in type 'Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<unknown, string, { arg: AttendanceFilters; requestId: string; requestStatus: "rejected"; aborted: boolean; condition: boolean; } & ({ ...; } | ({ ...; } & {})), SerializedError>> & { ...' but required in type 'UnknownAction'.
+components/attendancePage/AttendancePage.tsx(200,15): error TS2571: Object is of type 'unknown'.
+components/attendancePage/AttendancePage.tsx(200,24): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<unknown, string, { arg: AttendanceFilters; requestId: string; requestStatus: "rejected"; aborted: boolean; condition: boolean; } & ({ ...; } | ({ ...; } & {})), SerializedError>> & { ...' is not assignable to parameter of type 'UnknownAction'.
+      Property 'type' is missing in type 'Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<unknown, string, { arg: AttendanceFilters; requestId: string; requestStatus: "rejected"; aborted: boolean; condition: boolean; } & ({ ...; } | ({ ...; } & {})), SerializedError>> & { ...' but required in type 'UnknownAction'.
+components/attendancePage/AttendancePage.tsx(252,22): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(filters: AttendanceFilters) => Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<...>> & { ...; } & { ...; }' is not assignable to parameter of type 'UnknownAction'.
+components/attendancePage/AttendancePage.tsx(272,22): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(filters: AttendanceFilters) => Promise<PayloadAction<any, string, { arg: AttendanceFilters; requestId: string; requestStatus: "fulfilled"; }, never> | PayloadAction<...>> & { ...; } & { ...; }' is not assignable to parameter of type 'UnknownAction'.
+components/attendancePage/AttendancePage.tsx(606,45): error TS7006: Parameter 'record' implicitly has an 'any' type.
+hooks/useAttendance.ts(37,39): error TS2339: Property 'attendance' does not exist on type '{ class: ClassState; teacher: TeacherState; subject: SubjectState; group: GroupState; batch: BatchState; admission: AdmissionState; ... 4 more ...; combineResult: CombineResultState; }'.

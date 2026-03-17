@@ -966,7 +966,11 @@ export default function AdmissionPage() {
                 return response.data;
               }
               return [];
-            } catch (error) {
+            } catch (error: any) {
+              // Backend throws 404 when no batches exist for this class - treat as empty
+              if (error.response?.status === 404) {
+                return [];
+              }
               console.error('Failed to fetch batches:', error);
               return [];
             }

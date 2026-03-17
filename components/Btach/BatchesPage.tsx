@@ -126,6 +126,7 @@ export default function BatchesPage() {
         status: batchData.status || 'upcoming',
         isActive: batchData.status === 'active',
         description: batchData.description || '',
+        monthlyClassCount: Number(batchData.monthlyClassCount) || 0,
         createdBy: userId,
         };
         
@@ -426,6 +427,7 @@ export default function BatchesPage() {
                       <th>Subject</th>
                       <th>Session</th>
                       <th>Dates</th>
+                      <th>Classes/Mo</th>
                       <th>Fees</th>
                       <th>Status</th>
                       <th>Actions</th>
@@ -467,6 +469,9 @@ export default function BatchesPage() {
                               </div>
                             )}
                           </div>
+                        </td>
+                        <td>
+                          {batch.monthlyClassCount || 0}
                         </td>
                         <td>
                           <div className={styles.feesCell}>
@@ -644,6 +649,7 @@ function CreateBatchModal({
     admissionFee: '',
     tuitionFee: '',
     courseFee: '',
+    monthlyClassCount: '',
     description: '',
     maxStudents: '50',
     status: 'upcoming' as 'active' | 'inactive' | 'completed' | 'upcoming',
@@ -698,6 +704,12 @@ function CreateBatchModal({
         if (value && parseFloat(value) < 0) return 'Fee cannot be negative';
         break;
       
+      case 'monthlyClassCount':
+        if (!value) return 'Monthly class count is required';
+        if (parseInt(value) < 1) return 'Must be at least 1 class per month';
+        if (parseInt(value) > 31) return 'Class count cannot exceed 31 days';
+        break;
+
       case 'maxStudents':
         if (!value || parseInt(value) < 1) return 'Must have at least 1 student';
         if (parseInt(value) > 1000) return 'Cannot exceed 1000 students';
@@ -757,6 +769,7 @@ function CreateBatchModal({
         admissionFee: parseFloat(formData.admissionFee) || 0,
         tuitionFee: parseFloat(formData.tuitionFee) || 0,
         courseFee: parseFloat(formData.courseFee) || 0,
+        monthlyClassCount: parseInt(formData.monthlyClassCount) || 0,
         maxStudents: parseInt(formData.maxStudents) || 50,
       };
       
@@ -792,7 +805,7 @@ function CreateBatchModal({
   // Check if form is valid (for button disable state)
   const isFormValid = () => {
     // Basic validation - check if required fields are filled
-    const requiredFields = ['batchName', 'className', 'group', 'subject', 'sessionYear', 'batchStartingDate', 'batchClosingDate'];
+    const requiredFields = ['batchName', 'className', 'group', 'subject', 'sessionYear', 'batchStartingDate', 'batchClosingDate', 'monthlyClassCount'];
     const allRequiredFilled = requiredFields.every(field => 
       field in formData && formData[field as keyof typeof formData]?.toString().trim() !== ''
     );
@@ -1140,6 +1153,31 @@ function CreateBatchModal({
                 )}
                 {!errors.maxStudents && formData.maxStudents && (
                   <div className={styles.helpText}>✓ {formData.maxStudents} students maximum</div>
+                )}
+              </div>
+
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="monthlyClassCount">
+                  Monthly Class Count
+                  <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="monthlyClassCount"
+                  type="number"
+                  value={formData.monthlyClassCount}
+                  onChange={(e) => handleChange('monthlyClassCount', e.target.value)}
+                  onBlur={() => handleBlur('monthlyClassCount')}
+                  placeholder="e.g., 12"
+                  className={`${styles.input} ${errors.monthlyClassCount ? styles.inputError : ''}`}
+                  disabled={loading}
+                  min="1"
+                  max="31"
+                />
+                {errors.monthlyClassCount && (
+                  <div className={styles.errorMessage}>{errors.monthlyClassCount}</div>
+                )}
+                {!errors.monthlyClassCount && formData.monthlyClassCount && (
+                  <div className={styles.helpText}>✓ Valid class count</div>
                 )}
               </div>
             </div>
