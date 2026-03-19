@@ -40,9 +40,10 @@ export default function BlankSheetPage() {
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [generating, setGenerating]       = useState(false);
 
-  // Modal for blank-only sheets (no sessions recorded)
+  // Modal for blank-only sheets (no sessions recorded, or manual)
   const [showBlankModal, setShowBlankModal] = useState(false);
   const [numBlankDays, setNumBlankDays]     = useState(30);
+  const [isManualBlank, setIsManualBlank]   = useState(false);
 
   // ── Data loading ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -64,6 +65,14 @@ export default function BlankSheetPage() {
 
   useEffect(() => { setNumBlankDays(daysInMonth(selectedYear, selectedMonth)); }, [selectedYear, selectedMonth]);
 
+  // ── Direct blank sheet download ───────────────────────────────────────────
+  const handleClickBlankDirect = () => {
+    if (!selectedClass) { toastManager.showError("Please select a class"); return; }
+    if (!selectedBatch) { toastManager.showError("Please select a batch"); return; }
+    setIsManualBlank(true);
+    setShowBlankModal(true);
+  };
+
   // ── Trigger download ──────────────────────────────────────────────────────
   const handleClickDownload = async () => {
     if (!selectedClass) { toastManager.showError("Please select a class"); return; }
@@ -79,6 +88,7 @@ export default function BlankSheetPage() {
 
       if (dates.length === 0) {
         // No sessions recorded this month → offer blank sheet
+        setIsManualBlank(false);
         setShowBlankModal(true);
       } else {
         await generatePDF(dates, gridRes.data?.students || [], false);
@@ -498,7 +508,7 @@ export default function BlankSheetPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button onClick={handleClickDownload} disabled={generating || !selectedClass || !selectedBatch}
             className={styles.btnPrimary} style={{ minWidth: 200 }}>
             {generating ? (
@@ -514,6 +524,19 @@ export default function BlankSheetPage() {
               </>
             )}
           </button>
+
+          <button onClick={handleClickBlankDirect} disabled={generating || !selectedClass || !selectedBatch}
+            className={styles.btnSecondary} style={{ minWidth: 200, borderColor: "#6366f1", color: "#6366f1" }}>
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+              </svg>
+              Download Blank Sheet
+            </>
+          </button>
+
           <button onClick={handleReset} disabled={generating} className={styles.btnSecondary}>↺ Reset</button>
         </div>
       </div>
@@ -575,17 +598,23 @@ export default function BlankSheetPage() {
         <div className={styles.modalOverlay} onClick={() => setShowBlankModal(false)}>
           <div className={styles.modal} style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle} style={{ fontSize: 17 }}>No Sessions Recorded</h3>
+              <h3 className={styles.modalTitle} style={{ fontSize: 17 }}>
+                {isManualBlank ? "Download Blank Sheet" : "No Sessions Recorded"}
+              </h3>
               <button className={styles.modalClose} onClick={() => setShowBlankModal(false)}>×</button>
             </div>
 
             <div className={styles.modalBody} style={{ padding: "22px 28px" }}>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 6px" }}>
-                No attendance sessions found for{" "}
-                <strong style={{ color: "#1f2937" }}>{formatMonthLabel(selectedYear, selectedMonth)}</strong>.
-              </p>
+              {!isManualBlank && (
+                <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 6px" }}>
+                  No attendance sessions found for{" "}
+                  <strong style={{ color: "#1f2937" }}>{formatMonthLabel(selectedYear, selectedMonth)}</strong>.
+                </p>
+              )}
               <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 18px" }}>
-                Enter how many blank day-columns to include in the sheet:
+                {isManualBlank
+                  ? <>Enter how many blank day-columns to include in the sheet for <strong style={{ color: "#1f2937" }}>{formatMonthLabel(selectedYear, selectedMonth)}</strong>:</>
+                  : "Enter how many blank day-columns to include in the sheet:"}
               </p>
               <input
                 type="number" min={1} max={60} value={numBlankDays}
