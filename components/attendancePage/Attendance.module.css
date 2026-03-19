@@ -528,7 +528,20 @@
 
 .timeCell {
   white-space: nowrap;
-  color: #6b7280;
+}
+
+.timeCellDate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6366f1;
+  margin-bottom: 3px;
+  letter-spacing: 0.2px;
+}
+
+.timeCellTime {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
 }
 
 .remarksCell {

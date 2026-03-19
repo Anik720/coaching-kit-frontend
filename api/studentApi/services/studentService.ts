@@ -33,19 +33,20 @@ class StudentService {
       if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     }
 
-    const response = await api.get<StudentItem[]>(
+    const response = await api.get<any>(
       `/students${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
     );
-    
-    // Transform the response to match our StudentsResponse interface
-    const data = response.data as StudentItem[];
+
+    const res = response.data;
+    // Backend now returns { data, total, page, limit, totalPages }
+    const list: StudentItem[] = res.data || res.students || res || [];
     return {
-      students: data,
-      data: data,
-      total: data.length,
-      page: params?.page || 1,
-      limit: params?.limit || 10,
-      totalPages: Math.ceil(data.length / (params?.limit || 10))
+      students:   list,
+      data:       list,
+      total:      res.total      ?? list.length,
+      page:       res.page       ?? (params?.page  || 1),
+      limit:      res.limit      ?? (params?.limit || 10),
+      totalPages: res.totalPages ?? Math.ceil((res.total ?? list.length) / (params?.limit || 10)),
     };
   }
 

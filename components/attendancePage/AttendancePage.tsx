@@ -370,18 +370,25 @@ export default function AttendancePage() {
                           <td><span className={`${styles.countBadge} ${styles.presentBadge}`}>{summary.present}</span></td>
                           <td><span className={`${styles.countBadge} ${styles.absentBadge}`}>{summary.absent}</span></td>
                           <td className={styles.timeCell}>
-                            {session.classStartTime || '--:--'} - {session.classEndTime || '--:--'}
+                            <div className={styles.timeCellDate}>{formatDate(session.attendanceDate)}</div>
+                            <div className={styles.timeCellTime}>
+                              {session.classStartTime || '--:--'} &ndash; {session.classEndTime || '--:--'}
+                            </div>
                           </td>
                           <td>
-                            <div className={styles.userCell}>
-                              <div className={styles.userAvatar}>
-                                {session.createdBy?.username?.charAt(0)?.toUpperCase() || '?'}
+                            {session.createdBy && (session.createdBy.username || session.createdBy.email) ? (
+                              <div className={styles.userCell}>
+                                <div className={styles.userAvatar}>
+                                  {(session.createdBy.username || session.createdBy.email).charAt(0).toUpperCase()}
+                                </div>
+                                <div className={styles.userInfo}>
+                                  <span className={styles.userName}>{session.createdBy.username || session.createdBy.email}</span>
+                                  <span className={styles.userRole}>{session.createdBy.role || ''}</span>
+                                </div>
                               </div>
-                              <div className={styles.userInfo}>
-                                <span className={styles.userName}>{session.createdBy?.username || 'Unknown'}</span>
-                                <span className={styles.userRole}>{session.createdBy?.role || ''}</span>
-                              </div>
-                            </div>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: '13px' }}>—</span>
+                            )}
                           </td>
                           <td>
                             <div className={styles.actionButtons}>
@@ -466,7 +473,17 @@ export default function AttendancePage() {
                 );
               })()}
             </div>
-            <p style={{ color: '#6b7280', fontSize: '0.8rem' }}>Recorded by: <strong>{detailSession.createdBy?.username || 'Unknown'}</strong></p>
+            {detailSession.createdBy && (detailSession.createdBy.username || detailSession.createdBy.email) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
+                  {(detailSession.createdBy.username || detailSession.createdBy.email).charAt(0).toUpperCase()}
+                </div>
+                <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>
+                  Recorded by: <strong style={{ color: '#374151' }}>{detailSession.createdBy.username || detailSession.createdBy.email}</strong>
+                  {detailSession.createdBy.role && <span style={{ marginLeft: 6, background: '#f3f4f6', padding: '1px 8px', borderRadius: '999px', fontSize: '11px', textTransform: 'capitalize' }}>{detailSession.createdBy.role.replace('_', ' ')}</span>}
+                </span>
+              </div>
+            )}
 
             <div className={styles.modalBody} style={{ padding: '0', maxHeight: '60vh', overflowY: 'auto' }}>
               <table className={styles.table}>
@@ -491,11 +508,18 @@ export default function AttendancePage() {
                             <div className={styles.studentAvatar}>
                               {getStudentName(rec.student).charAt(0).toUpperCase()}
                             </div>
-                            <span className={styles.studentName}>{getStudentName(rec.student)}</span>
+                            <div className={styles.studentInfo}>
+                              <span className={styles.studentName}>{getStudentName(rec.student)}</span>
+                              {rec.student?.registrationId && (
+                                <span className={styles.registrationId}>{rec.student.registrationId}</span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                          {rec.student?.registrationId || rec.student?.studentId || 'N/A'}
+                        <td>
+                          <span style={{ fontSize: '0.82rem', color: '#6366f1', fontWeight: 600, background: 'rgba(99,102,241,0.08)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                            {rec.student?.registrationId || '—'}
+                          </span>
                         </td>
                         <td>
                           <span className={`${styles.statusBadge} ${statusClass(rec.status)}`}>

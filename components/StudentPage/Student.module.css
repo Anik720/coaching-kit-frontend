@@ -258,13 +258,13 @@
   background: white;
   border-radius: 20px;
   padding: 36px;
-  box-shadow: 
+  box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.05),
     0 10px 15px -3px rgba(0, 0, 0, 0.08),
     0 20px 25px -5px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.8);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tableCard::before {
@@ -275,6 +275,7 @@
   right: 0;
   height: 4px;
   background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+  border-radius: 20px 20px 0 0;
 }
 
 .tableHeader {
@@ -427,10 +428,12 @@
 /* Table */
 .tableWrapper {
   overflow-x: auto;
+  overflow-y: visible;
   border-radius: 16px;
   border: 2px solid #e5e7eb;
   background: white;
   position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
@@ -489,21 +492,11 @@
 
 .table tbody tr:hover {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  transform: translateX(4px);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.05),
-    -4px 0 0 rgba(99, 102, 241, 0.2);
+  box-shadow: inset 4px 0 0 rgba(99, 102, 241, 0.4);
 }
 
 .table tbody tr:hover::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(to bottom, #6366f1, #8b5cf6);
-  border-radius: 2px 0 0 2px;
+  content: none;
 }
 
 .table tbody tr:last-child {

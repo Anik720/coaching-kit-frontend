@@ -88,7 +88,18 @@ const Sidebar: React.FC = () => {
         { label: 'Create Attendance', href: '/dashboard/student-attendance/submit', icon: '➕' },
         { label: 'Attendance List', href: '/dashboard/student-attendance', icon: '📋' },
         { label: 'Monthly Attendance List', href: '/dashboard/student-attendance/monthly', icon: '📅' },
-        { label: 'Download Attendance Blank Sheet', href: '#', icon: '📥' },
+        { label: 'Download Attendance Blank Sheet', href: '/dashboard/student-attendance/blank-sheet', icon: '📥' },
+      ],
+    },
+    {
+      category: 'Homework Management',
+      basePath: '/dashboard/homework',
+      items: [
+        { label: 'Add New Homework',              href: '/dashboard/homework/add',                   icon: '➕' },
+        { label: 'Homework List',                 href: '/dashboard/homework/list',                  icon: '📋' },
+        { label: 'Class Task List',               href: '/dashboard/homework/class-task-list',       icon: '📝' },
+        { label: 'Class Task Report',             href: '/dashboard/homework/class-task-report',     icon: '📊' },
+        { label: 'Class Task Single Student Report', href: '/dashboard/homework/single-student-report', icon: '👤' },
       ],
     },
   ];

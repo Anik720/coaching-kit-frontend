@@ -9,6 +9,7 @@ import styles from './Student.module.css';
 
 import api from "@/api/axios";
 import CreateStudentModal from "./CreateStudentModal";
+import EditStudentModal from "./EditStudentModal";
 
 // Custom hook for debounce
 const useDebounce = (value: string, delay: number) => {
@@ -41,6 +42,7 @@ export default function StudentsPage() {
     classes,
     fetchStudents,
     createStudent,
+    updateStudent,
     deleteStudent,
     makePayment,
     setCurrentStudent,
@@ -66,6 +68,7 @@ export default function StudentsPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [viewStudentModal, setViewStudentModal] = useState<boolean>(false);
+  const [editStudentModal, setEditStudentModal] = useState<StudentItem | null>(null);
   const [dropdownsLoaded, setDropdownsLoaded] = useState(false);
   const [hasFetchedClasses, setHasFetchedClasses] = useState(false);
 
@@ -269,6 +272,21 @@ export default function StudentsPage() {
     setCurrentStudent(student);
     setViewStudentModal(true);
   }, [setCurrentStudent]);
+
+  const handleEditClick = useCallback((student: StudentItem) => {
+    setEditStudentModal(student);
+  }, []);
+
+  const handleUpdateStudent = useCallback(async (id: string, studentData: any) => {
+    const toastId = toastManager.showLoading("Updating student...");
+    try {
+      await updateStudent(id, studentData);
+      toastManager.updateToast(toastId, "Student updated successfully!", "success");
+      setEditStudentModal(null);
+    } catch (error: any) {
+      toastManager.safeUpdateToast(toastId, "Failed to update student", "error");
+    }
+  }, [updateStudent]);
 
   const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -649,7 +667,7 @@ export default function StudentsPage() {
                               👁️
                             </button>
                             <button
-                              onClick={() => console.log("Edit", student._id)}
+                              onClick={() => handleEditClick(student)}
                               className={styles.btnEdit}
                               title="Edit"
                               disabled={loading}
@@ -744,6 +762,18 @@ export default function StudentsPage() {
           </>
         )}
       </div>
+
+      {/* Edit Student Modal */}
+      {editStudentModal && (
+        <EditStudentModal
+          student={editStudentModal}
+          onClose={() => setEditStudentModal(null)}
+          onUpdate={handleUpdateStudent}
+          loading={loading}
+          classes={classes}
+          fetchBatchesByClass={fetchBatchesByClass}
+        />
+      )}
 
       {/* Create Student Modal */}
       {isModalOpen && (

@@ -66,6 +66,15 @@ const attendanceApi = {
   getMonthlyGrid: (classId: string, batchId: string, month: number, year: number) => {
     return api.get(`/academic/student-attendance/monthly-grid/${classId}/${batchId}?month=${month}&year=${year}`);
   },
+
+  // Get previous attendance summary for all students in a batch (bulk, one call)
+  getBatchAttendanceSummary: (batchId: string, date?: string, startDate?: string) => {
+    const p = new URLSearchParams();
+    if (date) p.append('date', date);
+    if (startDate) p.append('startDate', startDate);
+    const qs = p.toString() ? `?${p.toString()}` : '';
+    return api.get(`/academic/student-attendance/batch-summary/${batchId}${qs}`);
+  },
 };
 
 export default attendanceApi;
