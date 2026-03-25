@@ -1,0 +1,277 @@
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Inter', sans-serif;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerTitle h2 {
+  font-size: 20px;
+  color: #5b21b6;
+  font-weight: 600;
+  margin: 0;
+}
+
+.headerIcon {
+  font-size: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+/* Colored Left Borders */
+.blueCard { border-left: 4px solid #3b82f6; }
+.yellowCard { border-left: 4px solid #eab308; }
+.purpleCard { border-left: 4px solid #a855f7; }
+.greenCard { border-left: 4px solid #22c55e; }
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.cardHeader h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+/* Step Numbers */
+.stepNumber {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  color: white;
+}
+
+.blueStep { background-color: #60a5fa; }
+.yellowStep { background-color: #fca5a5; /* Or maybe a slightly darker yellow depending on UI */ }
+.purpleStep { background-color: #c084fc; }
+.greenStep { background-color: #4ade80; }
+
+.submitBtnTop {
+  position: absolute;
+  right: 0;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submitBtnTop:hover {
+  background-color: #2563eb;
+}
+
+.submitBtnTop:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.cardBody {
+  margin-left: 36px; /* Align with text after step number */
+}
+
+.selectInput {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+  background-color: white;
+}
+
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.setupsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setupBox {
+  background-color: #fefce8; /* Very light yellow */
+  border: 1px solid #fef08a;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.setupBox h4 {
+  font-size: 13px;
+  color: #4b5563;
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.setupHeaderFlex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.checkboxLabelSmall {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.inputGroup {
+  margin-bottom: 12px;
+}
+
+.inputGroup:last-child {
+  margin-bottom: 0;
+}
+
+.inputGroup label {
+  display: block;
+  font-size: 12px;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.inputGroup input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+}
+
+.flexRow {
+  display: flex;
+  gap: 16px;
+}
+
+.flexInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+}
+
+.assignmentRows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.assignmentRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.smallSelect {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px; /* Pill shape in design */
+  outline: none;
+  font-size: 13px;
+  background-color: white;
+}
+
+.largeSelect {
+  flex: 2;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  outline: none;
+  font-size: 13px;
+  background-color: #f8fafc;
+}
+
+.deleteBtn {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.deleteBtn:hover {
+  background-color: #dc2626;
+}
+
+.addAssignmentBtn {
+  background-color: #a855f7;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addAssignmentBtn:hover {
+  background-color: #9333ea;
+}

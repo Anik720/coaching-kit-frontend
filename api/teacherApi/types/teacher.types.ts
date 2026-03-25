@@ -4,6 +4,14 @@ export enum Gender {
   OTHER = 'other'
 }
 
+export enum PaymentType {
+  PER_CLASS = 'per_class',
+  PER_CLASS_HOURLY = 'per_class_hourly',
+  MONTHLY = 'monthly',
+  MONTHLY_HOURLY = 'monthly_hourly',
+  DAILY = 'daily',
+}
+
 export enum Religion {
   ISLAM = 'islam',
   HINDUISM = 'hinduism',
@@ -84,6 +92,7 @@ export interface CreateTeacherDto {
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
   isActive?: boolean;
+  enableExtraPayment?: boolean;
 }
 
 export interface UpdateTeacherDto extends Partial<CreateTeacherDto> {
@@ -122,6 +131,7 @@ export interface TeacherItem {
   joiningDate: string;
   status: TeacherStatus;
   isActive: boolean;
+  enableExtraPayment: boolean;
   remarks?: string;
   
   // Meta
@@ -187,4 +197,69 @@ export interface UpdateStatusParams {
 
 export interface ChangePasswordParams {
   newPassword: string;
+}
+
+export interface CreateAssignmentDto {
+  teacher: string;
+  subject: string;
+  class?: string;
+  batch?: string;
+  paymentType: PaymentType;
+  amount: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  totalClassesPerMonth?: number;
+  totalHoursPerMonth?: number;
+  totalClassPerDay?: number;
+  hasTotalClass?: boolean;
+  ratePerClass?: number;
+  ratePerHour?: number;
+  status?: string;
+  notes?: string;
+}
+
+export interface TeacherAssignment {
+  _id: string;
+  teacher: { _id: string; fullName: string; email: string; designation: string; contactNumber?: string };
+  subject: { _id: string; subjectName: string; subjectCode?: string };
+  class?: { _id: string; classname: string };
+  batch?: { _id: string; batchName: string; sessionYear?: string };
+  paymentType: PaymentType;
+  amount: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  totalClassesPerMonth?: number;
+  totalHoursPerMonth?: number;
+  totalClassPerDay?: number;
+  hasTotalClass?: boolean;
+  ratePerClass?: number;
+  ratePerHour?: number;
+  status: string;
+  notes?: string;
+  createdBy?: any;
+  updatedBy?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateAssignmentDto extends Partial<CreateAssignmentDto> {}
+
+export interface AssignmentQueryParams {
+  page?: number;
+  limit?: number;
+  teacher?: string;
+  subject?: string;
+  class?: string;
+  batch?: string;
+  paymentType?: PaymentType;
+  status?: string;
+  search?: string;
+}
+
+export interface AssignmentsResponse {
+  assignments: TeacherAssignment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

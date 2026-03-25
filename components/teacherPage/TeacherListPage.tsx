@@ -1,25 +1,25 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useTeacher } from "@/hooks/useTeacher";
 import {
   fetchTeachers,
-  createTeacher,
   deleteTeacher,
-  updateTeacherStatus,
   clearError,
   clearSuccess,
+  setCurrentTeacher,
 } from "@/api/teacherApi/teacherSlice";
 import { toastManager } from "@/utils/toastConfig";
 import CreateTeacherModal from "./CreateTeacherModal";
+import TeacherDetailsModal from "./TeacherDetailsModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import {
   TeacherItem,
   TeacherStatus,
   CreateTeacherDto,
 } from "@/api/teacherApi/types/teacher.types";
+import { createTeacher, verifyTeacherEmail, verifyTeacherPhone, updateTeacherStatus } from "@/api/teacherApi/teacherSlice";
 import styles from "./TeacherListPage.module.css";
 
 const STATUS_COLORS: Record<TeacherStatus, string> = {
@@ -43,10 +43,10 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export default function TeacherListPage() {
-  const router = useRouter();
   const { teachers, loading, error, success, total, totalPages, dispatch } = useTeacher();
 
   const [showCreate, setShowCreate] = useState(false);
+  const [viewTeacher, setViewTeacher] = useState<TeacherItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TeacherStatus | "">("");
@@ -56,6 +56,12 @@ export default function TeacherListPage() {
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearch = useDebounce(searchTerm, 500);
+
+  // Clear any leftover error/success state on mount to prevent bleed from previous pages
+  useEffect(() => {
+    dispatch(clearError());
+    dispatch(clearSuccess());
+  }, [dispatch]);
 
   // Load teachers
   useEffect(() => {
@@ -99,11 +105,13 @@ export default function TeacherListPage() {
         await dispatch(createTeacher(data)).unwrap();
         toastManager.updateToast(id, "Teacher created successfully!", "success");
         setShowCreate(false);
+        // Re-fetch to get updated list
+        dispatch(fetchTeachers({ page: currentPage, limit: 15 }));
       } catch (err: any) {
         toastManager.safeUpdateToast(id, err.message || "Failed to create teacher", "error");
       }
     },
-    [dispatch]
+    [dispatch, currentPage]
   );
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -113,13 +121,54 @@ export default function TeacherListPage() {
     try {
       await dispatch(deleteTeacher(deleteTarget)).unwrap();
       toastManager.safeUpdateToast(id, "Teacher deleted!", "success");
+      // Close the view modal if it was showing the deleted teacher
+      if (viewTeacher?._id === deleteTarget) {
+        setViewTeacher(null);
+      }
     } catch (err: any) {
       toastManager.safeUpdateToast(id, err.message || "Failed to delete", "error");
     } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
     }
-  }, [dispatch, deleteTarget]);
+  }, [dispatch, deleteTarget, viewTeacher]);
+
+  const handleVerifyEmail = useCallback(async (teacher: TeacherItem) => {
+    const id = toastManager.showLoading("Verifying email...");
+    try {
+      const updated = await dispatch(verifyTeacherEmail(teacher._id)).unwrap();
+      setViewTeacher(updated);
+      toastManager.updateToast(id, "Email verified!", "success");
+    } catch (err: any) {
+      toastManager.safeUpdateToast(id, err.message || "Failed to verify email", "error");
+    }
+  }, [dispatch]);
+
+  const handleVerifyPhone = useCallback(async (teacher: TeacherItem) => {
+    const id = toastManager.showLoading("Verifying phone...");
+    try {
+      const updated = await dispatch(verifyTeacherPhone(teacher._id)).unwrap();
+      setViewTeacher(updated);
+      toastManager.updateToast(id, "Phone verified!", "success");
+    } catch (err: any) {
+      toastManager.safeUpdateToast(id, err.message || "Failed to verify phone", "error");
+    }
+  }, [dispatch]);
+
+  const handleToggleActive = useCallback(async (teacher: TeacherItem) => {
+    const id = toastManager.showLoading("Updating status...");
+    try {
+      const updated = await dispatch(updateTeacherStatus({
+        id: teacher._id,
+        status: teacher.status,
+        isActive: !teacher.isActive,
+      })).unwrap();
+      setViewTeacher(updated);
+      toastManager.updateToast(id, `Teacher ${updated.isActive ? "activated" : "deactivated"}!`, "success");
+    } catch (err: any) {
+      toastManager.safeUpdateToast(id, err.message || "Failed to update status", "error");
+    }
+  }, [dispatch]);
 
   const handleStatusFilter = (status: TeacherStatus | "") => {
     setStatusFilter(status);
@@ -249,7 +298,7 @@ export default function TeacherListPage() {
                   <p>
                     {searchTerm || statusFilter
                       ? "No teachers match your search."
-                      : "Not Found"}
+                      : "No teachers found."}
                   </p>
                   {!searchTerm && !statusFilter && (
                     <button
@@ -269,7 +318,7 @@ export default function TeacherListPage() {
                   serial={(currentPage - 1) * 15 + idx + 1}
                   teacher={teacher}
                   onDelete={() => setDeleteTarget(teacher._id)}
-                  onView={() => router.push(`/dashboard/teachers/${teacher._id}`)}
+                  onView={() => setViewTeacher(teacher)}
                 />
               ))
             )}
@@ -308,6 +357,24 @@ export default function TeacherListPage() {
           onClose={() => setShowCreate(false)}
           onCreate={handleCreate}
           loading={loading}
+        />
+      )}
+
+      {/* Teacher Details Modal (Eye button) */}
+      {viewTeacher && (
+        <TeacherDetailsModal
+          teacher={viewTeacher}
+          onClose={() => {
+            setViewTeacher(null);
+            dispatch(setCurrentTeacher(null));
+          }}
+          onVerifyEmail={() => handleVerifyEmail(viewTeacher)}
+          onVerifyPhone={() => handleVerifyPhone(viewTeacher)}
+          onToggleActive={() => handleToggleActive(viewTeacher)}
+          onDelete={() => {
+            setDeleteTarget(viewTeacher._id);
+            setViewTeacher(null);
+          }}
         />
       )}
 
