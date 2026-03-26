@@ -13,6 +13,7 @@ import combineResultReducer from '../api/result-management/combine-result/combin
 import attendanceReducer from '../api/attendanceApi/attendanceSlice';
 import teacherAttendanceReducer from '../api/teacherAttendanceApi/teacherAttendanceSlice';
 import employeeReducer from '../api/employeeApi/employeeSlice';
+import employeeAttendanceReducer from '../api/employeeAttendanceApi/employeeAttendanceSlice';
 
 export const store = configureStore({
   reducer: {
@@ -30,6 +31,7 @@ export const store = configureStore({
     attendance: attendanceReducer,
     teacherAttendance: teacherAttendanceReducer,
     employee: employeeReducer,
+    staffAttendance: employeeAttendanceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -47,6 +47,11 @@ const Sidebar: React.FC = () => {
       items: [
         { label: 'Add New Staff', href: '/dashboard/employee/add', icon: '➕' },
         { label: 'Staff List', href: '/dashboard/employee/list', icon: '📋' },
+        { label: 'Manual Attendance', href: '/dashboard/employee/staff-attendance/manual', icon: '📝' },
+        { label: 'Self Attendance', href: '/dashboard/employee/staff-attendance/self', icon: '👤' },
+        { label: 'Break Time In-Out', href: '/dashboard/employee/staff-attendance/break-time', icon: '☕' },
+        { label: 'Attendance List', href: '/dashboard/employee/staff-attendance/list', icon: '🗂️' },
+        { label: 'Attendance Monthly Report', href: '/dashboard/employee/staff-attendance/report', icon: '📈' },
       ],
     },
 
