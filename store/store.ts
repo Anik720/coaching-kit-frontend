@@ -11,6 +11,7 @@ import examReducer from '../api/result-management/create-exam/examSlice';
 import resultReducer from '../api/result-management/result/resultSlice';
 import combineResultReducer from '../api/result-management/combine-result/combineResultSlice';
 import attendanceReducer from '../api/attendanceApi/attendanceSlice';
+import teacherAttendanceReducer from '../api/teacherAttendanceApi/teacherAttendanceSlice';
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     result: resultReducer,
     combineResult: combineResultReducer,
     attendance: attendanceReducer,
+    teacherAttendance: teacherAttendanceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
