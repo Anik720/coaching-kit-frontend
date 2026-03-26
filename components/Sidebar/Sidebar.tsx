@@ -42,6 +42,15 @@ const Sidebar: React.FC = () => {
     },
 
     {
+      category: 'Employee Management',
+      basePath: '/dashboard/employee',
+      items: [
+        { label: 'Add New Staff', href: '/dashboard/employee/add', icon: '➕' },
+        { label: 'Staff List', href: '/dashboard/employee/list', icon: '📋' },
+      ],
+    },
+
+    {
       category: 'Teachers Management',
       basePath: '/dashboard/teachers',
       items: [

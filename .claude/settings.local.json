@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -iname *employee* -o -iname *staff*)"
     ]
   }
 }
