@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -iname *employee* -o -iname *staff*)"
+      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -iname *employee* -o -iname *staff*)",
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/finance-category/schemas\")",
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/finance-category/dto\")",
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/income/schemas\")",
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/income/dto\")",
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/expense/schemas\")"
     ]
   }
 }

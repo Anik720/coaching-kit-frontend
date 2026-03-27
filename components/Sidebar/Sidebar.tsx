@@ -106,6 +106,24 @@ const Sidebar: React.FC = () => {
       ],
     },
     {
+      category: 'Income Management',
+      basePath: '/dashboard/finance/income',
+      items: [
+        { label: 'New Income', href: '/dashboard/finance/income/new', icon: '➕' },
+        { label: 'Income Report', href: '/dashboard/finance/income/report', icon: '📋' },
+        { label: 'Manage Category', href: '/dashboard/finance/income/categories', icon: '🏷️' },
+      ],
+    },
+    {
+      category: 'Expense Management',
+      basePath: '/dashboard/finance/expense',
+      items: [
+        { label: 'Create Expense', href: '/dashboard/finance/expense/new', icon: '➕' },
+        { label: 'Expense Report', href: '/dashboard/finance/expense/report', icon: '📋' },
+        { label: 'Manage Category', href: '/dashboard/finance/expense/categories', icon: '🏷️' },
+      ],
+    },
+    {
       category: 'Homework Management',
       basePath: '/dashboard/homework',
       items: [

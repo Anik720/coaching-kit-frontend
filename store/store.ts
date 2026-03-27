@@ -14,6 +14,7 @@ import attendanceReducer from '../api/attendanceApi/attendanceSlice';
 import teacherAttendanceReducer from '../api/teacherAttendanceApi/teacherAttendanceSlice';
 import employeeReducer from '../api/employeeApi/employeeSlice';
 import employeeAttendanceReducer from '../api/employeeAttendanceApi/employeeAttendanceSlice';
+import financeReducer from '../api/financeApi/financeSlice';
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     teacherAttendance: teacherAttendanceReducer,
     employee: employeeReducer,
     staffAttendance: employeeAttendanceReducer,
+    finance: financeReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
