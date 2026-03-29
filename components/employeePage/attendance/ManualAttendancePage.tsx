@@ -95,7 +95,7 @@ export default function ManualAttendancePage() {
               onChange={handleChange("employee")}
             >
               <option value="">Select Staff</option>
-              {employees?.map((emp) => (
+              {employees?.map((emp: any) => (
                 <option key={emp._id} value={emp._id}>
                   {emp.fullName} ({emp.designation})
                 </option>
