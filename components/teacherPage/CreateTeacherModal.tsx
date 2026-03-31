@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import styles from './CreateTeacherModal.module.css';
 import {
-  AssignType,
   BloodGroup,
   CreateTeacherDto,
   Designation,
   Gender,
   Religion,
-  TeacherStatus
 } from "@/api/teacherApi/types/teacher.types";
 
 interface CreateTeacherModalProps {
@@ -36,9 +34,7 @@ const FIELD_ALIASES: Record<string, string> = {
   permanentaddress: 'permanentAddress',
   bloodgroup: 'bloodGroup',
   designation: 'designation',
-  assigntype: 'assignType',
   salary: 'salary',
-  status: 'status',
 };
 
 function parseApiErrors(raw: string | string[]): { fieldErrors: Record<string, string>; general: string } {
@@ -154,11 +150,7 @@ export default function CreateTeacherModal({ onClose, onCreate, loading, inline 
     systemEmail: '',
     password: 'Teacher@123',
     designation: Designation.SUBJECT_TEACHER,
-    assignType: AssignType.MONTHLY_BASIS,
-    monthlyTotalClass: 0,
-    salary: 0,
     joiningDate: new Date().toISOString().split('T')[0],
-    status: TeacherStatus.ACTIVE,
     remarks: '',
   });
 
@@ -643,58 +635,6 @@ export default function CreateTeacherModal({ onClose, onCreate, loading, inline 
                 </div>
 
                 <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="assignType">
-                    Assign Type <span className={styles.required}>*</span>
-                  </label>
-                  <select
-                    id="assignType"
-                    value={formData.assignType}
-                    onChange={(e) => handleChange('assignType', e.target.value as AssignType)}
-                    className={styles.input}
-                    disabled={isLoading}
-                  >
-                    {(Object.values(AssignType) as AssignType[]).map(a => (
-                      <option key={a} value={a}>{formatEnumForDisplay(a)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {(formData.assignType === AssignType.MONTHLY_BASIS || formData.assignType === AssignType.BOTH) && (
-                  <>
-                    <div className={styles.formField}>
-                      <label className={styles.label} htmlFor="monthlyTotalClass">
-                        Monthly Total Class
-                      </label>
-                      <input
-                        id="monthlyTotalClass"
-                        type="number"
-                        value={formData.monthlyTotalClass || 0}
-                        onChange={(e) => handleChange('monthlyTotalClass', parseInt(e.target.value) || 0)}
-                        className={styles.input}
-                        disabled={isLoading}
-                        min="0"
-                      />
-                    </div>
-
-                    <div className={styles.formField}>
-                      <label className={styles.label} htmlFor="salary">
-                        Salary (৳)
-                      </label>
-                      <input
-                        id="salary"
-                        type="number"
-                        value={formData.salary || 0}
-                        onChange={(e) => handleChange('salary', parseInt(e.target.value) || 0)}
-                        className={styles.input}
-                        disabled={isLoading}
-                        min="0"
-                        step="100"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className={styles.formField}>
                   <label className={styles.label} htmlFor="joiningDate">
                     Joining Date <span className={styles.required}>*</span>
                   </label>
@@ -709,23 +649,6 @@ export default function CreateTeacherModal({ onClose, onCreate, loading, inline 
                     max={new Date().toISOString().split('T')[0]}
                   />
                   {errors.joiningDate && <span className={styles.errorMessage}>{errors.joiningDate}</span>}
-                </div>
-
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="status">
-                    Status
-                  </label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => handleChange('status', e.target.value as TeacherStatus)}
-                    className={styles.input}
-                    disabled={isLoading}
-                  >
-                    {(Object.values(TeacherStatus) as TeacherStatus[]).map(s => (
-                      <option key={s} value={s}>{formatEnumForDisplay(s)}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
             </div>

@@ -220,6 +220,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .smallSelect {
@@ -240,6 +241,48 @@
   outline: none;
   font-size: 13px;
   background-color: #f8fafc;
+}
+
+/* Inline rate/duration group that appears in each row */
+.inlineRateGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0f4ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 4px 10px 4px 8px;
+  flex-shrink: 0;
+}
+
+.inlineRateLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.inlineRateInput {
+  width: 110px;
+  padding: 5px 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.inlineRateInput:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+}
+
+.inlineRateInput::placeholder {
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .deleteBtn {
