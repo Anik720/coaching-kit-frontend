@@ -73,6 +73,16 @@ interface AssignmentCalc {
   earnedAmount: number;     // actual amount earned based on attendance
   presentCount: number;     // how many classes/days were actually attended
   note: string;
+  mhData?: { totalMonthHours: number; hourlyRate: number; hoursWorked: number };
+  dailyData?: {
+    dailyRate: number;
+    daysPresent: number;
+    totalClassPerDay: number;
+    perClassRate: number;
+    totalPresentClasses: number;
+    perDayBreakdown: Array<{ date: string; classesPresent: number; earned: number }>;
+  };
+  groupedAssignments?: Array<{ subjectName: string; className: string; batchName: string }>;
 }
 
 function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: number, daysInMonth: number, globalAbsentDays: number, workingDays: number, totalClassesAttended: number): AssignmentCalc {
@@ -134,6 +144,15 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
   let baseSalary = 0;
   let earnedAmount = 0;
   let note = '';
+  let mhData: AssignmentCalc['mhData'] = undefined;
+  let dailyData: AssignmentCalc['dailyData'] = undefined;
+  const groupedAssignments: AssignmentCalc['groupedAssignments'] = (a._isGrouped && Array.isArray(a._groups))
+    ? a._groups.map((g: any) => ({
+        subjectName: g.subject?.subjectName ?? '?',
+        className:   g.class?.classname    ?? '',
+        batchName:   g.batch?.batchName    ?? '',
+      }))
+    : undefined;
 
   switch (payType) {
     case 'per_class': {
@@ -164,23 +183,119 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
     }
 
     case 'monthly_hourly': {
-      const hours       = Number(a.totalHoursPerMonth) || 0;
-      const storedRate  = Number(a.ratePerHour) || 0;
-      const rate        = storedRate > 0 ? storedRate : (hours > 0 ? amount / hours : 0);
-      const duration    = Number(a.durationMinutes) || 60;
-      baseSalary   = amount;
-      const hoursTaught = (presentCount * duration) / 60;
-      // Cap: cannot earn more than the monthly amount
-      earnedAmount = Math.min(hoursTaught * rate, amount);
-      note = `${Math.round(hoursTaught * 10)/10} hrs taught × ${taka(rate)}/hr = ${taka(earnedAmount)}`;
+      // Global setup: totalHoursPerMonth & totalPayment apply across all assignments
+      const totalMonthHours = Number(a.totalHoursPerMonth) || 0;
+      const rate            = totalMonthHours > 0 ? amount / totalMonthHours : 0;
+
+      baseSalary = amount; // full monthly potential salary
+
+      const groups: any[] = a._isGrouped && Array.isArray(a._groups) ? a._groups : [a];
+
+      // Single pass: per assignment → count its own present classes → compute hours
+      type GroupResult = { durationMin: number; effectivePresent: number; hrs: number };
+      const groupResults: GroupResult[] = groups.map(g => {
+        const gDurationMin = Number(g.durationMinutes) || 0;
+        const gExpectedCls = Number(g.totalClassesPerMonth) || 0;
+
+        let gPresentCount = 0;
+        let gHasDetails   = false;
+
+        monthAtts.forEach((record: any) => {
+          if (record.attendanceDetails && record.attendanceDetails.length > 0) {
+            gHasDetails = true;
+            record.attendanceDetails.forEach((det: any) => {
+              const sid  = g.subject?._id ?? g.subject;
+              const cid  = g.class?._id   ?? g.class;
+              const bid  = g.batch?._id   ?? g.batch;
+              if ((!sid || sid === (det.subject?._id ?? det.subject)) &&
+                  (!cid || cid === (det.class?._id   ?? det.class))   &&
+                  (!bid || bid === (det.batch?._id   ?? det.batch))) {
+                if (det.status?.toLowerCase() === 'present') gPresentCount++;
+              }
+            });
+          }
+        });
+
+        if (!gHasDetails) gPresentCount = globalPresentDays;
+
+        const effectivePresent = gExpectedCls > 0 ? Math.min(gPresentCount, gExpectedCls) : gPresentCount;
+        const hrs              = Math.round((gDurationMin / 60) * effectivePresent * 100) / 100;
+        return { durationMin: gDurationMin, effectivePresent, hrs };
+      });
+
+      const rawWorkedHours      = groupResults.reduce((sum, r) => sum + r.hrs, 0);
+      const effectiveWorkedHours = totalMonthHours > 0
+        ? Math.min(rawWorkedHours, totalMonthHours)
+        : rawWorkedHours;
+
+      earnedAmount = Math.round(effectiveWorkedHours * rate * 100) / 100;
+
+      const hoursBreakdown = groupResults
+        .map(r => `${r.effectivePresent}cls×${r.durationMin}min=${Math.round(r.hrs * 10) / 10}h`)
+        .join(' + ');
+
+      note = `Rate: ${taka(amount)}÷${totalMonthHours}h=${taka(rate)}/h | Hours: ${hoursBreakdown} = ${Math.round(effectiveWorkedHours * 10) / 10}h | Earned: ${Math.round(effectiveWorkedHours * 10) / 10}h×${taka(rate)}=${taka(earnedAmount)}`;
+      mhData = { totalMonthHours, hourlyRate: Math.round(rate * 100) / 100, hoursWorked: Math.round(effectiveWorkedHours * 100) / 100 };
       break;
     }
 
     case 'daily': {
-      const effectivePresent = (Number(a.totalClassPerDay) > 0) ? presentCount : globalPresentDays;
-      baseSalary   = amount * daysInMonth;
-      earnedAmount = effectivePresent * amount;
-      note = `${effectivePresent} days present × ${taka(amount)}/day = ${taka(earnedAmount)}`;
+      // Daily: salary = (classes actually attended) × (dailyRate ÷ totalClassPerDay)
+      const totalClassPerDay = Number(a.totalClassPerDay) || 1;
+      const perClassRate     = Math.round((amount / totalClassPerDay) * 100) / 100;
+      const groups: any[]    = a._isGrouped && Array.isArray(a._groups) ? a._groups : [a];
+
+      // Per-day breakdown: { date → classesPresent }
+      const datePresentMap: Record<string, number> = {};
+      let hasAttDetails = false;
+
+      for (const g of groups) {
+        monthAtts.forEach((record: any) => {
+          if (record.attendanceDetails && record.attendanceDetails.length > 0) {
+            hasAttDetails = true;
+            let d: string;
+            try { d = new Date(record.date).toISOString().split('T')[0]; } catch { d = String(record.date); }
+
+            record.attendanceDetails.forEach((det: any) => {
+              const sid  = g.subject?._id ?? g.subject;
+              const cid  = g.class?._id   ?? g.class;
+              const bid  = g.batch?._id   ?? g.batch;
+              if ((!sid || sid === (det.subject?._id ?? det.subject)) &&
+                  (!cid || cid === (det.class?._id   ?? det.class))   &&
+                  (!bid || bid === (det.batch?._id   ?? det.batch))) {
+                if (det.status?.toLowerCase() === 'present') {
+                  datePresentMap[d] = (datePresentMap[d] || 0) + 1;
+                }
+              }
+            });
+          }
+        });
+      }
+
+      // Fallback: no attendance details → assume full attendance on present days
+      if (!hasAttDetails) {
+        monthAtts.forEach((record: any) => {
+          if (String(record.status).toLowerCase() === 'present') {
+            let d: string;
+            try { d = new Date(record.date).toISOString().split('T')[0]; } catch { d = String(record.date); }
+            datePresentMap[d] = (datePresentMap[d] || 0) + totalClassPerDay;
+          }
+        });
+      }
+
+      const perDayBreakdown = Object.entries(datePresentMap)
+        .sort(([da], [db]) => da.localeCompare(db))
+        .map(([date, classesPresent]) => ({
+          date,
+          classesPresent,
+          earned: Math.round(classesPresent * perClassRate * 100) / 100,
+        }));
+
+      const totalPresentClasses = perDayBreakdown.reduce((s, r) => s + r.classesPresent, 0);
+      earnedAmount = Math.round(totalPresentClasses * perClassRate * 100) / 100;
+      baseSalary   = earnedAmount;
+      dailyData    = { dailyRate: amount, daysPresent: perDayBreakdown.length, totalClassPerDay, perClassRate, totalPresentClasses, perDayBreakdown };
+      note = `${taka(amount)} ÷ ${totalClassPerDay} classes/day = ${taka(perClassRate)}/class · ${totalPresentClasses} classes × ${taka(perClassRate)} = ${taka(earnedAmount)}`;
       break;
     }
 
@@ -211,7 +326,7 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
     }
   }
 
-  return { label, payType, baseSalary, earnedAmount, presentCount, note };
+  return { label, payType, baseSalary, earnedAmount, presentCount, note, mhData, dailyData, groupedAssignments };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -362,10 +477,26 @@ export default function CreateSalaryForm() {
         );
         const usedAssignments = activeAssignments.length > 0 ? activeAssignments : allAssignments;
 
+        let mhAssignedHours = 0;
+        let mhLimitHours = -1;
+        usedAssignments.forEach((a: any) => {
+          if (a.paymentType === 'monthly_hourly') {
+             if (mhLimitHours === -1) mhLimitHours = Number(a.totalHoursPerMonth) || 0;
+             const dur = Number(a.durationMinutes) || 0;
+             const cls = Number(a.totalClassesPerMonth) || 0;
+             mhAssignedHours += (dur / 60) * cls;
+          }
+        });
+        
+        if (mhLimitHours !== -1 && mhAssignedHours > mhLimitHours) {
+           throw new Error("Total assigned class hours exceed the allowed monthly limit.");
+        }
+
         // Total classes allowed per month across all assignments
-        expectedClassesPerMonth = usedAssignments.reduce(
-          (sum: number, a: any) => sum + (Number(a.totalClassesPerMonth) || 0), 0
-        );
+        // Exclude monthly_hourly — its totalClassesPerMonth is class count per assignment, not a salary divisor
+        expectedClassesPerMonth = usedAssignments
+          .filter((a: any) => a.paymentType !== 'monthly_hourly')
+          .reduce((sum: number, a: any) => sum + (Number(a.totalClassesPerMonth) || 0), 0);
 
         // Group global payment types to prevent duplicate base salaries
         const dedupedAssignments: any[] = [];
@@ -429,10 +560,23 @@ export default function CreateSalaryForm() {
         console.warn('Failed to fetch advance salary:', err);
       }
 
-      // Final Payable is earned amount (after absent deductions) minus advance
+      // Extract monthly_hourly and daily summary for display
+      const mhBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'monthly_hourly')
+        : undefined;
+      const monthlyHourlyInfo = mhBreakdown?.mhData ?? null;
+
+      const dailyBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'daily')
+        : undefined;
+      const dailyInfo = dailyBreakdown?.dailyData ?? null;
+
+      // Final Payable = actual earned (after all deductions) minus advance
       const finalPayable = Math.round((payableAfterDeduction - advanceDeducted) * 100) / 100;
 
       setCalculation({
+        monthlyHourlyInfo,
+        dailyInfo,
         baseSalary,
         perDaySalary,
         presentDays,
@@ -457,7 +601,7 @@ export default function CreateSalaryForm() {
       setStep(2);
     } catch (err: any) {
       console.error('[Salary Calc] Error:', err);
-      toastManager.safeUpdateToast(tid, err?.response?.data?.message || 'Failed to calculate salary', 'error');
+      toastManager.safeUpdateToast(tid, err?.response?.data?.message || err?.message || 'Failed to calculate salary', 'error');
     } finally {
       setCalcLoading(false);
     }
@@ -477,7 +621,11 @@ export default function CreateSalaryForm() {
         amount: finalAmount,
         paymentType: 'regular',
         method: formData.method,
-        note: `Absent: ${calculation.absentDays}d, Deduction: ${taka(calculation.deduction)}, Advance Deducted: ${taka(calculation.advanceDeducted)}, Allowance: ${taka(Number(formData.allowance || 0))}`,
+        note: formData.userType === 'staff'
+          ? `Absent: ${calculation.absentDays}d, Deduction: ${taka(calculation.deduction)}, Advance Deducted: ${taka(calculation.advanceDeducted)}, Allowance: ${taka(Number(formData.allowance || 0))}`
+          : calculation.hasPerClassHourly 
+            ? `Absent: ${calculation.absentDays}d, (Missed Classes/Days): ${taka(calculation.deduction)}, Advance Deducted: ${taka(calculation.advanceDeducted)}, Allowance: ${taka(Number(formData.allowance || 0))}`
+            : `Absent: ${calculation.absentDays}d, Deduction: ${taka(calculation.deduction)}, Advance Deducted: ${taka(calculation.advanceDeducted)}, Allowance: ${taka(Number(formData.allowance || 0))}`,
       })).unwrap();
 
       toastManager.updateToast(tid, 'Salary Paid Successfully!', 'success');
@@ -610,11 +758,21 @@ export default function CreateSalaryForm() {
                 <div style={{ border:'1px solid #e5e7eb', borderRadius:'8px', overflow:'hidden' }}>
                   {calculation.assignmentBreakdown.map((a: AssignmentCalc, i: number) => (
                     <div key={i} style={{ padding:'10px 16px', background: i%2===0?'#fafafa':'#f3f4f6', borderBottom:'1px solid #e5e7eb' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'2px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
                         <span style={{ fontSize:'13px', fontWeight:600, color:'#111827' }}>{a.label}</span>
-                        <span style={{ fontSize:'13px', color:'#7c3aed', fontWeight:600 }}>{taka(a.baseSalary)}</span>
+                        <span style={{ fontSize:'13px', color:'#7c3aed', fontWeight:600 }}>{taka(a.earnedAmount)}</span>
                       </div>
-                      <div style={{ display:'flex', gap:'8px' }}>
+                      {/* Individual assignment details for grouped entries */}
+                      {a.groupedAssignments && a.groupedAssignments.length > 0 && (
+                        <div style={{ marginBottom:'5px', paddingLeft:'8px', borderLeft:'2px solid #d8b4fe' }}>
+                          {a.groupedAssignments.map((g, gi) => (
+                            <div key={gi} style={{ fontSize:'11px', color:'#374151', lineHeight:'1.6' }}>
+                              📚 <span style={{ color:'#6b7280' }}>Subject:</span> <strong>{g.subjectName}</strong>{g.className ? <> &nbsp;·&nbsp; <span style={{ color:'#6b7280' }}>Class:</span> <strong>{g.className}</strong></> : ''}{g.batchName ? <> &nbsp;·&nbsp; <span style={{ color:'#6b7280' }}>Batch:</span> <strong>{g.batchName}</strong></> : ''}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
                         <span style={{ fontSize:'11px', background:'#ede9fe', color:'#6d28d9', padding:'1px 6px', borderRadius:'4px' }}>{payTypeLabel(a.payType)}</span>
                         <span style={{ fontSize:'11px', color:'#6b7280' }}>{a.note}</span>
                       </div>
@@ -637,22 +795,75 @@ export default function CreateSalaryForm() {
                   </>
                 ) : (
                   <>
-                    <Row label="Earned Salary"                                                               value={taka(calculation.baseSalary)}             bg="#f0fdf4" />
-                    {calculation.expectedClassesPerMonth > 0 ? (
+                    {calculation.dailyInfo ? (
+                      // ── Daily: per-class rate breakdown ──────────────────────────
                       <>
-                        <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`} value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
-                        <Row label="Classes Attended"                                                          value={`${calculation.totalClassesAttended} classes`} bg="#f0f9ff" />
+                        <Row label="Total Payment Per Day"                                                    value={taka(calculation.dailyInfo.dailyRate)}                                 bg="#f0fdf4" />
+                        <Row label={`Per Class Rate (÷ ${calculation.dailyInfo.totalClassPerDay} classes/day)`} value={taka(calculation.dailyInfo.perClassRate)}                           bg="#f9fafb" />
+                        <Row label="Days Present"                                                             value={`${calculation.dailyInfo.daysPresent} days`}                          bg="#f0f9ff" />
+                        <Row label="Total Classes Attended"                                                   value={`${calculation.dailyInfo.totalPresentClasses} classes`}                bg="#f0f9ff" />
+                        {/* Per-day breakdown table */}
+                        {calculation.dailyInfo.perDayBreakdown?.length > 0 && (
+                          <div style={{ padding:'10px 16px', background:'#f8faff', borderBottom:'1px solid #e5e7eb' }}>
+                            <div style={{ fontSize:'12px', fontWeight:600, color:'#4b5563', marginBottom:'6px' }}>📅 Per-Day Attendance Breakdown</div>
+                            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+                              <thead>
+                                <tr style={{ background:'#e0e7ff' }}>
+                                  <th style={{ padding:'5px 8px', textAlign:'left', color:'#3730a3', fontWeight:600 }}>Date</th>
+                                  <th style={{ padding:'5px 8px', textAlign:'center', color:'#3730a3', fontWeight:600 }}>Classes Present / Total</th>
+                                  <th style={{ padding:'5px 8px', textAlign:'right', color:'#3730a3', fontWeight:600 }}>Earned</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {calculation.dailyInfo.perDayBreakdown.map((row: { date: string; classesPresent: number; earned: number }, ri: number) => (
+                                  <tr key={ri} style={{ background: ri % 2 === 0 ? '#f5f7ff' : '#eef2ff' }}>
+                                    <td style={{ padding:'4px 8px', color:'#374151' }}>{row.date}</td>
+                                    <td style={{ padding:'4px 8px', textAlign:'center', color:'#1d4ed8', fontWeight:600 }}>
+                                      {row.classesPresent} / {calculation.dailyInfo.totalClassPerDay}
+                                    </td>
+                                    <td style={{ padding:'4px 8px', textAlign:'right', color:'#166534' }}>{taka(row.earned)}</td>
+                                  </tr>
+                                ))}
+                                <tr style={{ background:'#dbeafe', fontWeight:700 }}>
+                                  <td style={{ padding:'5px 8px', color:'#1e3a8a' }}>Total</td>
+                                  <td style={{ padding:'5px 8px', textAlign:'center', color:'#1e3a8a' }}>{calculation.dailyInfo.totalPresentClasses} classes</td>
+                                  <td style={{ padding:'5px 8px', textAlign:'right', color:'#166534' }}>{taka(calculation.payableAfterDeduction)}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        <Row label="Net Earned"                                                               value={taka(calculation.payableAfterDeduction)}                              bg="#fef9c3" labelColor="#854d0e" bold />
                       </>
                     ) : (
                       <>
-                        <Row label={`Per Day Rate (÷ ${calculation.workingDays} working days, excl. Fri)`}     value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
-                        <Row label="Days Attended"                                                             value={`${calculation.presentDays} days`}      bg="#f0f9ff" />
+                        <Row label={calculation.monthlyHourlyInfo ? "Total Salary Per Month" : "Earned Salary"} value={taka(calculation.baseSalary)}         bg="#f0fdf4" />
+                        {calculation.monthlyHourlyInfo ? (
+                          // ── Monthly Hourly: rate + hours worked breakdown ───────────
+                          <>
+                            <Row label="Total Hours Per Month"                                               value={`${calculation.monthlyHourlyInfo.totalMonthHours} hours`}              bg="#f9fafb" />
+                            <Row label="Per Hour Rate"                                                       value={taka(calculation.monthlyHourlyInfo.hourlyRate)}                        bg="#f9fafb" />
+                            <Row label="Hours Worked"                                                        value={`${calculation.monthlyHourlyInfo.hoursWorked} hours`}                  bg="#f0f9ff" />
+                          </>
+                        ) : calculation.expectedClassesPerMonth > 0 ? (
+                          // ── Class-based monthly ─────────────────────────────────────
+                          <>
+                            <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`} value={taka(calculation.perDaySalary)}    bg="#f9fafb" />
+                            <Row label="Classes Attended"                                                    value={`${calculation.totalClassesAttended} classes`}                        bg="#f0f9ff" />
+                          </>
+                        ) : (
+                          // ── Day-based monthly (Fridays = holiday) ──────────────────
+                          <>
+                            <Row label={`Per Day Rate (÷ ${calculation.workingDays} working days, excl. Fri)`} value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
+                            <Row label="Days Attended"                                                       value={`${calculation.presentDays} days`}        bg="#f0f9ff" />
+                          </>
+                        )}
+                        {calculation.deduction > 0 && (
+                          <Row label="Deduction (Missed Classes/Days)"                                       value={`- ${taka(calculation.deduction)}`}       bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
+                        )}
+                        <Row label="Net Earned"                                                              value={taka(calculation.payableAfterDeduction)}  bg="#fef9c3" labelColor="#854d0e" bold />
                       </>
                     )}
-                    {calculation.deduction > 0 && (
-                      <Row label="Deduction (Missed Classes/Days)"                                             value={`- ${taka(calculation.deduction)}`}     bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
-                    )}
-                    <Row label="Net Earned"                                                                   value={taka(calculation.payableAfterDeduction)}  bg="#fef9c3" labelColor="#854d0e" bold />
                   </>
                 )}
                 <Row label="Advance Deducted"                                                                 value={`- ${taka(calculation.advanceDeducted)}`} bg="#fdf4ff" labelColor="#86198f" />

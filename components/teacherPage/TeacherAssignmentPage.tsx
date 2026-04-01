@@ -158,6 +158,25 @@ const TeacherAssignmentPage = () => {
     );
   };
 
+  // When dailySetup.totalClass changes, sync daily assignment row count
+  const handleDailyTotalClassChange = (value: string) => {
+    setDailySetup(prev => ({ ...prev, totalClass: value }));
+    const needed = Number(value) || 0;
+    if (needed <= 0) return;
+    setAssignmentRows(prev => {
+      const dailyRows    = prev.filter(r => r.paymentType === PaymentType.DAILY);
+      const nonDailyRows = prev.filter(r => r.paymentType !== PaymentType.DAILY);
+      if (dailyRows.length < needed) {
+        const toAdd = Array.from({ length: needed - dailyRows.length }, () => ({
+          ...emptyRow(), paymentType: PaymentType.DAILY as PaymentType,
+        }));
+        return [...nonDailyRows, ...dailyRows, ...toAdd];
+      }
+      // More rows than needed — keep first `needed` daily rows
+      return [...nonDailyRows, ...dailyRows.slice(0, needed)];
+    });
+  };
+
   const handleAddRow = () => {
     setAssignmentRows(prev => [...prev, emptyRow()]);
   };
@@ -199,6 +218,8 @@ const TeacherAssignmentPage = () => {
       case PaymentType.MONTHLY_HOURLY:
         base.totalHoursPerMonth = Number(monthlyHourlySetup.totalHours) || 0;
         base.amount = Number(monthlyHourlySetup.totalPayment) || 0;
+        base.durationMinutes = Number(row.durationMinutes) || 0;
+        base.totalClassesPerMonth = Number(row.totalClassesPerMonth) || 0;
         break;
       case PaymentType.DAILY:
         base.totalClassPerDay = Number(dailySetup.totalClass) || 0;
@@ -236,6 +257,21 @@ const TeacherAssignmentPage = () => {
     if (!selectedTeacherId) return toast.error('Please select a teacher');
     if (assignmentRows.some(r => !r.subjectId || !r.paymentType)) {
       return toast.error('Please complete all assignment rows (Subject and Payment Type are required)');
+    }
+
+    if (selectedPaymentTypes.includes(PaymentType.MONTHLY_HOURLY)) {
+      let totalAssignedHours = 0;
+      const limitHours = Number(monthlyHourlySetup.totalHours) || 0;
+      for (const row of assignmentRows) {
+        if (row.paymentType === PaymentType.MONTHLY_HOURLY) {
+          const dur = Number(row.durationMinutes) || 0;
+          const cls = Number(row.totalClassesPerMonth) || 0;
+          totalAssignedHours += (dur / 60) * cls;
+        }
+      }
+      if (totalAssignedHours > limitHours) {
+        return toast.error('Total assigned class hours exceed the allowed monthly limit.');
+      }
     }
 
     try {
@@ -406,7 +442,8 @@ const TeacherAssignmentPage = () => {
                   <input
                     type="number"
                     value={dailySetup.totalClass}
-                    onChange={e => setDailySetup({ ...dailySetup, totalClass: e.target.value })}
+                    onChange={e => handleDailyTotalClassChange(e.target.value)}
+                    min="1"
                   />
                 </div>
                 <div className={styles.inputGroup}>
@@ -417,6 +454,17 @@ const TeacherAssignmentPage = () => {
                     onChange={e => setDailySetup({ ...dailySetup, totalPayment: e.target.value })}
                   />
                 </div>
+                {(() => {
+                  const needed   = Number(dailySetup.totalClass) || 0;
+                  const assigned = assignmentRows.filter(r => r.paymentType === PaymentType.DAILY).length;
+                  if (needed <= 0) return null;
+                  const ok = assigned === needed;
+                  return (
+                    <p style={{ fontSize:'12px', marginTop:'6px', color: ok ? '#059669' : '#b45309', fontWeight:500 }}>
+                      {ok ? `✅ ${assigned}/${needed} class assignments set` : `⚠️ ${assigned}/${needed} class assignments set — please fill all rows below`}
+                    </p>
+                  );
+                })()}
               </div>
             )}
 
@@ -543,6 +591,29 @@ const TeacherAssignmentPage = () => {
                         min="0"
                         value={row.ratePerClass}
                         onChange={e => handleRowChange(row.id, 'ratePerClass', e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Monthly Hourly: duration + classes/month */}
+                  {row.paymentType === PaymentType.MONTHLY_HOURLY && (
+                    <div className={styles.inlineRateGroup}>
+                      <span className={styles.inlineRateLabel}>Monthly Hourly</span>
+                      <input
+                        type="number"
+                        className={styles.inlineRateInput}
+                        placeholder="Duration (min)"
+                        min="0"
+                        value={row.durationMinutes}
+                        onChange={e => handleRowChange(row.id, 'durationMinutes', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className={styles.inlineRateInput}
+                        placeholder="Classes/Month"
+                        min="0"
+                        value={row.totalClassesPerMonth}
+                        onChange={e => handleRowChange(row.id, 'totalClassesPerMonth', e.target.value)}
                       />
                     </div>
                   )}
