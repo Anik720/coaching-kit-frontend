@@ -33,6 +33,16 @@ function recordBelongsToUser(record: any, userId: string): boolean {
   return false;
 }
 
+/** Count working days in a month, excluding Fridays (treated as holiday) */
+function getWorkingDays(year: number, month: number): number {
+  const days = new Date(year, month, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= days; d++) {
+    if (new Date(year, month - 1, d).getDay() !== 5) count++; // 5 = Friday
+  }
+  return count;
+}
+
 /** Check if a date string belongs to a YYYY-MM month */
 function dateInMonth(dateStr: string, yearMonth: string): boolean {
   if (!dateStr) return false;
@@ -65,7 +75,7 @@ interface AssignmentCalc {
   note: string;
 }
 
-function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: number, daysInMonth: number, globalAbsentDays: number): AssignmentCalc {
+function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: number, daysInMonth: number, globalAbsentDays: number, workingDays: number, totalClassesAttended: number): AssignmentCalc {
   const amount   = Number(a.amount) || 0;
   const payType  = (a.paymentType as string) || '';
   
@@ -177,11 +187,26 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
     case 'monthly':
     default: {
       baseSalary = amount;
-      const classes = Number(a.totalClassesPerMonth) > 0 ? Number(a.totalClassesPerMonth) : daysInMonth;
-      const rate = baseSalary / classes;
-      const effectiveAbsent = Number(a.totalClassesPerMonth) > 0 ? absentCount : globalAbsentDays;
-      earnedAmount = Math.max(0, baseSalary - (effectiveAbsent * rate));
-      note = `Monthly ${taka(amount)} - ${effectiveAbsent} absent days`;
+
+      if (a.hasTotalClass && Number(a.totalClassesPerMonth) > 0) {
+        // ── Class-based mode ──────────────────────────────────────────────────
+        // salary is earned proportionally to classes attended vs total classes/month
+        const totalClsPerMonth = Number(a.totalClassesPerMonth);
+        const perClassRate     = Math.round((baseSalary / totalClsPerMonth) * 100) / 100;
+        const clsAttended      = Math.min(totalClassesAttended, totalClsPerMonth);
+        earnedAmount           = Math.round(clsAttended * perClassRate * 100) / 100;
+        presentCount           = clsAttended;
+        note = `${taka(amount)} ÷ ${totalClsPerMonth} classes/month = ${taka(perClassRate)}/class · ${clsAttended} classes attended × ${taka(perClassRate)} = ${taka(earnedAmount)}`;
+      } else {
+        // ── Day-based mode (Fridays = holiday) ───────────────────────────────
+        // salary is earned proportionally to days attended vs working days in month
+        const effectiveWorkDays = workingDays > 0 ? workingDays : daysInMonth;
+        const perDayRate        = Math.round((baseSalary / effectiveWorkDays) * 100) / 100;
+        const daysAttended      = Math.min(globalPresentDays, effectiveWorkDays);
+        earnedAmount            = Math.round(daysAttended * perDayRate * 100) / 100;
+        presentCount            = globalPresentDays;
+        note = `${taka(amount)} ÷ ${effectiveWorkDays} working days (excl. Fri) = ${taka(perDayRate)}/day · ${daysAttended} days attended × ${taka(perDayRate)} = ${taka(earnedAmount)}`;
+      }
       break;
     }
   }
@@ -242,6 +267,7 @@ export default function CreateSalaryForm() {
     try {
       const [year, mon] = formData.month.split('-').map(Number);
       const daysInMonth = new Date(year, mon, 0).getDate();
+      const workingDays = getWorkingDays(year, mon);
 
       // ── 1. Fetch attendance directly from API (bypass Redux, avoid stale data) ──
       let allAtts: any[] = [];
@@ -304,6 +330,11 @@ export default function CreateSalaryForm() {
         absentDays = Math.max(0, daysInMonth - presentDays - leaveDays - offDays);
       }
 
+      // ── 3b. Total classes attended (for class-based monthly calculation) ─────
+      const totalClassesAttended = formData.userType === 'teacher'
+        ? effectiveAtts.reduce((sum: number, a: any) => sum + (Number(a.attendedClasses) || 0), 0)
+        : 0;
+
       // ── 4. Salary calculation ──────────────────────────────────────────────
       let baseSalary = 0;
       let perDaySalary = 0;
@@ -359,7 +390,7 @@ export default function CreateSalaryForm() {
 
         // Calculate expected monthly salary AND actual earned per assignment
         // Pass only approved attendance records (effectiveAtts) to salary calculation
-        assignmentBreakdown = dedupedAssignments.map(a => calcAssignmentSalary(a, effectiveAtts, presentDays, daysInMonth, absentDays));
+        assignmentBreakdown = dedupedAssignments.map(a => calcAssignmentSalary(a, effectiveAtts, presentDays, daysInMonth, absentDays, workingDays, totalClassesAttended));
 
         baseSalary            = assignmentBreakdown.reduce((sum, a) => sum + a.baseSalary, 0);
         payableAfterDeduction = assignmentBreakdown.reduce((sum, a) => sum + a.earnedAmount, 0);
@@ -371,10 +402,12 @@ export default function CreateSalaryForm() {
         // Not earned = difference between potential and actually earned (info only, not deduction)
         deduction = Math.max(0, Math.round((baseSalary - payableAfterDeduction) * 100) / 100);
 
-        // Per-class rate = baseSalary ÷ totalClassesPerMonth
-        perDaySalary = baseSalary > 0 && expectedClassesPerMonth > 0
-          ? Math.round((baseSalary / expectedClassesPerMonth) * 100) / 100
-          : 0;
+        // Rate display: per-class if class-based monthly, per-day (excl. Fri) otherwise
+        if (expectedClassesPerMonth > 0) {
+          perDaySalary = Math.round((baseSalary / expectedClassesPerMonth) * 100) / 100;
+        } else if (baseSalary > 0 && workingDays > 0) {
+          perDaySalary = Math.round((baseSalary / workingDays) * 100) / 100;
+        }
         // absentDays already set as day-based above (daysInMonth - presentDays - leave - offDays)
       }
 
@@ -407,7 +440,9 @@ export default function CreateSalaryForm() {
         leaveDays,
         offDays,
         daysInMonth,
+        workingDays,
         expectedClassesPerMonth,
+        totalClassesAttended,
         deduction,
         payableAfterDeduction,
         advanceDeducted,
@@ -602,12 +637,22 @@ export default function CreateSalaryForm() {
                   </>
                 ) : (
                   <>
-                    <Row label="Full Potential Salary (Expected Max)"                                        value={taka(calculation.baseSalary)}             bg="#f0fdf4" />
-                    <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`}   value={taka(calculation.perDaySalary)}           bg="#f9fafb" />
-                    <Row label="Earned Salary"                                                               value={taka(calculation.payableAfterDeduction)}  bg="#fef9c3" labelColor="#854d0e" bold />
-                    {calculation.deduction > 0 && (
-                      <Row label="Deduction (Missed Classes/Days)"                                           value={`- ${taka(calculation.deduction)}`}       bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
+                    <Row label="Earned Salary"                                                               value={taka(calculation.baseSalary)}             bg="#f0fdf4" />
+                    {calculation.expectedClassesPerMonth > 0 ? (
+                      <>
+                        <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`} value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
+                        <Row label="Classes Attended"                                                          value={`${calculation.totalClassesAttended} classes`} bg="#f0f9ff" />
+                      </>
+                    ) : (
+                      <>
+                        <Row label={`Per Day Rate (÷ ${calculation.workingDays} working days, excl. Fri)`}     value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
+                        <Row label="Days Attended"                                                             value={`${calculation.presentDays} days`}      bg="#f0f9ff" />
+                      </>
                     )}
+                    {calculation.deduction > 0 && (
+                      <Row label="Deduction (Missed Classes/Days)"                                             value={`- ${taka(calculation.deduction)}`}     bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
+                    )}
+                    <Row label="Net Earned"                                                                   value={taka(calculation.payableAfterDeduction)}  bg="#fef9c3" labelColor="#854d0e" bold />
                   </>
                 )}
                 <Row label="Advance Deducted"                                                                 value={`- ${taka(calculation.advanceDeducted)}`} bg="#fdf4ff" labelColor="#86198f" />

@@ -64,7 +64,7 @@ const TeacherAssignmentPage = () => {
   const [selectedPaymentTypes, setSelectedPaymentTypes] = useState<PaymentType[]>([]);
   const [monthlyHourlySetup, setMonthlyHourlySetup] = useState({ totalHours: '', totalPayment: '' });
   const [dailySetup, setDailySetup] = useState({ totalClass: '', totalPayment: '' });
-  const [monthlySetup, setMonthlySetup] = useState({ amount: '', hasTotalClass: false });
+  const [monthlySetup, setMonthlySetup] = useState({ amount: '', hasTotalClass: false, totalClassesPerMonth: '' });
   const [assignmentRows, setAssignmentRows] = useState<SubjectAssignmentRow[]>([emptyRow()]);
   const [enableExtraPayment, setEnableExtraPayment] = useState<boolean>(false);
 
@@ -81,7 +81,7 @@ const TeacherAssignmentPage = () => {
       setSelectedPaymentTypes([]);
       setMonthlyHourlySetup({ totalHours: '', totalPayment: '' });
       setDailySetup({ totalClass: '', totalPayment: '' });
-      setMonthlySetup({ amount: '', hasTotalClass: false });
+      setMonthlySetup({ amount: '', hasTotalClass: false, totalClassesPerMonth: '' });
       setEnableExtraPayment(false);
       setAssignmentRows([emptyRow()]);
       setOriginalIds(new Set());
@@ -104,7 +104,7 @@ const TeacherAssignmentPage = () => {
           setSelectedPaymentTypes([]);
           setMonthlyHourlySetup({ totalHours: '', totalPayment: '' });
           setDailySetup({ totalClass: '', totalPayment: '' });
-          setMonthlySetup({ amount: '', hasTotalClass: false });
+          setMonthlySetup({ amount: '', hasTotalClass: false, totalClassesPerMonth: '' });
           setAssignmentRows([emptyRow()]);
           setOriginalIds(new Set());
           return;
@@ -134,6 +134,7 @@ const TeacherAssignmentPage = () => {
           setMonthlySetup({
             amount: String(monthly.amount ?? ''),
             hasTotalClass: monthly.hasTotalClass ?? false,
+            totalClassesPerMonth: String(monthly.totalClassesPerMonth ?? ''),
           });
         }
 
@@ -206,6 +207,9 @@ const TeacherAssignmentPage = () => {
       case PaymentType.MONTHLY:
         base.amount = Number(monthlySetup.amount) || 0;
         base.hasTotalClass = monthlySetup.hasTotalClass;
+        if (monthlySetup.hasTotalClass) {
+          base.totalClassesPerMonth = Number(monthlySetup.totalClassesPerMonth) || 0;
+        }
         break;
       case PaymentType.PER_CLASS_HOURLY: {
         const hourlyRate  = Number(row.ratePerClass) || 0;
@@ -437,6 +441,17 @@ const TeacherAssignmentPage = () => {
                     onChange={e => setMonthlySetup({ ...monthlySetup, amount: e.target.value })}
                   />
                 </div>
+                {monthlySetup.hasTotalClass && (
+                  <div className={styles.inputGroup}>
+                    <label>Total Class Per Month</label>
+                    <input
+                      type="number"
+                      value={monthlySetup.totalClassesPerMonth}
+                      onChange={e => setMonthlySetup({ ...monthlySetup, totalClassesPerMonth: e.target.value })}
+                      placeholder="e.g. 24"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
