@@ -81,7 +81,7 @@ export interface CreateTeacherDto {
   
   // Job Information
   designation: Designation;
-  assignType: AssignType;
+  assignType?: AssignType;
   monthlyTotalClass?: number;
   salary?: number;
   joiningDate: string;
@@ -214,6 +214,7 @@ export interface CreateAssignmentDto {
   hasTotalClass?: boolean;
   ratePerClass?: number;
   ratePerHour?: number;
+  durationMinutes?: number;
   status?: string;
   notes?: string;
 }
@@ -234,6 +235,7 @@ export interface TeacherAssignment {
   hasTotalClass?: boolean;
   ratePerClass?: number;
   ratePerHour?: number;
+  durationMinutes?: number;
   status: string;
   notes?: string;
   createdBy?: any;

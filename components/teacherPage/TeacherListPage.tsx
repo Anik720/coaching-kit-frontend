@@ -368,8 +368,6 @@ export default function TeacherListPage() {
             setViewTeacher(null);
             dispatch(setCurrentTeacher(null));
           }}
-          onVerifyEmail={() => handleVerifyEmail(viewTeacher)}
-          onVerifyPhone={() => handleVerifyPhone(viewTeacher)}
           onToggleActive={() => handleToggleActive(viewTeacher)}
           onDelete={() => {
             setDeleteTarget(viewTeacher._id);

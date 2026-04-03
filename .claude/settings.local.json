@@ -7,7 +7,13 @@
       "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/finance-category/dto\")",
       "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/income/schemas\")",
       "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/income/dto\")",
-      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/expense/schemas\")"
+      "Bash(mkdir -p \"C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src/finance-management/expense/schemas\")",
+      "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app/app -type f -name *page*)",
+      "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -name *teacher*)",
+      "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend -type f -name *teacher*)",
+      "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -path ./.next -prune -o -type f -name *teacher* -print)",
+      "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src -name *teacher* -type f)",
+      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -path *dashboard*teachers*)"
     ]
   }
 }

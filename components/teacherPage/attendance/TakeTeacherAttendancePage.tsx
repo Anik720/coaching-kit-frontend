@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "@/store/store";
 import { useTeacherAttendance } from "@/hooks/useTeacherAttendance";
-import { clearError, clearSuccess } from "@/api/teacherAttendanceApi/teacherAttendanceSlice";
+import { fetchAssignments } from "@/api/teacherApi/teacherSlice";
 import { toastManager } from "@/utils/toastConfig";
 import teacherAttendanceApi from "@/api/teacherAttendanceApi/teacherAttendanceApi";
 import styles from "./TeacherAttendance.module.css";
 
 interface Teacher { _id: string; fullName: string; designation?: string; }
-interface ClassItem { _id: string; classname: string; }
 interface BatchItem { _id: string; batchName: string; sessionYear?: string; }
-interface SubjectItem { _id: string; subjectName: string; }
 
 interface AttendanceRow {
   id: number;
@@ -21,55 +21,54 @@ interface AttendanceRow {
   status: string;
   remarks: string;
   batches: BatchItem[];
+  className: string;
+  batchName: string;
+  subjectName: string;
 }
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present" },
-  { value: "absent", label: "Absent" },
-  { value: "late", label: "Late" },
-  { value: "half_day", label: "Half Day" },
-  { value: "leave", label: "Leave" },
+  { value: "absent",  label: "Absent"  },
+  { value: "late",    label: "Late"    },
+  { value: "half_day",label: "Half Day"},
+  { value: "leave",   label: "Leave"   },
 ];
 
 let rowCounter = 1;
 
+const emptyRow = (): AttendanceRow => ({
+  id: rowCounter++,
+  classId: "", batchId: "", subjectId: "",
+  status: "present", remarks: "",
+  batches: [],
+  className: "", batchName: "", subjectName: "",
+});
+
 export default function TakeTeacherAttendancePage() {
-  const router = useRouter();
-  const { loading, error, success, dispatch, create, clearError: ce, clearSuccess: cs } =
-    useTeacherAttendance();
+  const router  = useRouter();
+  const reduxDispatch = useDispatch<AppDispatch>();
+  const { loading, error, success, dispatch, create,
+          clearError: ce, clearSuccess: cs } = useTeacherAttendance();
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
-  const [selectedDate, setSelectedDate] = useState(
+  const [selectedDate,    setSelectedDate]    = useState(
     () => new Date().toISOString().split("T")[0]
   );
-  const [rows, setRows] = useState<AttendanceRow[]>([
-    { id: rowCounter++, classId: "", batchId: "", subjectId: "", status: "present", remarks: "", batches: [] },
-  ]);
+  const [rows, setRows]           = useState<AttendanceRow[]>([emptyRow()]);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
 
-  // Load dropdowns
+  // Load teachers
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       try {
-        const [tRes, cRes, sRes] = await Promise.all([
-          teacherAttendanceApi.getTeachers(),
-          teacherAttendanceApi.getClasses(),
-          teacherAttendanceApi.getSubjects(),
-        ]);
-        const tData = tRes.data?.teachers || tRes.data?.data || tRes.data || [];
-        const cData = cRes.data?.data || cRes.data?.classes || cRes.data || [];
-        const sData = sRes.data?.data || sRes.data?.subjects || sRes.data || [];
+        const tRes = await teacherAttendanceApi.getTeachers();
+        const tData = tRes.data?.teachers ?? tRes.data?.data ?? tRes.data ?? [];
         setTeachers(Array.isArray(tData) ? tData : []);
-        setClasses(Array.isArray(cData) ? cData : []);
-        setSubjects(Array.isArray(sData) ? sData : []);
-      } catch {
-        // silent
-      }
+      } catch { /* silent */ }
     };
-    loadData();
+    load();
   }, []);
 
   // Toast
@@ -85,75 +84,103 @@ export default function TakeTeacherAttendancePage() {
     }
   }, [success, error]);
 
-  const loadBatchesForRow = useCallback(async (rowId: number, classId: string) => {
-    if (!classId) {
-      setRows((prev) =>
-        prev.map((r) => (r.id === rowId ? { ...r, batchId: "", batches: [] } : r))
-      );
+  // When teacher changes → fetch their assignments and auto-populate rows
+  const handleTeacherChange = async (teacherId: string) => {
+    setSelectedTeacher(teacherId);
+
+    if (!teacherId) {
+      setRows([emptyRow()]);
       return;
     }
+
+    setLoadingAssignments(true);
     try {
-      const res = await teacherAttendanceApi.getBatchesByClass(classId);
-      const data = res.data?.data || res.data?.batches || res.data || [];
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === rowId ? { ...r, batches: Array.isArray(data) ? data : [], batchId: "" } : r
-        )
+      const result = await reduxDispatch(
+        fetchAssignments({ teacher: teacherId, limit: 1000 } as any)
+      ).unwrap();
+
+      const assignments = (result as any).assignments ?? [];
+
+      if (!assignments.length) {
+        toastManager.showError("No assignments found for this teacher");
+        setRows([emptyRow()]);
+        return;
+      }
+
+      // Build one pre-filled row per assignment
+      const newRows: AttendanceRow[] = assignments.map((a: any) => ({
+        id: rowCounter++,
+        classId:   a.class?._id   ?? "",
+        batchId:   a.batch?._id   ?? "",
+        subjectId: a.subject?._id ?? "",
+        status:    "present",
+        remarks:   "",
+        batches:   a.batch
+          ? [{ _id: a.batch._id, batchName: a.batch.batchName, sessionYear: a.batch.sessionYear }]
+          : [],
+        className:   a.class?.classname     ?? "—",
+        batchName:   a.batch?.batchName     ?? "—",
+        subjectName: a.subject?.subjectName ?? "—",
+      }));
+
+      setRows(newRows);
+
+      // Expand batch lists for each unique class (so the manual-row "Batch" dropdown works)
+      const uniqueClassIds = [
+        ...new Set(assignments.map((a: any) => a.class?._id).filter(Boolean)),
+      ] as string[];
+
+      await Promise.all(
+        uniqueClassIds.map(async (classId) => {
+          try {
+            const res  = await teacherAttendanceApi.getBatchesByClass(classId);
+            const data = res.data?.data ?? res.data?.batches ?? res.data ?? [];
+            const list = Array.isArray(data) ? data : [];
+            setRows((prev) =>
+              prev.map((r) =>
+                r.classId === classId && r.fromAssignment ? { ...r, batches: list } : r
+              )
+            );
+          } catch { /* silent */ }
+        })
       );
     } catch {
-      setRows((prev) =>
-        prev.map((r) => (r.id === rowId ? { ...r, batches: [], batchId: "" } : r))
-      );
+      toastManager.showError("Failed to load teacher assignments");
+      setRows([emptyRow()]);
+    } finally {
+      setLoadingAssignments(false);
     }
-  }, []);
-
-  const handleClassChange = (rowId: number, classId: string) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, classId } : r))
-    );
-    loadBatchesForRow(rowId, classId);
   };
 
   const handleRowChange = (
     rowId: number,
-    field: keyof Omit<AttendanceRow, "id" | "batches">,
+    field: keyof Omit<AttendanceRow, "id" | "batches" | "fromAssignment">,
     value: string
   ) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r))
-    );
-  };
-
-  const addRow = () => {
-    setRows((prev) => [
-      ...prev,
-      { id: rowCounter++, classId: "", batchId: "", subjectId: "", status: "present", remarks: "", batches: [] },
-    ]);
-  };
-
-  const removeRow = (rowId: number) => {
-    if (rows.length === 1) return;
-    setRows((prev) => prev.filter((r) => r.id !== rowId));
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)));
   };
 
   const handleSubmit = async () => {
     if (!selectedTeacher) { toastManager.showError("Please select a teacher"); return; }
-    if (!selectedDate) { toastManager.showError("Please select a date"); return; }
+    if (!selectedDate)    { toastManager.showError("Please select a date");    return; }
 
-    const invalidRow = rows.find((r) => !r.classId || !r.batchId || !r.subjectId);
-    if (invalidRow) { toastManager.showError("Please fill all Class, Batch, and Subject fields for each row"); return; }
+    const invalid = rows.find((r) => !r.classId || !r.batchId || !r.subjectId);
+    if (invalid) {
+      toastManager.showError("Please fill all Class, Batch, and Subject fields for each row");
+      return;
+    }
 
     setSubmitting(true);
     const tid = toastManager.showLoading("Submitting attendance...");
     try {
       await create({
         teacher: selectedTeacher,
-        date: selectedDate,
+        date:    selectedDate,
         attendanceDetails: rows.map((r) => ({
-          class: r.classId,
-          batch: r.batchId,
+          class:   r.classId,
+          batch:   r.batchId,
           subject: r.subjectId,
-          status: r.status,
+          status:  r.status,
           remarks: r.remarks || undefined,
         })),
       });
@@ -164,6 +191,8 @@ export default function TakeTeacherAttendancePage() {
       setSubmitting(false);
     }
   };
+
+  const isLoading = loadingAssignments || submitting || loading;
 
   return (
     <div className={styles.pageContainer}>
@@ -184,16 +213,16 @@ export default function TakeTeacherAttendancePage() {
             <select
               className={styles.formSelect}
               value={selectedTeacher}
-              onChange={(e) => setSelectedTeacher(e.target.value)}
+              onChange={(e) => handleTeacherChange(e.target.value)}
+              disabled={isLoading}
             >
               <option value="">Select Teacher</option>
               {teachers.map((t) => (
-                <option key={t._id} value={t._id}>
-                  {t.fullName}
-                </option>
+                <option key={t._id} value={t._id}>{t.fullName}</option>
               ))}
             </select>
           </div>
+
           <div className={styles.formField}>
             <label className={styles.formLabel}>📅 Date</label>
             <input
@@ -205,104 +234,97 @@ export default function TakeTeacherAttendancePage() {
           </div>
         </div>
 
-        {/* Rows Table */}
-        <div style={{ overflowX: "auto" }}>
-          <table className={styles.rowsTable}>
-            <thead>
-              <tr>
-                <th>Class</th>
-                <th>Batch</th>
-                <th>Subject</th>
-                <th>Status</th>
-                <th>Remarks</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <select
-                      value={row.classId}
-                      onChange={(e) => handleClassChange(row.id, e.target.value)}
-                    >
-                      <option value="">Select Class</option>
-                      {classes.map((c) => (
-                        <option key={c._id} value={c._id}>{c.classname}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      value={row.batchId}
-                      onChange={(e) => handleRowChange(row.id, "batchId", e.target.value)}
-                      disabled={!row.classId}
-                    >
-                      <option value="">Select Batch</option>
-                      {row.batches.map((b) => (
-                        <option key={b._id} value={b._id}>{b.batchName}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      value={row.subjectId}
-                      onChange={(e) => handleRowChange(row.id, "subjectId", e.target.value)}
-                    >
-                      <option value="">Select Subject</option>
-                      {subjects.map((s) => (
-                        <option key={s._id} value={s._id}>{s.subjectName}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      value={row.status}
-                      onChange={(e) => handleRowChange(row.id, "status", e.target.value)}
-                    >
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      placeholder="Remarks (optional)"
-                      value={row.remarks}
-                      onChange={(e) => handleRowChange(row.id, "remarks", e.target.value)}
-                    />
-                  </td>
-                  <td className={styles.rowActionsCell}>
-                    <button
-                      className={styles.btnDanger}
-                      onClick={() => removeRow(row.id)}
-                      disabled={rows.length === 1}
-                      type="button"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Loading overlay */}
+        {loadingAssignments && (
+          <div className={styles.assignmentLoading}>
+            <span className={styles.loadingSpinner} />
+            Loading assignments for selected teacher…
+          </div>
+        )}
 
-        {/* Actions */}
-        <div className={styles.formActions}>
-          <button className={styles.btnAdd} onClick={addRow} type="button">
-            + Add Row
-          </button>
-          <button
-            className={styles.btnPrimary}
-            onClick={handleSubmit}
-            disabled={submitting || loading}
-            type="button"
-          >
-            {submitting ? "Submitting..." : "Submit Attendance"}
-          </button>
-        </div>
+        {/* Rows Table */}
+        {!loadingAssignments && (
+          <>
+            <div style={{ overflowX: "auto" }}>
+              <table className={styles.rowsTable}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Class</th>
+                    <th>Batch</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, idx) => (
+                    <tr key={row.id} className={styles.assignedRow}>
+                      <td className={styles.rowIndex}>{idx + 1}</td>
+
+                      {/* Class */}
+                      <td>
+                        <span className={styles.lockedCell}>{row.className}</span>
+                      </td>
+
+                      {/* Batch */}
+                      <td>
+                        <span className={styles.lockedCell}>{row.batchName}</span>
+                      </td>
+
+                      {/* Subject */}
+                      <td>
+                        <span className={styles.lockedCell}>{row.subjectName}</span>
+                      </td>
+
+                      {/* Status */}
+                      <td>
+                        <select
+                          value={row.status}
+                          onChange={(e) => handleRowChange(row.id, "status", e.target.value)}
+                        >
+                          {STATUS_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Remarks */}
+                      <td>
+                        <input
+                          type="text"
+                          placeholder="Remarks (optional)"
+                          value={row.remarks}
+                          onChange={(e) => handleRowChange(row.id, "remarks", e.target.value)}
+                        />
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Assignment count hint */}
+            {rows.length > 0 && (
+              <p className={styles.assignmentHint}>
+                ✅ {rows.length} row(s) auto-filled from teacher assignments.
+              </p>
+            )}
+
+            {/* Actions */}
+            <div className={styles.formActions}>
+              <button
+                className={styles.btnPrimary}
+                onClick={handleSubmit}
+                disabled={isLoading}
+                type="button"
+              >
+                {submitting ? "Submitting…" : "Submit Attendance"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -92,6 +92,18 @@ const Sidebar: React.FC = () => {
       ],
     },
 
+    {
+      category: 'Salary Management',
+      basePath: '/dashboard/salary',
+      items: [
+        { label: 'Create Salary', href: '/dashboard/salary/create', icon: '➕' },
+        { label: 'Advance Salary', href: '/dashboard/salary/advance', icon: '➕' },
+        { label: 'Teacher Salary Report', href: '/dashboard/salary/teacher-report', icon: '👁️' },
+        { label: 'Staff Salary Report', href: '/dashboard/salary/staff-report', icon: '👁️' },
+        { label: 'PDF for teacher unpaid salary', href: '/dashboard/salary/unpaid-report', icon: '👁️' },
+      ],
+    },
+
     { label: 'Admission', href: '/dashboard/admission', icon: '🎓' },
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
     { label: 'Fee Collection', href: '/dashboard/fee-collection', icon: '💰' },

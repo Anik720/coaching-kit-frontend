@@ -289,7 +289,7 @@ const batchSlice = createSlice({
           createdBy: typeof action.payload.createdBy === 'string'
             ? action.payload.createdBy
             : {
-                id: action.payload.createdBy._id || action.payload.createdBy.id,
+                id: (action.payload.createdBy as any)._id || action.payload.createdBy.id,
                 email: action.payload.createdBy.email,
                 username: action.payload.createdBy.username,
                 role: action.payload.createdBy.role
