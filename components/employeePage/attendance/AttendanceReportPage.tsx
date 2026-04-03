@@ -125,7 +125,13 @@ export default function AttendanceReportPage() {
     (state: any) => state.employee
   );
 
-  const [month, setMonth] = useState(new Date().toISOString().substring(0, 7));
+  // Default to previous month so data is visible immediately
+  const getPrevMonth = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().substring(0, 7);
+  };
+  const [month, setMonth] = useState(getPrevMonth());
   const [selectedStaff, setSelectedStaff] = useState("");
   const [showTable, setShowTable] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -134,8 +140,17 @@ export default function AttendanceReportPage() {
     dispatch(fetchEmployees({ limit: 1000 }));
   }, [dispatch]);
 
+  // Auto-load previous month data on mount
+  useEffect(() => {
+    const prevMonth = getPrevMonth();
+    dispatch(fetchStaffAttendances({ limit: 500, month: prevMonth }));
+    setShowTable(true);
+    setSearched(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleShowReport = () => {
-    const query: any = { limit: 1000 };
+    const query: any = { limit: 500 };
     if (month) query.month = month;
     if (selectedStaff) query.employee = selectedStaff;
     dispatch(fetchStaffAttendances(query));
@@ -313,6 +328,9 @@ export default function AttendanceReportPage() {
             >
               Month
             </label>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>
+              Leave blank to see all months
+            </div>
             <input
               type="month"
               style={{
