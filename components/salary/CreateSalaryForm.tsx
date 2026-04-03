@@ -82,6 +82,15 @@ interface AssignmentCalc {
     totalPresentClasses: number;
     perDayBreakdown: Array<{ date: string; classesPresent: number; earned: number }>;
   };
+  monthlyData?: {
+    isClassBased: boolean;
+    totalClasses?: number;
+    classesAttended?: number;
+    perClassRate?: number;
+    effectiveWorkDays?: number;
+    daysAttended?: number;
+    perDayRate?: number;
+  };
   groupedAssignments?: Array<{ subjectName: string; className: string; batchName: string }>;
 }
 
@@ -146,6 +155,7 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
   let note = '';
   let mhData: AssignmentCalc['mhData'] = undefined;
   let dailyData: AssignmentCalc['dailyData'] = undefined;
+  let monthlyData: AssignmentCalc['monthlyData'] = undefined;
   const groupedAssignments: AssignmentCalc['groupedAssignments'] = (a._isGrouped && Array.isArray(a._groups))
     ? a._groups.map((g: any) => ({
         subjectName: g.subject?.subjectName ?? '?',
@@ -308,9 +318,16 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
         // salary is earned proportionally to classes attended vs total classes/month
         const totalClsPerMonth = Number(a.totalClassesPerMonth);
         const perClassRate     = Math.round((baseSalary / totalClsPerMonth) * 100) / 100;
-        const clsAttended      = Math.min(totalClassesAttended, totalClsPerMonth);
+        const clsAttended      = Math.min(presentCount, totalClsPerMonth);
         earnedAmount           = Math.round(clsAttended * perClassRate * 100) / 100;
-        presentCount           = clsAttended;
+        
+        monthlyData = {
+           isClassBased: true,
+           totalClasses: totalClsPerMonth,
+           classesAttended: clsAttended,
+           perClassRate: perClassRate,
+        };
+
         note = `${taka(amount)} ÷ ${totalClsPerMonth} classes/month = ${taka(perClassRate)}/class · ${clsAttended} classes attended × ${taka(perClassRate)} = ${taka(earnedAmount)}`;
       } else {
         // ── Day-based mode (Fridays = holiday) ───────────────────────────────
@@ -320,13 +337,21 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
         const daysAttended      = Math.min(globalPresentDays, effectiveWorkDays);
         earnedAmount            = Math.round(daysAttended * perDayRate * 100) / 100;
         presentCount            = globalPresentDays;
+
+        monthlyData = {
+           isClassBased: false,
+           effectiveWorkDays,
+           daysAttended,
+           perDayRate
+        };
+
         note = `${taka(amount)} ÷ ${effectiveWorkDays} working days (excl. Fri) = ${taka(perDayRate)}/day · ${daysAttended} days attended × ${taka(perDayRate)} = ${taka(earnedAmount)}`;
       }
       break;
     }
   }
 
-  return { label, payType, baseSalary, earnedAmount, presentCount, note, mhData, dailyData, groupedAssignments };
+  return { label, payType, baseSalary, earnedAmount, presentCount, note, mhData, dailyData, monthlyData, groupedAssignments };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -571,12 +596,18 @@ export default function CreateSalaryForm() {
         : undefined;
       const dailyInfo = dailyBreakdown?.dailyData ?? null;
 
+      const monthlyBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'monthly')
+        : undefined;
+      const monthlyInfo = monthlyBreakdown?.monthlyData ?? null;
+
       // Final Payable = actual earned (after all deductions) minus advance
       const finalPayable = Math.round((payableAfterDeduction - advanceDeducted) * 100) / 100;
 
       setCalculation({
         monthlyHourlyInfo,
         dailyInfo,
+        monthlyInfo,
         baseSalary,
         perDaySalary,
         presentDays,
@@ -837,7 +868,7 @@ export default function CreateSalaryForm() {
                       </>
                     ) : (
                       <>
-                        <Row label={calculation.monthlyHourlyInfo ? "Total Salary Per Month" : "Earned Salary"} value={taka(calculation.baseSalary)}         bg="#f0fdf4" />
+                        <Row label={calculation.monthlyHourlyInfo ? "Total Salary Per Month" : "Base Salary (Expected Max)"} value={taka(calculation.baseSalary)}         bg="#f0fdf4" />
                         {calculation.monthlyHourlyInfo ? (
                           // ── Monthly Hourly: rate + hours worked breakdown ───────────
                           <>
@@ -845,14 +876,27 @@ export default function CreateSalaryForm() {
                             <Row label="Per Hour Rate"                                                       value={taka(calculation.monthlyHourlyInfo.hourlyRate)}                        bg="#f9fafb" />
                             <Row label="Hours Worked"                                                        value={`${calculation.monthlyHourlyInfo.hoursWorked} hours`}                  bg="#f0f9ff" />
                           </>
+                        ) : calculation.monthlyInfo ? (
+                          // ── Monthly ──────────────────────────────────────────────────
+                          calculation.monthlyInfo.isClassBased ? (
+                            <>
+                              <Row label={`Per Class Rate (÷ ${calculation.monthlyInfo.totalClasses} classes/month)`} value={taka(calculation.monthlyInfo.perClassRate)} bg="#f9fafb" />
+                              <Row label="Classes Attended"                                                    value={`${calculation.monthlyInfo.classesAttended} classes`}                        bg="#f0f9ff" />
+                            </>
+                          ) : (
+                            <>
+                              <Row label={`Per Day Rate (÷ ${calculation.monthlyInfo.effectiveWorkDays} working days, excl. Fri)`} value={taka(calculation.monthlyInfo.perDayRate)}        bg="#f9fafb" />
+                              <Row label="Days Attended"                                                       value={`${calculation.monthlyInfo.daysAttended} days`}        bg="#f0f9ff" />
+                            </>
+                          )
                         ) : calculation.expectedClassesPerMonth > 0 ? (
-                          // ── Class-based monthly ─────────────────────────────────────
+                          // ── Class-based fallback ─────────────────────────────────────
                           <>
                             <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`} value={taka(calculation.perDaySalary)}    bg="#f9fafb" />
                             <Row label="Classes Attended"                                                    value={`${calculation.totalClassesAttended} classes`}                        bg="#f0f9ff" />
                           </>
                         ) : (
-                          // ── Day-based monthly (Fridays = holiday) ──────────────────
+                          // ── Day-based fallback ──────────────────
                           <>
                             <Row label={`Per Day Rate (÷ ${calculation.workingDays} working days, excl. Fri)`} value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
                             <Row label="Days Attended"                                                       value={`${calculation.presentDays} days`}        bg="#f0f9ff" />
