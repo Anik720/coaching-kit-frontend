@@ -42,6 +42,20 @@ const Sidebar: React.FC = () => {
     },
 
     {
+      category: 'Academic Materials',
+      basePath: '/dashboard/materials',
+      items: [
+        { label: 'Material Category', href: '/dashboard/materials/category', icon: '📁' },
+        { label: 'Create Material', href: '/dashboard/materials/create', icon: '➕' },
+        { label: 'Material List', href: '/dashboard/materials/list', icon: '📋' },
+        { label: 'Purchase History', href: '/dashboard/materials/purchase-history', icon: '🧾' },
+        { label: 'Assign To Batch', href: '/dashboard/materials/assign', icon: '🔗' },
+        { label: 'Distribute Material', href: '/dashboard/materials/distribute', icon: '📤' },
+        { label: 'Distribution Report', href: '/dashboard/materials/report', icon: '📊' },
+      ],
+    },
+
+    {
       category: 'Employee Management',
       basePath: '/dashboard/employee',
       items: [
