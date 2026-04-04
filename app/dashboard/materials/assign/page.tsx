@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchMaterials, fetchBatchAssignments, assignToBatch, clearError, clearSuccess } from '@/api/materialsApi/materialsSlice';
+import { fetchMaterials, fetchBatchAssignments, assignToBatch, updateBatchAssignment, clearError, clearSuccess } from '@/api/materialsApi/materialsSlice';
 import { fetchClasses } from '@/api/classApi/classSlice';
 import { fetchBatches } from '@/api/batchApi/batchSlice';
 import { toastManager } from '@/utils/toastConfig';
@@ -26,13 +26,22 @@ export default function AssignToBatchPage() {
     dispatch(fetchBatchAssignments({}));
   }, [dispatch]);
 
+  // Pre-select already assigned batches when material changes
+  useEffect(() => {
+    if (selectedMaterial) {
+      const alreadyAssigned = assignments
+        .filter((a: any) => a.materialId?._id === selectedMaterial || a.materialId === selectedMaterial)
+        .map((a: any) => a.batchId?._id || a.batchId);
+      setSelectedBatches(alreadyAssigned);
+    } else {
+      setSelectedBatches([]);
+    }
+  }, [selectedMaterial, assignments]);
+
   useEffect(() => {
     if (success) {
-      toastManager.showSuccess('Material assigned to batches successfully');
+      toastManager.showSuccess('Assignment updated successfully');
       dispatch(clearSuccess());
-      setSelectedBatches([]);
-      setSelectedClass('');
-      setSelectedMaterial('');
       dispatch(fetchBatchAssignments({}));
     }
     if (error) {
@@ -41,9 +50,20 @@ export default function AssignToBatchPage() {
     }
   }, [success, error, dispatch]);
 
-  const filteredBatches = selectedClass 
-    ? batches.filter((b: any) => b.class?._id === selectedClass || b.class === selectedClass)
+  const filteredBatches = selectedClass
+    ? batches.filter((b: any) => {
+        const cls = b.className;
+        return (typeof cls === 'object' ? cls?._id : cls) === selectedClass;
+      })
     : [];
+
+  // Batch IDs already assigned to the selected material (before any changes)
+  const originalAssignedBatchIds = useMemo(() => {
+    if (!selectedMaterial) return [];
+    return assignments
+      .filter((a: any) => a.materialId?._id === selectedMaterial || a.materialId === selectedMaterial)
+      .map((a: any) => a.batchId?._id || a.batchId);
+  }, [selectedMaterial, assignments]);
 
   const handleCheckbox = (batchId: string) => {
     if (selectedBatches.includes(batchId)) {
@@ -53,31 +73,42 @@ export default function AssignToBatchPage() {
     }
   };
 
-  const handleAssign = (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMaterial) return toastManager.showError('Select a material');
-    if (selectedBatches.length === 0) return toastManager.showError('Select at least one batch');
-    
-    dispatch(assignToBatch({
-      materialId: selectedMaterial,
-      batchIds: selectedBatches
-    }));
+
+    const isUpdate = originalAssignedBatchIds.length > 0;
+
+    if (isUpdate) {
+      dispatch(updateBatchAssignment({
+        materialId: selectedMaterial,
+        batchIds: selectedBatches
+      }));
+    } else {
+      if (selectedBatches.length === 0) return toastManager.showError('Select at least one batch');
+      dispatch(assignToBatch({
+        materialId: selectedMaterial,
+        batchIds: selectedBatches
+      }));
+    }
   };
+
+  const displayBatches = selectedClass ? filteredBatches : batches;
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.headerRow}>
         <h1 className={styles.pageTitle}>Assign To Batch</h1>
         <div>
-          <button 
-            className={activeTab === 'assign' ? styles.btnPrimary : styles.btnSecondary} 
+          <button
+            className={activeTab === 'assign' ? styles.btnPrimary : styles.btnSecondary}
             style={{ marginRight: 8 }}
             onClick={() => setActiveTab('assign')}
           >
             Assign Form
           </button>
-          <button 
-            className={activeTab === 'list' ? styles.btnPrimary : styles.btnSecondary} 
+          <button
+            className={activeTab === 'list' ? styles.btnPrimary : styles.btnSecondary}
             onClick={() => setActiveTab('list')}
           >
             Assignment List
@@ -87,14 +118,17 @@ export default function AssignToBatchPage() {
 
       {activeTab === 'assign' && (
         <div className={styles.formCard}>
-          <form onSubmit={handleAssign}>
+          <form onSubmit={handleSave}>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={`${styles.label} ${styles.labelRequired}`}>Select Material</label>
-                <select 
-                  className={styles.select} 
-                  value={selectedMaterial} 
-                  onChange={(e) => setSelectedMaterial(e.target.value)}
+                <select
+                  className={styles.select}
+                  value={selectedMaterial}
+                  onChange={(e) => {
+                    setSelectedMaterial(e.target.value);
+                    setSelectedClass('');
+                  }}
                   required
                 >
                   <option value="">-- Choose Material --</option>
@@ -106,13 +140,10 @@ export default function AssignToBatchPage() {
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>Filter by Class (Optional)</label>
-                <select 
-                  className={styles.select} 
-                  value={selectedClass} 
-                  onChange={(e) => {
-                    setSelectedClass(e.target.value);
-                    setSelectedBatches([]); // Reset selection when class changes
-                  }}
+                <select
+                  className={styles.select}
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
                 >
                   <option value="">All Classes</option>
                   {classes.map((c: any) => (
@@ -124,27 +155,45 @@ export default function AssignToBatchPage() {
 
             <div className={styles.formGroup} style={{ marginTop: 24, marginBottom: 24 }}>
               <label className={`${styles.label} ${styles.labelRequired}`}>Select Batches</label>
-              {(selectedClass ? filteredBatches : batches).length === 0 ? (
-                <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>No batches available for the selected class.</div>
+              {selectedMaterial && originalAssignedBatchIds.length > 0 && (
+                <p style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+                  Already assigned batches are pre-selected. Uncheck to remove assignment.
+                </p>
+              )}
+              {displayBatches.length === 0 ? (
+                <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>
+                  {selectedClass ? 'No batches available for the selected class.' : 'No batches found.'}
+                </div>
               ) : (
                 <div className={styles.checkboxGrid}>
-                  {(selectedClass ? filteredBatches : batches).map((b: any) => (
-                    <label key={b._id} className={styles.checkboxItem}>
-                      <input 
-                        type="checkbox" 
-                        className={styles.checkboxInput}
-                        checked={selectedBatches.includes(b._id)}
-                        onChange={() => handleCheckbox(b._id)}
-                      />
-                      <span>{b.batchName} {selectedClass ? '' : `(${b.class?.classname || ''})`}</span>
-                    </label>
-                  ))}
+                  {displayBatches.map((b: any) => {
+                    const isAlreadyAssigned = originalAssignedBatchIds.includes(b._id);
+                    return (
+                      <label key={b._id} className={styles.checkboxItem}>
+                        <input
+                          type="checkbox"
+                          className={styles.checkboxInput}
+                          checked={selectedBatches.includes(b._id)}
+                          onChange={() => handleCheckbox(b._id)}
+                        />
+                        <span>
+                          {b.batchName}
+                          {!selectedClass && ` (${typeof b.className === 'object' ? b.className?.classname : b.className || ''})`}
+                          {isAlreadyAssigned && (
+                            <span style={{ marginLeft: 6, fontSize: 11, color: '#16a34a', fontWeight: 600, background: '#dcfce7', borderRadius: 4, padding: '1px 6px' }}>
+                              Assigned
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            <button type="submit" className={styles.btnPrimary} style={{ width: 200 }} disabled={actionLoading}>
-              {actionLoading ? 'Assigning...' : 'Assign to Batches'}
+            <button type="submit" className={styles.btnPrimary} style={{ width: 200 }} disabled={actionLoading || !selectedMaterial}>
+              {actionLoading ? 'Saving...' : originalAssignedBatchIds.length > 0 ? 'Update Assignment' : 'Assign to Batches'}
             </button>
           </form>
         </div>

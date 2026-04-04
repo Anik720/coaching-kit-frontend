@@ -139,6 +139,18 @@ export const assignToBatch = createAsyncThunk(
   }
 );
 
+export const updateBatchAssignment = createAsyncThunk(
+  'materials/updateBatchAssignment',
+  async (data: Record<string, any>, { rejectWithValue }) => {
+    try {
+      const res = await materialsApi.updateBatchAssignment(data);
+      return res.data;
+    } catch (e: any) {
+      return rejectWithValue(e.response?.data?.message || 'Failed to update assignment');
+    }
+  }
+);
+
 export const fetchBatchAssignments = createAsyncThunk(
   'materials/fetchBatchAssignments',
   async (params: Record<string, any> = {}, { rejectWithValue }) => {
@@ -159,6 +171,19 @@ export const fetchAssignedForBatch = createAsyncThunk(
       return res.data;
     } catch (e: any) {
       return rejectWithValue(e.response?.data?.message || 'Failed to load assigned materials');
+    }
+  }
+);
+
+// Upsert distribution (create or update per student)
+export const upsertDistribution = createAsyncThunk(
+  'materials/upsertDistribution',
+  async (data: Record<string, any>, { rejectWithValue }) => {
+    try {
+      const res = await materialsApi.upsertDistribution(data);
+      return res.data;
+    } catch (e: any) {
+      return rejectWithValue(e.response?.data?.message || 'Failed to save distribution');
     }
   }
 );
@@ -275,6 +300,11 @@ const materialsSlice = createSlice({
       .addCase(assignToBatch.fulfilled, (state) => { state.actionLoading = false; state.success = true; })
       .addCase(assignToBatch.rejected, setError)
 
+      // updateBatchAssignment
+      .addCase(updateBatchAssignment.pending, setActionLoading)
+      .addCase(updateBatchAssignment.fulfilled, (state) => { state.actionLoading = false; state.success = true; })
+      .addCase(updateBatchAssignment.rejected, setError)
+
       // fetchBatchAssignments
       .addCase(fetchBatchAssignments.pending, setLoading)
       .addCase(fetchBatchAssignments.fulfilled, (state, a) => { state.loading = false; state.assignments = Array.isArray(a.payload) ? a.payload : []; })
@@ -284,6 +314,11 @@ const materialsSlice = createSlice({
       .addCase(fetchAssignedForBatch.pending, setLoading)
       .addCase(fetchAssignedForBatch.fulfilled, (state, a) => { state.loading = false; state.assignedForBatch = Array.isArray(a.payload) ? a.payload : []; })
       .addCase(fetchAssignedForBatch.rejected, setError)
+
+      // upsertDistribution
+      .addCase(upsertDistribution.pending, setActionLoading)
+      .addCase(upsertDistribution.fulfilled, (state) => { state.actionLoading = false; state.success = true; })
+      .addCase(upsertDistribution.rejected, setError)
 
       // distributeMaterial
       .addCase(distributeMaterial.pending, setActionLoading)
