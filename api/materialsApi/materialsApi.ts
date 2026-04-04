@@ -31,6 +31,12 @@ const materialsApi = {
   assignToBatch: (data: Record<string, any>) =>
     api.post('/academic-materials/assign-batch', data),
 
+  updateBatchAssignment: (data: Record<string, any>) =>
+    api.patch('/academic-materials/assign-batch', data),
+
+  upsertDistribution: (data: Record<string, any>) =>
+    api.patch('/academic-materials/distribute', data),
+
   getBatchAssignments: (params?: Record<string, any>) =>
     api.get('/academic-materials/batch-assignments', { params }),
 

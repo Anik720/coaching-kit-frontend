@@ -173,6 +173,7 @@ export interface AdmissionQueryParams {
   startDate?: string;
   endDate?: string;
   createdBy?: string;
+  batchName?: string;
   page?: number;
   limit?: number;
   sortBy?: string;

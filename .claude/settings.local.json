@@ -13,7 +13,8 @@
       "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend -type f -name *teacher*)",
       "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -path ./.next -prune -o -type f -name *teacher* -print)",
       "Bash(find /c/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-backend/src -name *teacher* -type f)",
-      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -path *dashboard*teachers*)"
+      "Bash(find C:/Users/Asus/Desktop/coaching-kit-backend/coaching-kit-frontend/my-nextjs-app -type f -path *dashboard*teachers*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
