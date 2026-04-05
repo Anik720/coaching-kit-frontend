@@ -2,18 +2,19 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useBatch } from "@/hooks/useBatch";
-import { 
-  clearError, 
-  clearSuccess, 
-  createBatch, 
-  deleteBatch, 
+import {
+  clearError,
+  clearSuccess,
+  createBatch,
+  deleteBatch,
   fetchBatches,
   updateBatch,
   toggleBatchStatus,
   fetchClasses,
   fetchGroups,
-  fetchSubjects 
+  fetchSubjects
 } from "@/api/batchApi/batchSlice";
+import { BatchItem } from "@/api/batchApi/types/batch.types";
 import { toastManager } from "@/utils/toastConfig";
 import styles from './Batches.module.css';
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -56,6 +57,7 @@ export default function BatchesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState<string | null>(null);
+  const [viewBatch, setViewBatch] = useState<BatchItem | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Use debounced search term
@@ -505,6 +507,17 @@ export default function BatchesPage() {
                         <td>
                           <div className={styles.actionButtons}>
                             <button
+                              onClick={() => setViewBatch(batch)}
+                              className={styles.btnEdit}
+                              title="View Details"
+                              type="button"
+                            >
+                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
                               onClick={() => handleDeleteClick(batch._id)}
                               className={styles.btnDelete}
                               title="Delete"
@@ -601,6 +614,15 @@ export default function BatchesPage() {
           classes={classes}
           groups={groups}
           subjects={subjects}
+        />
+      )}
+
+      {/* Batch Detail Modal */}
+      {viewBatch && (
+        <BatchDetailModal
+          batch={viewBatch}
+          onClose={() => setViewBatch(null)}
+          getDisplayName={getDisplayName}
         />
       )}
 
@@ -1260,6 +1282,138 @@ function CreateBatchModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ── Batch Detail Modal ──────────────────────────────────────────────────────────
+function BatchDetailModal({
+  batch,
+  onClose,
+  getDisplayName,
+}: {
+  batch: BatchItem;
+  onClose: () => void;
+  getDisplayName: (item: any, field: string) => string;
+}) {
+  const statusColor: Record<string, { bg: string; color: string }> = {
+    active:    { bg: 'rgba(16,185,129,.12)',  color: '#059669' },
+    upcoming:  { bg: 'rgba(59,130,246,.12)',  color: '#2563eb' },
+    completed: { bg: 'rgba(107,114,128,.12)', color: '#4b5563' },
+    inactive:  { bg: 'rgba(239,68,68,.12)',   color: '#dc2626' },
+  };
+  const sc = statusColor[batch.status] ?? statusColor.inactive;
+  const totalFee = batch.admissionFee + batch.tuitionFee + batch.courseFee;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)', padding: '16px' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '20px', width: '100%', maxWidth: '640px', boxShadow: '0 24px 64px rgba(0,0,0,.2)', animation: 'slideUp .25s ease', overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+              📅
+            </div>
+            <div>
+              <h2 style={{ margin: 0, color: 'white', fontSize: '18px', fontWeight: '700' }}>{batch.batchName}</h2>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,.75)', fontSize: '13px' }}>{batch.sessionYear}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,.2)', color: 'white', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: 'auto', padding: '24px' }}>
+
+          {/* Status row */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', background: sc.bg, color: sc.color }}>
+              {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+            </span>
+            <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', background: batch.isActive ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)', color: batch.isActive ? '#059669' : '#dc2626' }}>
+              {batch.isActive ? '● Active' : '○ Inactive'}
+            </span>
+            {batch.daysRemaining !== undefined && batch.daysRemaining > 0 && (
+              <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', background: 'rgba(245,158,11,.12)', color: '#d97706' }}>
+                {batch.daysRemaining} days left
+              </span>
+            )}
+          </div>
+
+          {/* Academic Info */}
+          <Section title="Academic Information">
+            <Row label="Class"   value={getDisplayName(batch.className, 'classname')} />
+            <Row label="Group"   value={getDisplayName(batch.group, 'groupName')} />
+            <Row label="Subject" value={getDisplayName(batch.subject, 'subjectName')} />
+            <Row label="Session Year" value={batch.sessionYear} />
+            <Row label="Classes / Month" value={String(batch.monthlyClassCount || 0)} />
+            <Row label="Max Students" value={String(batch.maxStudents)} />
+          </Section>
+
+          {/* Schedule */}
+          <Section title="Schedule">
+            <Row label="Starting Date" value={new Date(batch.batchStartingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+            <Row label="Closing Date"  value={new Date(batch.batchClosingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+          </Section>
+
+          {/* Fees */}
+          <Section title="Fee Structure">
+            <Row label="Admission Fee" value={`৳ ${batch.admissionFee.toLocaleString()}`} />
+            <Row label="Tuition Fee"   value={`৳ ${batch.tuitionFee.toLocaleString()}`} />
+            <Row label="Course Fee"    value={`৳ ${batch.courseFee.toLocaleString()}`} />
+            <div style={{ borderTop: '2px dashed #e5e7eb', marginTop: '8px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#374151' }}>Total Fee</span>
+              <span style={{ fontSize: '17px', fontWeight: '800', color: '#6366f1' }}>৳ {totalFee.toLocaleString()}</span>
+            </div>
+          </Section>
+
+          {/* Description */}
+          {batch.description && (
+            <Section title="Description">
+              <p style={{ margin: 0, fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>{batch.description}</p>
+            </Section>
+          )}
+
+          {/* Meta */}
+          <Section title="Record Info">
+            <Row label="Created At" value={new Date(batch.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+            <Row label="Updated At" value={new Date(batch.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+          </Section>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, background: '#fafafa' }}>
+          <button onClick={onClose} style={{ padding: '10px 28px', borderRadius: '10px', border: '2px solid #e5e7eb', background: 'white', color: '#374151', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+            Close
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }`}</style>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{title}</p>
+      <div style={{ background: '#f9fafb', borderRadius: '12px', padding: '4px 0', border: '1px solid #f3f4f6' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #f3f4f6' }}>
+      <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{label}</span>
+      <span style={{ fontSize: '14px', color: '#1f2937', fontWeight: '600', textAlign: 'right', maxWidth: '60%' }}>{value || '—'}</span>
     </div>
   );
 }

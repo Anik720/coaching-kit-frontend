@@ -17,6 +17,7 @@ import employeeAttendanceReducer from '../api/employeeAttendanceApi/employeeAtte
 import financeReducer from '../api/financeApi/financeSlice';
 import salaryReducer from '../api/salaryApi/salarySlice';
 import materialsReducer from '../api/materialsApi/materialsSlice';
+import feeReducer from '../api/feeApi/feeSlice';
 
 export const store = configureStore({
   reducer: {
@@ -38,6 +39,7 @@ export const store = configureStore({
     finance: financeReducer,
     salary: salaryReducer,
     materials: materialsReducer,
+    fee: feeReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
