@@ -42,6 +42,20 @@ const Sidebar: React.FC = () => {
     },
 
     {
+      category: 'Academic Materials',
+      basePath: '/dashboard/materials',
+      items: [
+        { label: 'Material Category', href: '/dashboard/materials/category', icon: '📁' },
+        { label: 'Create Material', href: '/dashboard/materials/create', icon: '➕' },
+        { label: 'Material List', href: '/dashboard/materials/list', icon: '📋' },
+        { label: 'Purchase History', href: '/dashboard/materials/purchase-history', icon: '🧾' },
+        { label: 'Assign To Batch', href: '/dashboard/materials/assign', icon: '🔗' },
+        { label: 'Distribute Material', href: '/dashboard/materials/distribute', icon: '📤' },
+        { label: 'Distribution Report', href: '/dashboard/materials/report', icon: '📊' },
+      ],
+    },
+
+    {
       category: 'Employee Management',
       basePath: '/dashboard/employee',
       items: [
@@ -106,7 +120,19 @@ const Sidebar: React.FC = () => {
 
     { label: 'Admission', href: '/dashboard/admission', icon: '🎓' },
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
-    { label: 'Fee Collection', href: '/dashboard/fee-collection', icon: '💰' },
+    {
+      category: 'Fee Collection',
+      basePath: '/dashboard/fee-collection',
+      items: [
+        { label: 'Receive Student Fee', href: '/dashboard/fee-collection/receive', icon: '💰' },
+        { label: 'Student Fee History', href: '/dashboard/fee-collection/history', icon: '📋' },
+        { label: 'Due List', href: '/dashboard/fee-collection/due-list', icon: '📝' },
+        { label: 'Cancel Payment', href: '/dashboard/fee-collection/cancel', icon: '✖️' },
+        { label: 'Fee Category', href: '/dashboard/fee-collection/category', icon: '🏷️' },
+        { label: 'Extra Fee Assignment', href: '/dashboard/fee-collection/assign', icon: '➕' },
+        { label: 'Transection Trash', href: '/dashboard/fee-collection/trash', icon: '🗑️' },
+      ],
+    },
     {
       category: 'Student Attendance',
       basePath: '/dashboard/student-attendance',

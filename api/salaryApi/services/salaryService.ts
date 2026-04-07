@@ -29,6 +29,10 @@ class SalaryService {
     const response = await axiosInstance.post('/salaries', data);
     return response.data;
   }
+
+  async deleteSalary(id: string): Promise<void> {
+    await axiosInstance.delete(`/salaries/${id}`);
+  }
 }
 
 const salaryService = new SalaryService();

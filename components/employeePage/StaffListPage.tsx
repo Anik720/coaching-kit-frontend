@@ -254,6 +254,13 @@ export default function StaffListPage() {
                     </td>
                     <td>
                       <div className={styles.actionGroup}>
+                        <Link 
+                          href={`/dashboard/employee/edit/${emp._id}`}
+                          className={styles.actionBtnEdit}
+                          title="Edit"
+                        >
+                          Edit
+                        </Link>
                         <button
                           className={styles.actionBtnDelete}
                           onClick={() => setDeleteTarget(emp._id)}

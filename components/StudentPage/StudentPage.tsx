@@ -40,6 +40,7 @@ export default function StudentsPage() {
     totalPages,
     currentStudent,
     classes,
+    batches,
     fetchStudents,
     createStudent,
     updateStudent,
@@ -47,6 +48,7 @@ export default function StudentsPage() {
     makePayment,
     setCurrentStudent,
     fetchClasses,
+    fetchBatchesByClass,
   } = useStudent();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,6 +58,8 @@ export default function StudentsPage() {
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterAdmissionType, setFilterAdmissionType] = useState<string>("");
+  const [filterClass, setFilterClass] = useState<string>("");
+  const [filterBatch, setFilterBatch] = useState<string>("");
   const [paymentModal, setPaymentModal] = useState<{ 
     open: boolean; 
     student: StudentItem | null;
@@ -105,6 +109,8 @@ export default function StudentsPage() {
           search: debouncedSearchTerm || undefined,
           status: filterStatus ? (filterStatus as StudentStatus) : undefined,
           admissionType: filterAdmissionType ? (filterAdmissionType as AdmissionType) : undefined,
+          class: filterClass || undefined,
+          batch: filterBatch || undefined,
           page: currentPage,
           limit: 10,
           sortBy: "createdAt",
@@ -121,7 +127,15 @@ export default function StudentsPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [debouncedSearchTerm, currentPage, filterStatus, filterAdmissionType]);
+  }, [debouncedSearchTerm, currentPage, filterStatus, filterAdmissionType, filterClass, filterBatch]);
+
+  // Load batches when class filter changes
+  useEffect(() => {
+    if (filterClass) {
+      fetchBatchesByClass(filterClass);
+      setFilterBatch('');
+    }
+  }, [filterClass, fetchBatchesByClass]);
 
   // Handle success/error messages with toast
   useEffect(() => {
@@ -148,26 +162,6 @@ export default function StudentsPage() {
     [createStudent]
   );
 
-  const fetchBatchesByClass = useCallback(async (classId: string) => {
-    try {
-      const response = await api.get(`/batches/class/${classId}`);
-      console.log('Batches response for class', classId, ':', response.data);
-      
-      if (response.data.data) {
-        return response.data.data;
-      } else if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
-    } catch (error: any) {
-      // Backend throws 404 when no batches exist for this class - treat as empty
-      if (error.response?.status === 404) {
-        return [];
-      }
-      console.error('Failed to fetch batches:', error);
-      return [];
-    }
-  }, []);
 
   const handleDeleteClick = useCallback((id: string) => {
     setStudentToDelete(id);
@@ -470,6 +464,37 @@ export default function StudentsPage() {
             <span className={styles.tableCount}>({total} total)</span>
           </h2>
           <div className={styles.filterGroup}>
+            <select
+              value={filterClass}
+              onChange={(e) => {
+                setFilterClass(e.target.value);
+                setFilterBatch('');
+                setCurrentPage(1);
+              }}
+              className={styles.filterSelect}
+              disabled={loading}
+            >
+              <option value="">All Classes</option>
+              {classes.map((c: any) => (
+                <option key={c._id} value={c._id}>{c.classname}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterBatch}
+              onChange={(e) => {
+                setFilterBatch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className={styles.filterSelect}
+              disabled={loading || !filterClass}
+            >
+              <option value="">All Batches</option>
+              {batches.map((b: any) => (
+                <option key={b._id} value={b._id}>{b.batchName}</option>
+              ))}
+            </select>
+
             <select
               value={filterStatus}
               onChange={(e) => {

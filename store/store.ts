@@ -16,6 +16,9 @@ import employeeReducer from '../api/employeeApi/employeeSlice';
 import employeeAttendanceReducer from '../api/employeeAttendanceApi/employeeAttendanceSlice';
 import financeReducer from '../api/financeApi/financeSlice';
 import salaryReducer from '../api/salaryApi/salarySlice';
+import materialsReducer from '../api/materialsApi/materialsSlice';
+import feeReducer from '../api/feeApi/feeSlice';
+import overviewReducer from '../api/overviewApi/overviewSlice'; // <-- নতুন ইমপোর্ট যুক্ত করা হয়েছে
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +39,9 @@ export const store = configureStore({
     staffAttendance: employeeAttendanceReducer,
     finance: financeReducer,
     salary: salaryReducer,
+    materials: materialsReducer,
+    fee: feeReducer,
+    overview: overviewReducer, // <-- নতুন রিডিউসার যুক্ত করা হয়েছে
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

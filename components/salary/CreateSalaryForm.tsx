@@ -29,7 +29,11 @@ function recordBelongsToUser(record: any, userId: string): boolean {
   const emp = record.employee ?? record.teacher ?? record.staff;
   if (!emp) return JSON.stringify(record).includes(userId);
   if (typeof emp === 'string') return emp === userId;
-  if (typeof emp === 'object') return emp._id === userId;
+  if (typeof emp === 'object') {
+    // ObjectId may not be a plain string — compare via toString()
+    const id = (emp._id ?? emp.id ?? '').toString();
+    return id === userId;
+  }
   return false;
 }
 
@@ -81,6 +85,27 @@ interface AssignmentCalc {
     perClassRate: number;
     totalPresentClasses: number;
     perDayBreakdown: Array<{ date: string; classesPresent: number; earned: number }>;
+  };
+  monthlyData?: {
+    isClassBased: boolean;
+    totalClasses?: number;
+    classesAttended?: number;
+    perClassRate?: number;
+    effectiveWorkDays?: number;
+    daysAttended?: number;
+    perDayRate?: number;
+  };
+  perClassData?: {
+    ratePerClass: number;
+    classesAttended: number;
+    expectedClasses: number;
+  };
+  perClassHourlyData?: {
+    hourlyRate: number;
+    durationMinutes: number;
+    earnedPerClass: number;
+    classesAttended: number;
+    expectedClasses: number;
   };
   groupedAssignments?: Array<{ subjectName: string; className: string; batchName: string }>;
 }
@@ -146,6 +171,9 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
   let note = '';
   let mhData: AssignmentCalc['mhData'] = undefined;
   let dailyData: AssignmentCalc['dailyData'] = undefined;
+  let monthlyData: AssignmentCalc['monthlyData'] = undefined;
+  let perClassData: AssignmentCalc['perClassData'] = undefined;
+  let perClassHourlyData: AssignmentCalc['perClassHourlyData'] = undefined;
   const groupedAssignments: AssignmentCalc['groupedAssignments'] = (a._isGrouped && Array.isArray(a._groups))
     ? a._groups.map((g: any) => ({
         subjectName: g.subject?.subjectName ?? '?',
@@ -163,6 +191,13 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
       // Cap: cannot earn more than base salary (no over-payment if extra attendance recorded)
       const effectivePresent = classes > 0 ? Math.min(presentCount, classes) : presentCount;
       earnedAmount = effectivePresent * rate;
+
+      perClassData = {
+        ratePerClass: rate,
+        classesAttended: effectivePresent,
+        expectedClasses: classes
+      };
+
       note = `${effectivePresent} attended × ${taka(rate)}/class = ${taka(earnedAmount)}`;
       break;
     }
@@ -178,6 +213,15 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
       baseSalary = classes > 0 ? classes * earnedPerClass : amount;
       const effectivePresent = classes > 0 ? Math.min(presentCount, classes) : presentCount;
       earnedAmount = effectivePresent * earnedPerClass;
+
+      perClassHourlyData = {
+        hourlyRate,
+        durationMinutes: duration,
+        earnedPerClass,
+        classesAttended: effectivePresent,
+        expectedClasses: classes
+      };
+
       note = `${effectivePresent} attended × ৳${hourlyRate}/hr × ${duration}min = ${taka(earnedAmount)}`;
       break;
     }
@@ -308,9 +352,16 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
         // salary is earned proportionally to classes attended vs total classes/month
         const totalClsPerMonth = Number(a.totalClassesPerMonth);
         const perClassRate     = Math.round((baseSalary / totalClsPerMonth) * 100) / 100;
-        const clsAttended      = Math.min(totalClassesAttended, totalClsPerMonth);
+        const clsAttended      = Math.min(presentCount, totalClsPerMonth);
         earnedAmount           = Math.round(clsAttended * perClassRate * 100) / 100;
-        presentCount           = clsAttended;
+        
+        monthlyData = {
+           isClassBased: true,
+           totalClasses: totalClsPerMonth,
+           classesAttended: clsAttended,
+           perClassRate: perClassRate,
+        };
+
         note = `${taka(amount)} ÷ ${totalClsPerMonth} classes/month = ${taka(perClassRate)}/class · ${clsAttended} classes attended × ${taka(perClassRate)} = ${taka(earnedAmount)}`;
       } else {
         // ── Day-based mode (Fridays = holiday) ───────────────────────────────
@@ -320,13 +371,21 @@ function calcAssignmentSalary(a: any, monthAtts: any[], globalPresentDays: numbe
         const daysAttended      = Math.min(globalPresentDays, effectiveWorkDays);
         earnedAmount            = Math.round(daysAttended * perDayRate * 100) / 100;
         presentCount            = globalPresentDays;
+
+        monthlyData = {
+           isClassBased: false,
+           effectiveWorkDays,
+           daysAttended,
+           perDayRate
+        };
+
         note = `${taka(amount)} ÷ ${effectiveWorkDays} working days (excl. Fri) = ${taka(perDayRate)}/day · ${daysAttended} days attended × ${taka(perDayRate)} = ${taka(earnedAmount)}`;
       }
       break;
     }
   }
 
-  return { label, payType, baseSalary, earnedAmount, presentCount, note, mhData, dailyData, groupedAssignments };
+  return { label, payType, baseSalary, earnedAmount, presentCount, note, mhData, dailyData, monthlyData, perClassData, perClassHourlyData, groupedAssignments };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -385,39 +444,67 @@ export default function CreateSalaryForm() {
       const workingDays = getWorkingDays(year, mon);
 
       // ── 1. Fetch attendance directly from API (bypass Redux, avoid stale data) ──
-      let allAtts: any[] = [];
+      let monthAtts: any[] = [];
       if (formData.userType === 'staff') {
-        const res = await api.get('/staff-attendance', { params: { limit: 5000, employee: formData.userId } });
-        allAtts = extractArray(res.data);
+        // Strategy A: fetch by employee only (server), filter by month client-side
+        const resA = await api.get('/staff-attendance', {
+          params: { limit: 2000, employee: formData.userId },
+        });
+        const rawA = extractArray(resA.data);
+        console.log('[Salary] Strategy A — by employee, total raw:', rawA.length, rawA);
+
+        let matched = rawA.filter(a => dateInMonth(a.date, formData.month));
+        console.log('[Salary] After month filter:', matched.length, 'for', formData.month);
+
+        // Strategy B fallback: if A returns 0, fetch by month (server), filter by employee client-side
+        if (matched.length === 0) {
+          console.warn('[Salary] Strategy A returned 0. Trying Strategy B (fetch by month, filter by employee client-side)...');
+          const resB = await api.get('/staff-attendance', {
+            params: { limit: 2000, month: formData.month },
+          });
+          const rawB = extractArray(resB.data);
+          console.log('[Salary] Strategy B — by month, total raw:', rawB.length, rawB);
+
+          const uid = formData.userId;
+          matched = rawB.filter(a => {
+            const emp = a.employee;
+            if (!emp) return false;
+            if (typeof emp === 'string') return emp === uid;
+            if (typeof emp === 'object') {
+              return (emp._id?.toString() ?? '') === uid || (emp.id?.toString() ?? '') === uid;
+            }
+            return false;
+          });
+          console.log('[Salary] Strategy B matched:', matched.length);
+        }
+
+        monthAtts = matched;
       } else {
         const res = await api.get('/teacher-attendance', { params: { limit: 5000, teacher: formData.userId } });
-        allAtts = extractArray(res.data);
+        const allAtts = extractArray(res.data);
+        const userAtts = allAtts.filter(a => recordBelongsToUser(a, formData.userId));
+        monthAtts = userAtts.filter(a => dateInMonth(a.date, formData.month));
       }
 
-      // ── 2. Filter by user & month ──────────────────────────────────────────
-      const userAtts = allAtts.filter(a => recordBelongsToUser(a, formData.userId));
-      const monthAtts = userAtts.filter(a => dateInMonth(a.date, formData.month));
-
       // ── 2b. Teacher: only APPROVED attendance counts for salary ────────────
-      // Rejected or pending attendance must NOT be included in salary calculation
       const effectiveAtts = formData.userType === 'teacher'
         ? monthAtts.filter(a => a.approvalStatus === 'approved')
         : monthAtts;
 
       // ── 3. Count attendance days ───────────────────────────────────────────
       let presentDays = 0, leaveDays = 0, offDays = 0, absentDays = 0;
+      let lateDays = 0, halfDays = 0;
 
       if (formData.userType === 'staff') {
+        // Count each status correctly
         presentDays = effectiveAtts.filter(a => a.status === 'Present').length;
+        lateDays    = effectiveAtts.filter(a => a.status === 'Late').length;
+        halfDays    = effectiveAtts.filter(a => a.status === 'Half Day').length;
         leaveDays   = effectiveAtts.filter(a => a.status === 'Leave').length;
         offDays     = effectiveAtts.filter(a => a.status === 'Off Day' || a.status === 'off_day').length;
         absentDays  = effectiveAtts.filter(a => a.status === 'Absent').length;
-
-        // Fill absent days if no explicit absent records
-        const accountedDays = presentDays + leaveDays + offDays + absentDays;
-        if (accountedDays < daysInMonth) {
-          absentDays = Math.max(absentDays, daysInMonth - presentDays - leaveDays - offDays);
-        }
+        // NOTE: Days with NO record at all within working days → counted as absent
+        // No forced fill here — salary formula handles it via workingDays
       } else {
         // Teacher: count only approved attendance records
         const presentDates = new Set<string>();
@@ -460,10 +547,32 @@ export default function CreateSalaryForm() {
       let expectedClassesPerMonth = 0;  // total classes allowed per month across all assignments
 
       if (formData.userType === 'staff') {
-        baseSalary    = Number(selectedUser?.salary) || 0;
-        perDaySalary  = baseSalary > 0 ? Math.round((baseSalary / daysInMonth) * 100) / 100 : 0;
-        deduction     = Math.round(absentDays * perDaySalary * 100) / 100;
-        payableAfterDeduction = Math.max(0, Math.round((baseSalary - deduction) * 100) / 100);
+        baseSalary = Number(selectedUser?.salary) || 0;
+
+        // Use working days (excl. Fridays) as the divisor — more accurate than total days
+        const effectiveWorkingDays = workingDays > 0 ? workingDays : daysInMonth;
+        perDaySalary = baseSalary > 0
+          ? Math.round((baseSalary / effectiveWorkingDays) * 100) / 100
+          : 0;
+
+        // Paid days:
+        //   Present  → 1.0 day
+        //   Late     → 1.0 day (treated as full present for salary)
+        //   Half Day → 0.5 day
+        //   Leave    → 1.0 day (paid leave)
+        //   Absent   → 0.0 day (explicit deduction)
+        //   No record within working days → 0.0 day (also deducted)
+        const effectivePaidDays =
+          presentDays * 1.0 +
+          lateDays    * 1.0 +
+          halfDays    * 0.5 +
+          leaveDays   * 1.0;
+
+        payableAfterDeduction = Math.min(
+          baseSalary,
+          Math.round(effectivePaidDays * perDaySalary * 100) / 100
+        );
+        deduction = Math.max(0, Math.round((baseSalary - payableAfterDeduction) * 100) / 100);
 
       } else {
         // Teacher: fetch active assignments and calculate per type
@@ -571,20 +680,55 @@ export default function CreateSalaryForm() {
         : undefined;
       const dailyInfo = dailyBreakdown?.dailyData ?? null;
 
+      const monthlyBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'monthly')
+        : undefined;
+      const monthlyInfo = monthlyBreakdown?.monthlyData ?? null;
+
+      const perClassBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'per_class')
+        : undefined;
+      const perClassInfo = perClassBreakdown?.perClassData ?? null;
+
+      const perClassHourlyBreakdown = formData.userType === 'teacher'
+        ? assignmentBreakdown.find(a => a.payType === 'per_class_hourly')
+        : undefined;
+      const perClassHourlyInfo = perClassHourlyBreakdown?.perClassHourlyData ?? null;
+
       // Final Payable = actual earned (after all deductions) minus advance
       const finalPayable = Math.round((payableAfterDeduction - advanceDeducted) * 100) / 100;
+
+      // Staff: compute derived values for display
+      const staffEffectiveWorkingDays = workingDays > 0 ? workingDays : daysInMonth;
+      const staffEffectivePaidDays = formData.userType === 'staff'
+        ? Math.round((presentDays * 1.0 + lateDays * 1.0 + halfDays * 0.5 + leaveDays * 1.0) * 100) / 100
+        : 0;
+      const staffRecordedDays = formData.userType === 'staff'
+        ? presentDays + lateDays + halfDays + leaveDays + absentDays + offDays
+        : 0;
+      const staffUnrecordedWorkingDays = formData.userType === 'staff'
+        ? Math.max(0, staffEffectiveWorkingDays - staffRecordedDays)
+        : 0;
 
       setCalculation({
         monthlyHourlyInfo,
         dailyInfo,
+        monthlyInfo,
+        perClassInfo,
+        perClassHourlyInfo,
         baseSalary,
         perDaySalary,
         presentDays,
+        lateDays,
+        halfDays,
         absentDays,
         leaveDays,
         offDays,
         daysInMonth,
         workingDays,
+        staffEffectiveWorkingDays,
+        staffEffectivePaidDays,
+        staffUnrecordedWorkingDays,
         expectedClassesPerMonth,
         totalClassesAttended,
         deduction,
@@ -595,6 +739,13 @@ export default function CreateSalaryForm() {
         assignmentNote,
         totalAttendanceRecords: effectiveAtts.length,
         totalSubmittedRecords: monthAtts.length,
+        // Debug info
+        _debug: formData.userType === 'staff' ? {
+          userId: formData.userId,
+          month: formData.month,
+          rawFetched: monthAtts.length,
+          statuses: monthAtts.map((a: any) => ({ date: a.date, status: a.status, empId: a.employee?._id ?? a.employee?.id ?? a.employee ?? 'null' })),
+        } : null,
       });
 
       toastManager.safeUpdateToast(tid, 'Calculation complete ✓', 'success');
@@ -730,23 +881,77 @@ export default function CreateSalaryForm() {
               </div>
             </div>
 
+            {/* ── Debug Panel (staff only) ── */}
+            {formData.userType === 'staff' && calculation._debug && (
+              <div style={{ marginBottom:'20px', border:'1.5px dashed #f59e0b', borderRadius:'8px', padding:'12px 16px', background:'#fffbeb' }}>
+                <div style={{ fontSize:'12px', fontWeight:700, color:'#92400e', marginBottom:'8px' }}>🔍 Debug Info — Raw Attendance Fetched</div>
+                <div style={{ fontSize:'12px', color:'#78350f' }}>
+                  Employee ID: <code style={{ background:'#fef3c7', padding:'1px 4px', borderRadius:3 }}>{calculation._debug.userId}</code>
+                </div>
+                <div style={{ fontSize:'12px', color:'#78350f' }}>
+                  Month: <code style={{ background:'#fef3c7', padding:'1px 4px', borderRadius:3 }}>{calculation._debug.month}</code>
+                </div>
+                <div style={{ fontSize:'12px', color:'#78350f', marginTop:4 }}>
+                  Records found from API: <strong style={{ color: calculation._debug.rawFetched === 0 ? '#dc2626' : '#16a34a' }}>{calculation._debug.rawFetched}</strong>
+                </div>
+                {calculation._debug.statuses.length > 0 && (
+                  <div style={{ marginTop:6 }}>
+                    {calculation._debug.statuses.map((s: any, i: number) => (
+                      <div key={i} style={{ fontSize:'11px', color:'#92400e' }}>
+                        📅 {s.date} → <strong>{s.status}</strong> (empId: {s.empId})
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {calculation._debug.rawFetched === 0 && (
+                  <div style={{ marginTop:8, fontSize:'12px', color:'#dc2626', fontWeight:600 }}>
+                    ⚠️ No attendance records returned from API. Check: (1) Are records saved for this employee? (2) Backend restarted after code changes?
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Attendance */}
             <div style={{ marginBottom:'20px' }}>
               <h3 style={{ fontSize:'14px', fontWeight:600, color:'#6b7280', marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Attendance</h3>
               <div style={{ border:'1px solid #e5e7eb', borderRadius:'8px', overflow:'hidden' }}>
-                <Row label="✅ Present Days / Classes"  value={`${calculation.presentDays}`}  bg="#f0fdf4" />
-                <Row label="🟡 Leave"    value={`${calculation.leaveDays}`}    bg="#eff6ff" />
-                <Row label="⚪ Off Days"      value={`${calculation.offDays}`}      bg="#f9fafb" />
-                <Row label="❌ Absent / Missed"   value={`${calculation.absentDays}`}   bg="#fef2f2" labelColor="#b91c1c" />
-                {calculation.totalAttendanceRecords === 0 && (
-                  <div style={{ padding:'10px 16px', background:'#fffbeb', fontSize:'13px', color:'#92400e' }}>
-                    ⚠️ No attendance records found for this month. Calculation defaults to zero earnings.
-                  </div>
-                )}
-                {formData.userType === 'teacher' && calculation.totalSubmittedRecords > calculation.totalAttendanceRecords && (
-                  <div style={{ padding:'10px 16px', background:'#fff7ed', fontSize:'13px', color:'#c2410c' }}>
-                    ℹ️ {calculation.totalSubmittedRecords} submitted → {calculation.totalAttendanceRecords} approved (rejected/pending excluded from salary)
-                  </div>
+                {formData.userType === 'staff' ? (
+                  <>
+                    <Row label="✅ Present"                  value={`${calculation.presentDays} days`}                          bg="#f0fdf4" />
+                    <Row label="⏰ Late (= Full Day Pay)"    value={`${calculation.lateDays} days`}                             bg="#f0fdf4" />
+                    <Row label="🌓 Half Day (= 0.5 Day Pay)" value={`${calculation.halfDays} days`}                             bg="#fffbeb" />
+                    <Row label="🟡 Leave (Paid)"             value={`${calculation.leaveDays} days`}                            bg="#eff6ff" />
+                    <Row label="❌ Absent (Marked)"          value={`${calculation.absentDays} days`}                           bg="#fef2f2" labelColor="#b91c1c" />
+                    <Row label="⬜ No Record (Working Days)" value={`${calculation.staffUnrecordedWorkingDays} days`}            bg="#f9fafb" labelColor="#6b7280" />
+                    <div style={{ padding:'10px 16px', background:'#f0f9ff', borderTop:'1px solid #e5e7eb', display:'flex', justifyContent:'space-between' }}>
+                      <span style={{ fontSize:'13px', fontWeight:600, color:'#1d4ed8' }}>Effective Paid Days</span>
+                      <span style={{ fontSize:'13px', fontWeight:700, color:'#1d4ed8' }}>
+                        {calculation.staffEffectivePaidDays} / {calculation.staffEffectiveWorkingDays} working days
+                      </span>
+                    </div>
+                    {calculation.totalAttendanceRecords === 0 && (
+                      <div style={{ padding:'10px 16px', background:'#fffbeb', fontSize:'13px', color:'#92400e', borderTop:'1px solid #e5e7eb' }}>
+                        ⚠️ No attendance records found for this month. All working days counted as absent.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Row label="✅ Present Days / Classes"  value={`${calculation.presentDays}`}  bg="#f0fdf4" />
+                    <Row label="🟡 Leave"    value={`${calculation.leaveDays}`}    bg="#eff6ff" />
+                    <Row label="⚪ Off Days"      value={`${calculation.offDays}`}      bg="#f9fafb" />
+                    <Row label="❌ Absent / Missed"   value={`${calculation.absentDays}`}   bg="#fef2f2" labelColor="#b91c1c" />
+                    {calculation.totalAttendanceRecords === 0 && (
+                      <div style={{ padding:'10px 16px', background:'#fffbeb', fontSize:'13px', color:'#92400e' }}>
+                        ⚠️ No attendance records found for this month. Calculation defaults to zero earnings.
+                      </div>
+                    )}
+                    {calculation.totalSubmittedRecords > calculation.totalAttendanceRecords && (
+                      <div style={{ padding:'10px 16px', background:'#fff7ed', fontSize:'13px', color:'#c2410c' }}>
+                        ℹ️ {calculation.totalSubmittedRecords} submitted → {calculation.totalAttendanceRecords} approved (rejected/pending excluded from salary)
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -788,10 +993,42 @@ export default function CreateSalaryForm() {
               <div style={{ border:'1px solid #e5e7eb', borderRadius:'8px', overflow:'hidden' }}>
                 {formData.userType === 'staff' ? (
                   <>
-                    <Row label="Base Salary (Expected Max)"                                                   value={taka(calculation.baseSalary)}            bg="#f0fdf4" />
-                    <Row label={`Per Day Rate (÷ ${calculation.daysInMonth} days)`}                          value={taka(calculation.perDaySalary)}           bg="#f9fafb" />
-                    <Row label={`Deduction (${calculation.absentDays} absent × ${taka(calculation.perDaySalary)})`} value={`- ${taka(calculation.deduction)}`} bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
-                    <Row label="Payable After Deduction"                                                      value={taka(calculation.payableAfterDeduction)}  bg="#fef9c3" labelColor="#854d0e" />
+                    <Row label="Base Salary (Full Month)"
+                         value={taka(calculation.baseSalary)}
+                         bg="#f0fdf4" />
+                    <Row label={`Per Day Rate (÷ ${calculation.staffEffectiveWorkingDays} working days, excl. Fri)`}
+                         value={taka(calculation.perDaySalary)}
+                         bg="#f9fafb" />
+                    {/* Paid days breakdown */}
+                    {calculation.presentDays > 0 && (
+                      <Row label={`  ✅ Present: ${calculation.presentDays} × ${taka(calculation.perDaySalary)}`}
+                           value={taka(Math.round(calculation.presentDays * calculation.perDaySalary * 100) / 100)}
+                           bg="#f9fafb" labelColor="#16a34a" />
+                    )}
+                    {calculation.lateDays > 0 && (
+                      <Row label={`  ⏰ Late: ${calculation.lateDays} × ${taka(calculation.perDaySalary)} (full day)`}
+                           value={taka(Math.round(calculation.lateDays * calculation.perDaySalary * 100) / 100)}
+                           bg="#f9fafb" labelColor="#16a34a" />
+                    )}
+                    {calculation.halfDays > 0 && (
+                      <Row label={`  🌓 Half Day: ${calculation.halfDays} × ${taka(Math.round(calculation.perDaySalary * 0.5 * 100) / 100)} (0.5 day)`}
+                           value={taka(Math.round(calculation.halfDays * calculation.perDaySalary * 0.5 * 100) / 100)}
+                           bg="#fffbeb" labelColor="#92400e" />
+                    )}
+                    {calculation.leaveDays > 0 && (
+                      <Row label={`  🟡 Leave: ${calculation.leaveDays} × ${taka(calculation.perDaySalary)} (paid)`}
+                           value={taka(Math.round(calculation.leaveDays * calculation.perDaySalary * 100) / 100)}
+                           bg="#eff6ff" labelColor="#1d4ed8" />
+                    )}
+                    <Row label={`Gross Earned (${calculation.staffEffectivePaidDays} paid days × ${taka(calculation.perDaySalary)})`}
+                         value={taka(calculation.payableAfterDeduction)}
+                         bg="#f0f9ff" labelColor="#1d4ed8" bold />
+                    <Row label={`Deduction (${Math.round((calculation.staffEffectiveWorkingDays - calculation.staffEffectivePaidDays) * 100) / 100} absent/unrecorded days × ${taka(calculation.perDaySalary)})`}
+                         value={`- ${taka(calculation.deduction)}`}
+                         bg="#fef2f2" labelColor="#b91c1c" valueColor="#b91c1c" />
+                    <Row label="Net Payable After Deduction"
+                         value={taka(calculation.payableAfterDeduction)}
+                         bg="#fef9c3" labelColor="#854d0e" bold />
                   </>
                 ) : (
                   <>
@@ -837,7 +1074,7 @@ export default function CreateSalaryForm() {
                       </>
                     ) : (
                       <>
-                        <Row label={calculation.monthlyHourlyInfo ? "Total Salary Per Month" : "Earned Salary"} value={taka(calculation.baseSalary)}         bg="#f0fdf4" />
+                        <Row label={calculation.monthlyHourlyInfo ? "Total Salary Per Month" : "Base Salary (Expected Max)"} value={taka(calculation.baseSalary)}         bg="#f0fdf4" />
                         {calculation.monthlyHourlyInfo ? (
                           // ── Monthly Hourly: rate + hours worked breakdown ───────────
                           <>
@@ -845,14 +1082,41 @@ export default function CreateSalaryForm() {
                             <Row label="Per Hour Rate"                                                       value={taka(calculation.monthlyHourlyInfo.hourlyRate)}                        bg="#f9fafb" />
                             <Row label="Hours Worked"                                                        value={`${calculation.monthlyHourlyInfo.hoursWorked} hours`}                  bg="#f0f9ff" />
                           </>
+                        ) : calculation.monthlyInfo ? (
+                          // ── Monthly ──────────────────────────────────────────────────
+                          calculation.monthlyInfo.isClassBased ? (
+                            <>
+                              <Row label={`Per Class Rate (÷ ${calculation.monthlyInfo.totalClasses} classes/month)`} value={taka(calculation.monthlyInfo.perClassRate)} bg="#f9fafb" />
+                              <Row label="Classes Attended"                                                    value={`${calculation.monthlyInfo.classesAttended} classes`}                        bg="#f0f9ff" />
+                            </>
+                          ) : (
+                            <>
+                              <Row label={`Per Day Rate (÷ ${calculation.monthlyInfo.effectiveWorkDays} working days, excl. Fri)`} value={taka(calculation.monthlyInfo.perDayRate)}        bg="#f9fafb" />
+                              <Row label="Days Attended"                                                       value={`${calculation.monthlyInfo.daysAttended} days`}        bg="#f0f9ff" />
+                            </>
+                          )
+                          ) : calculation.perClassHourlyInfo ? (
+                          // ── Per Class Hourly ──────────────────────────────────────────
+                          <>
+                            <Row label="Hourly Rate"                                                         value={taka(calculation.perClassHourlyInfo.hourlyRate)}                       bg="#f9fafb" />
+                            <Row label={`Duration Per Class (${calculation.perClassHourlyInfo.durationMinutes} min)`} value={`${(calculation.perClassHourlyInfo.durationMinutes / 60).toFixed(2)} hours`} bg="#f9fafb" />
+                            <Row label="Calculated Rate Per Class"                                           value={taka(calculation.perClassHourlyInfo.earnedPerClass)}                   bg="#f9fafb" />
+                            <Row label="Classes Attended"                                                    value={`${calculation.perClassHourlyInfo.classesAttended} classes`}           bg="#f0f9ff" />
+                          </>
+                        ) : calculation.perClassInfo ? (
+                          // ── Per Class ─────────────────────────────────────────────
+                          <>
+                            <Row label="Per Class Rate" value={taka(calculation.perClassInfo.ratePerClass)}    bg="#f9fafb" />
+                            <Row label="Classes Attended"                                                    value={`${calculation.perClassInfo.classesAttended} classes`}                        bg="#f0f9ff" />
+                          </>
                         ) : calculation.expectedClassesPerMonth > 0 ? (
-                          // ── Class-based monthly ─────────────────────────────────────
+                          // ── Class-based fallback ─────────────────────────────────────
                           <>
                             <Row label={`Per Class Rate (÷ ${calculation.expectedClassesPerMonth} classes/month)`} value={taka(calculation.perDaySalary)}    bg="#f9fafb" />
                             <Row label="Classes Attended"                                                    value={`${calculation.totalClassesAttended} classes`}                        bg="#f0f9ff" />
                           </>
                         ) : (
-                          // ── Day-based monthly (Fridays = holiday) ──────────────────
+                          // ── Day-based fallback ──────────────────
                           <>
                             <Row label={`Per Day Rate (÷ ${calculation.workingDays} working days, excl. Fri)`} value={taka(calculation.perDaySalary)}        bg="#f9fafb" />
                             <Row label="Days Attended"                                                       value={`${calculation.presentDays} days`}        bg="#f0f9ff" />

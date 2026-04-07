@@ -95,7 +95,9 @@ export default function CreateStudentModal({
       setLoadingBatches(true);
       try {
         const batches = await fetchBatchesByClass(selectedClass);
-        setAvailableBatches(batches);
+        // Fix: Ensure batches is an array even if API returns an object { data: [...] }
+        const safeBatches = Array.isArray(batches) ? batches : (batches as any)?.data || [];
+        setAvailableBatches(safeBatches);
       } catch (error) {
         console.error('Failed to fetch batches:', error);
         setAvailableBatches([]);
@@ -257,6 +259,9 @@ export default function CreateStudentModal({
     }
   }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType]);
 
+  const safeClasses = Array.isArray(classes) ? classes : [];
+  const safeBatches = Array.isArray(availableBatches) ? availableBatches : [];
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
@@ -312,11 +317,11 @@ export default function CreateStudentModal({
                     value={selectedClass}
                     onChange={handleClassChange}
                     className={`${styles.input} ${errors.class ? styles.inputError : ''}`}
-                    disabled={loading || !classes.length}
+                    disabled={loading || safeClasses.length === 0}
                     required
                   >
                     <option value="">Select the class</option>
-                    {classes.map(cls => (
+                    {safeClasses.map(cls => (
                       <option key={cls._id} value={cls._id}>
                         {cls.classname}
                       </option>
@@ -335,7 +340,7 @@ export default function CreateStudentModal({
                     value={formData.batch}
                     onChange={handleBatchChange}
                     className={`${styles.input} ${errors.batch ? styles.inputError : ''}`}
-                    disabled={loading || !selectedClass || loadingBatches || availableBatches.length === 0}
+                    disabled={loading || !selectedClass || loadingBatches || safeBatches.length === 0}
                     required
                   >
                     <option value="">
@@ -343,12 +348,12 @@ export default function CreateStudentModal({
                         ? 'Select class first' 
                         : loadingBatches 
                           ? 'Loading batches...' 
-                          : availableBatches.length === 0 
+                          : safeBatches.length === 0 
                             ? 'No batches available' 
                             : 'Select the batch'
                       }
                     </option>
-                    {availableBatches.map(batch => (
+                    {safeBatches.map(batch => (
                       <option key={batch._id} value={batch._id}>
                         {batch.batchName} - {batch.className?.classname || ''} - {batch.sessionYear}
                       </option>

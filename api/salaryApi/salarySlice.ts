@@ -144,9 +144,32 @@ const salarySlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to process salary payment';
         state.success = false;
+      })
+      // deleteSalary
+      .addCase(deleteSalary.fulfilled, (state, action: PayloadAction<string>) => {
+        state.salaries = state.salaries.filter((s) => s._id !== action.payload);
+        state.total = Math.max(0, state.total - 1);
       });
   },
 });
+
+export const deleteSalary = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>(
+  'salary/deleteSalary',
+  async (id, { rejectWithValue }) => {
+    try {
+      await salaryService.deleteSalary(id);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to delete salary'
+      );
+    }
+  }
+);
 
 export const { resetSalaryState, clearError, clearSuccess } = salarySlice.actions;
 export default salarySlice.reducer;

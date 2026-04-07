@@ -33,6 +33,9 @@ const employeeAttendanceApi = {
 
   delete: (id: string) =>
     api.delete(`/staff-attendance/${id}`),
+
+  cleanupOrphans: () =>
+    api.delete('/staff-attendance/admin/cleanup-orphans'),
 };
 
 export default employeeAttendanceApi;
