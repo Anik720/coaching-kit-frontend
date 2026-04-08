@@ -1858,3 +1858,29 @@
     margin: 8px 0 0 0;
   }
 }
+
+/* ========================================= */
+/* DRAFT BUTTON STYLES FOR ADMISSION MODAL   */
+/* ========================================= */
+.btnDraft {
+  padding: 12px 24px;
+  border: 2px solid #eab308;
+  background: white;
+  color: #ca8a04;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.btnDraft:hover:not(:disabled) {
+  background: #fefce8;
+  border-color: #ca8a04;
+}
+
+.btnDraft:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
