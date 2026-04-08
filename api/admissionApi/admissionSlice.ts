@@ -13,6 +13,9 @@ import {
   ClassForDropdown,
   GroupForDropdown,
   SubjectForDropdown,
+  AdmissionSetting,
+  FormFields,
+  AdmissionTemplate // NEW
 } from './types/admission.types';
 
 const initialState: AdmissionState = {
@@ -30,6 +33,8 @@ const initialState: AdmissionState = {
   classes: [],
   groups: [],
   subjects: [],
+  settings: null,
+  templates: [], // NEW: Initial state for templates
 };
 
 // Async thunks
@@ -105,7 +110,6 @@ export const updateAdmission = createAsyncThunk<
   }
 );
 
-  // Add this thunk to your admissionSlice.ts
 export const fetchBatchesByClass = createAsyncThunk<
   any[],
   string,
@@ -178,7 +182,6 @@ export const fetchActiveBatches = createAsyncThunk<
   }
 );
 
-// Update fetchClasses thunk to handle the new response format
 export const fetchClasses = createAsyncThunk<
   ClassForDropdown[],
   void,
@@ -196,6 +199,7 @@ export const fetchClasses = createAsyncThunk<
     }
   }
 );
+
 export const fetchGroups = createAsyncThunk<
   GroupForDropdown[],
   void,
@@ -285,6 +289,118 @@ export const generateRegistrationId = createAsyncThunk<
     }
   }
 );
+
+export const fetchAdmissionSettings = createAsyncThunk<
+  AdmissionSetting,
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchSettings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getAdmissionSettings();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch admission settings'
+      );
+    }
+  }
+);
+
+export const updateAdmissionSettings = createAsyncThunk<
+  AdmissionSetting,
+  FormFields,
+  { rejectValue: string }
+>(
+  'admission/updateSettings',
+  async (fields, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.updateAdmissionSettings(fields);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to update admission settings'
+      );
+    }
+  }
+);
+
+// ==========================================
+// NEW: Template Thunks
+// ==========================================
+export const fetchAdmissionTemplates = createAsyncThunk<
+  AdmissionTemplate[],
+  void,
+  { rejectValue: string }
+>(
+  'admission/fetchTemplates',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.getAdmissionTemplates();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch templates'
+      );
+    }
+  }
+);
+
+export const createAdmissionTemplate = createAsyncThunk<
+  AdmissionTemplate,
+  Partial<AdmissionTemplate>,
+  { rejectValue: string }
+>(
+  'admission/createTemplate',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.createAdmissionTemplate(data);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to create template'
+      );
+    }
+  }
+);
+
+export const updateAdmissionTemplate = createAsyncThunk<
+  AdmissionTemplate,
+  { id: string; data: Partial<AdmissionTemplate> },
+  { rejectValue: string }
+>(
+  'admission/updateTemplate',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const response = await admissionService.updateAdmissionTemplate(id, data);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to update template'
+      );
+    }
+  }
+);
+
+export const deleteAdmissionTemplate = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>(
+  'admission/deleteTemplate',
+  async (id, { rejectWithValue }) => {
+    try {
+      await admissionService.deleteAdmissionTemplate(id);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to delete template'
+      );
+    }
+  }
+);
+// ==========================================
 
 const admissionSlice = createSlice({
   name: 'admission',
@@ -415,7 +531,7 @@ const admissionSlice = createSlice({
 
       // Fetch Statistics
       .addCase(fetchAdmissionStatistics.pending, (state) => {
-        state.loading = true;
+        // Keeping loading state handling empty to prevent flashing if called in background
       })
       .addCase(fetchAdmissionStatistics.fulfilled, (state, action: PayloadAction<AdmissionStatistics>) => {
         state.loading = false;
@@ -527,7 +643,101 @@ const admissionSlice = createSlice({
       })
       .addCase(generateRegistrationId.rejected, (state) => {
         state.loading = false;
+      })
+
+      // Settings Reducers
+      .addCase(fetchAdmissionSettings.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAdmissionSettings.fulfilled, (state, action: PayloadAction<AdmissionSetting>) => {
+        state.loading = false;
+        state.settings = action.payload;
+      })
+      .addCase(fetchAdmissionSettings.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch settings';
+      })
+      .addCase(updateAdmissionSettings.pending, (state) => {
+        state.loading = true;
+        state.success = false;
+        state.error = null;
+      })
+      .addCase(updateAdmissionSettings.fulfilled, (state, action: PayloadAction<AdmissionSetting>) => {
+        state.loading = false;
+        state.success = true;
+        state.settings = action.payload;
+      })
+      .addCase(updateAdmissionSettings.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update settings';
+        state.success = false;
+      })
+
+      // ==========================================
+      // NEW: Template Reducers
+      // ==========================================
+      .addCase(fetchAdmissionTemplates.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAdmissionTemplates.fulfilled, (state, action: PayloadAction<AdmissionTemplate[]>) => {
+        state.loading = false;
+        state.templates = action.payload;
+      })
+      .addCase(fetchAdmissionTemplates.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch templates';
+      })
+      .addCase(createAdmissionTemplate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(createAdmissionTemplate.fulfilled, (state, action: PayloadAction<AdmissionTemplate>) => {
+        state.loading = false;
+        state.success = true;
+        state.templates.push(action.payload);
+      })
+      .addCase(createAdmissionTemplate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to create template';
+        state.success = false;
+      })
+      .addCase(updateAdmissionTemplate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(updateAdmissionTemplate.fulfilled, (state, action: PayloadAction<AdmissionTemplate>) => {
+        state.loading = false;
+        state.success = true;
+        const index = state.templates.findIndex(t => t._id === action.payload._id);
+        if (index !== -1) {
+          state.templates[index] = action.payload;
+        }
+      })
+      .addCase(updateAdmissionTemplate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update template';
+        state.success = false;
+      })
+      .addCase(deleteAdmissionTemplate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(deleteAdmissionTemplate.fulfilled, (state, action: PayloadAction<string>) => {
+        state.loading = false;
+        state.success = true;
+        state.templates = state.templates.filter(t => t._id !== action.payload);
+      })
+      .addCase(deleteAdmissionTemplate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to delete template';
+        state.success = false;
       });
+      // ==========================================
   },
 });
 

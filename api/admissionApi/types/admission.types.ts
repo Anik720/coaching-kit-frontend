@@ -194,6 +194,49 @@ export interface AdmissionStatistics {
   monthlyRevenue: number;
 }
 
+// ==========================================
+// Settings & Templates Interfaces
+// ==========================================
+export interface FieldSetting {
+  isVisible: boolean;
+  isRequired: boolean;
+}
+
+export interface FormFields {
+  nameNative: FieldSetting;
+  studentDateOfBirth: FieldSetting;
+  studentMobileNumber: FieldSetting;
+  whatsappMobile: FieldSetting;
+  fathersName: FieldSetting;
+  mothersName: FieldSetting;
+  motherMobileNumber: FieldSetting;
+  presentAddress: FieldSetting;
+  permanentAddress: FieldSetting;
+  photo: FieldSetting;
+  referBy: FieldSetting;
+  remarks: FieldSetting;
+}
+
+export interface AdmissionSetting {
+  _id?: string;
+  createdBy?: string;
+  fields: FormFields;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// NEW: Admission Template Interface
+export interface AdmissionTemplate {
+  _id: string;
+  templateName: string;
+  description?: string;
+  fields: FormFields;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+// ==========================================
+
 export interface AdmissionState {
   admissions: AdmissionItem[];
   currentAdmission: AdmissionItem | null;
@@ -209,6 +252,8 @@ export interface AdmissionState {
   classes: any[];
   groups: any[];
   subjects: any[];
+  settings: AdmissionSetting | null;
+  templates: AdmissionTemplate[]; // NEW: Added templates array
 }
 
 // Batch related interfaces for dropdowns

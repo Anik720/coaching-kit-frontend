@@ -118,7 +118,20 @@ const Sidebar: React.FC = () => {
       ],
     },
 
-    { label: 'Admission', href: '/dashboard/admission', icon: '🎓' },
+    /* ================= ADMISSION MODULE UPDATED ================= */
+    {
+      category: 'Admission',
+      basePath: '/dashboard/admission',
+      items: [
+        { label: 'New Admission', href: '/dashboard/admission/new', icon: '➕' },
+        { label: 'Incomplete Admissions', href: '/dashboard/admission/incomplete', icon: '📝' },
+        { label: 'Admission Form Settings', href: '/dashboard/admission/form-settings', icon: '⚙️' },
+        { label: 'Open Applications', href: '/dashboard/admission/applications', icon: '📂' },
+        { label: 'Admission Templates', href: '/dashboard/admission/template-settings', icon: '📋' },
+      ],
+    },
+    /* ============================================================ */
+
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
     {
       category: 'Fee Collection',
@@ -165,10 +178,10 @@ const Sidebar: React.FC = () => {
       category: 'Homework Management',
       basePath: '/dashboard/homework',
       items: [
-        { label: 'Add New Homework',              href: '/dashboard/homework/add',                   icon: '➕' },
-        { label: 'Homework List',                 href: '/dashboard/homework/list',                  icon: '📋' },
-        { label: 'Class Task List',               href: '/dashboard/homework/class-task-list',       icon: '📝' },
-        { label: 'Class Task Report',             href: '/dashboard/homework/class-task-report',     icon: '📊' },
+        { label: 'Add New Homework',      href: '/dashboard/homework/add',                   icon: '➕' },
+        { label: 'Homework List',         href: '/dashboard/homework/list',                  icon: '📋' },
+        { label: 'Class Task List',       href: '/dashboard/homework/class-task-list',       icon: '📝' },
+        { label: 'Class Task Report',     href: '/dashboard/homework/class-task-report',     icon: '📊' },
         { label: 'Class Task Single Student Report', href: '/dashboard/homework/single-student-report', icon: '👤' },
       ],
     },

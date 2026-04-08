@@ -48,7 +48,13 @@ const useDebounce = (value: string, delay: number) => {
   return debouncedValue;
 };
 
-export default function AdmissionPage() {
+// Props interface for routing flexibility
+interface AdmissionPageProps {
+  defaultStatus?: AdmissionStatus | "all";
+  autoOpenNew?: boolean;
+}
+
+export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = false }: AdmissionPageProps) {
   const {
     admissions,
     loading,
@@ -66,14 +72,14 @@ export default function AdmissionPage() {
     dispatch,
   } = useAdmission();
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpenNew);
   const [editingAdmission, setEditingAdmission] = useState<AdmissionItem | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
   const [admissionToDelete, setAdmissionToDelete] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<AdmissionStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<AdmissionStatus | "all">(defaultStatus);
   const [paymentDialog, setPaymentDialog] = useState<{ open: boolean; admission: AdmissionItem | null }>({
     open: false,
     admission: null,
@@ -82,8 +88,6 @@ export default function AdmissionPage() {
   const [dropdownsLoaded, setDropdownsLoaded] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Use debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   // Load dropdown data on component mount
@@ -105,7 +109,7 @@ export default function AdmissionPage() {
     loadDropdownData();
   }, [dispatch]);
 
-  // Fetch admissions and statistics on component mount and when filters change
+  // Fetch admissions
   useEffect(() => {
     const loadAdmissions = async () => {
       try {
@@ -158,39 +162,35 @@ export default function AdmissionPage() {
     const toastId = toastManager.showLoading('Creating admission...');
     
     try {
-      console.log('Creating admission with data:', admissionData);
       await dispatch(createAdmission(admissionData)).unwrap();
       toastManager.updateToast(toastId, 'Admission created successfully!', 'success');
       setOpen(false);
       
-      // Refresh the admissions list
       await dispatch(fetchAdmissions({
         page: currentPage,
         limit: 10,
         sortBy: 'createdAt',
         sortOrder: 'desc',
+        status: statusFilter !== "all" ? statusFilter : undefined,
       }));
       
-      // Refresh statistics
       await dispatch(fetchAdmissionStatistics());
       
     } catch (error: any) {
       console.error('Create admission error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to create admission', 'error');
     }
-  }, [dispatch, currentPage]);
+  }, [dispatch, currentPage, statusFilter]);
 
   const handleUpdateAdmission = useCallback(async (registrationId: string, admissionData: any) => {
     setIsUpdating(true);
     const toastId = toastManager.showLoading('Updating admission...');
     
     try {
-      console.log('Updating admission:', registrationId, admissionData);
       await dispatch(updateAdmission({ registrationId, admissionData })).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission updated successfully!', 'success');
       setEditingAdmission(null);
       
-      // Refresh the admissions list
       await dispatch(fetchAdmissions({
         page: currentPage,
         limit: 10,
@@ -221,7 +221,6 @@ export default function AdmissionPage() {
       await dispatch(deleteAdmission(admissionToDelete)).unwrap();
       toastManager.safeUpdateToast(toastId, 'Admission deleted successfully!', 'success');
       
-      // Refresh the admissions list
       await dispatch(fetchAdmissions({
         page: currentPage,
         limit: 10,
@@ -230,7 +229,6 @@ export default function AdmissionPage() {
         status: statusFilter !== "all" ? statusFilter : undefined,
       }));
       
-      // Refresh statistics
       await dispatch(fetchAdmissionStatistics());
       
     } catch (error: any) {
@@ -250,14 +248,9 @@ export default function AdmissionPage() {
     const toastId = toastManager.showLoading('Updating status...');
     
     try {
-      // Use the main update endpoint with JSON payload
-      await api.put(`/admissions/${registrationId}`, { 
-        status 
-      });
-      
+      await api.put(`/admissions/${registrationId}`, { status });
       toastManager.safeUpdateToast(toastId, 'Status updated successfully!', 'success');
       
-      // Refresh the admissions list
       await dispatch(fetchAdmissions({
         search: debouncedSearchTerm || undefined,
         page: currentPage,
@@ -267,7 +260,6 @@ export default function AdmissionPage() {
         status: statusFilter !== "all" ? statusFilter : undefined,
       }));
       
-      // Refresh statistics
       await dispatch(fetchAdmissionStatistics());
       
     } catch (error: any) {
@@ -303,7 +295,6 @@ export default function AdmissionPage() {
       setPaymentDialog({ open: false, admission: null });
       setPaymentAmount("");
       
-      // Refresh the admissions list
       await dispatch(fetchAdmissions({
         page: currentPage,
         limit: 10,
@@ -342,28 +333,16 @@ export default function AdmissionPage() {
     setEditingAdmission(admission);
   };
 
-  const cancelEdit = () => {
-    setEditingAdmission(null);
-  };
-
   const getStatusColor = (status: AdmissionStatus | undefined) => {
     const safeStatus = status || AdmissionStatus.PENDING;
-    
     switch (safeStatus) {
-      case AdmissionStatus.APPROVED:
-        return styles.statusApproved;
-      case AdmissionStatus.COMPLETED:
-        return styles.statusCompleted;
-      case AdmissionStatus.PENDING:
-        return styles.statusPending;
-      case AdmissionStatus.REJECTED:
-        return styles.statusRejected;
-      case AdmissionStatus.INCOMPLETE:
-        return styles.statusIncomplete;
-      case AdmissionStatus.CANCELLED:
-        return styles.statusCancelled;
-      default:
-        return styles.statusDefault;
+      case AdmissionStatus.APPROVED: return styles.statusApproved;
+      case AdmissionStatus.COMPLETED: return styles.statusCompleted;
+      case AdmissionStatus.PENDING: return styles.statusPending;
+      case AdmissionStatus.REJECTED: return styles.statusRejected;
+      case AdmissionStatus.INCOMPLETE: return styles.statusIncomplete;
+      case AdmissionStatus.CANCELLED: return styles.statusCancelled;
+      default: return styles.statusDefault;
     }
   };
 
@@ -379,16 +358,13 @@ export default function AdmissionPage() {
     if (!dateString) return 'N/A';
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
+        year: 'numeric', month: 'short', day: 'numeric',
       });
     } catch {
       return 'Invalid Date';
     }
   };
 
-  // Calculate admission statistics from current data
   const calculatedStats = useMemo(() => {
     if (!admissions || admissions.length === 0) return null;
     
@@ -401,9 +377,7 @@ export default function AdmissionPage() {
     const cancelledCount = admissions.filter(a => (a.status || AdmissionStatus.PENDING) === AdmissionStatus.CANCELLED).length;
     
     const today = new Date().toISOString().split('T')[0];
-    const todayAdmissions = admissions.filter(a => 
-      a.createdAt && a.createdAt.split('T')[0] === today
-    ).length;
+    const todayAdmissions = admissions.filter(a => a.createdAt && a.createdAt.split('T')[0] === today).length;
     
     const thisMonth = new Date().getMonth();
     const thisYear = new Date().getFullYear();
@@ -436,16 +410,13 @@ export default function AdmissionPage() {
     };
   }, [admissions, total]);
 
-  // Use API statistics or calculated statistics
   const displayStats = statistics || calculatedStats;
 
-  // Safe function to get status display text
   const getStatusDisplayText = (status: AdmissionStatus | undefined) => {
     const safeStatus = status || AdmissionStatus.PENDING;
     return safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1).toLowerCase();
   };
 
-  // Search input component
   const searchInput = (
     <div className={styles.searchBox}>
       <svg className={styles.searchIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -461,15 +432,7 @@ export default function AdmissionPage() {
         disabled={loading || isUpdating}
       />
       {searchTerm && (
-        <button
-          onClick={handleSearchClear}
-          className={styles.searchClear}
-          title="Clear search"
-          disabled={loading || isUpdating}
-          type="button"
-        >
-          ✕
-        </button>
+        <button onClick={handleSearchClear} className={styles.searchClear} disabled={loading || isUpdating} type="button">✕</button>
       )}
       {(loading || isUpdating) && (
         <div className={styles.searchLoading}>
@@ -489,9 +452,7 @@ export default function AdmissionPage() {
             <p className={styles.pageSubtitle}>Manage student admissions and registrations</p>
             <div className={styles.searchStats}>
               {debouncedSearchTerm && (
-                <span className={styles.searchResultInfo}>
-                  Showing results for "{debouncedSearchTerm}"
-                </span>
+                <span className={styles.searchResultInfo}>Showing results for "{debouncedSearchTerm}"</span>
               )}
               {loading && (
                 <span className={styles.loadingIndicator}>
@@ -526,67 +487,47 @@ export default function AdmissionPage() {
       {displayStats && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-              📋
-            </div>
+            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📋</div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Admissions</p>
               <p className={styles.statValue}>{displayStats.total?.toLocaleString() || '0'}</p>
-              <span className={styles.statSubtext}>
-                {(displayStats.todayAdmissions || 0)} today • {(displayStats.thisMonthAdmissions || 0)} this month
-              </span>
+              <span className={styles.statSubtext}>{(displayStats.todayAdmissions || 0)} today • {(displayStats.thisMonthAdmissions || 0)} this month</span>
             </div>
           </div>
           
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-              ⏳
-            </div>
+            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>⏳</div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Pending</p>
               <p className={styles.statValue}>{displayStats.pending || 0}</p>
-              <span className={styles.statSubtext}>
-                {(displayStats.completed || 0)} completed • {(displayStats.approved || 0)} approved
-              </span>
+              <span className={styles.statSubtext}>{(displayStats.completed || 0)} completed • {(displayStats.approved || 0)} approved</span>
             </div>
           </div>
           
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-              💰
-            </div>
+            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💰</div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Total Revenue</p>
               <p className={styles.statValue}>{formatCurrency(displayStats.totalRevenue || 0)}</p>
-              <span className={styles.statSubtext}>
-                Monthly: {formatCurrency((displayStats.totalRevenue || 0) / 12)}
-              </span>
+              <span className={styles.statSubtext}>Monthly: {formatCurrency((displayStats.totalRevenue || 0) / 12)}</span>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
-              📊
-            </div>
+            <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>📊</div>
             <div className={styles.statContent}>
               <p className={styles.statLabel}>Status Overview</p>
               <div className={styles.statusOverview}>
-                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#e74c3c' }}>
-                  {displayStats.rejected || 0} Rejected
-                </span>
-                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#95a5a6' }}>
-                  {displayStats.cancelled || 0} Cancelled
-                </span>
-                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#f39c12' }}>
-                  {displayStats.incomplete || 0} Incomplete
-                </span>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#e74c3c' }}>{displayStats.rejected || 0} Rejected</span>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#95a5a6' }}>{displayStats.cancelled || 0} Cancelled</span>
+                <span className={styles.statusBadgeSmall} style={{ backgroundColor: '#f39c12' }}>{displayStats.incomplete || 0} Incomplete</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Status Filter */}
+      {/* Filter Section */}
       <div className={styles.filterSection}>
         <div className={styles.statusFilter}>
           <button
@@ -623,8 +564,7 @@ export default function AdmissionPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>
-            All Admissions
-            <span className={styles.tableCount}>({total || 0} total)</span>
+            All Admissions <span className={styles.tableCount}>({total || 0} total)</span>
           </h2>
           {searchInput}
         </div>
@@ -675,7 +615,6 @@ export default function AdmissionPage() {
                   </thead>
                   <tbody>
                     {admissions.map((admission) => {
-                      // Create safe admission data with defaults
                       const safeAdmission = {
                         ...admission,
                         registrationId: admission.registrationId || 'N/A',
@@ -714,9 +653,7 @@ export default function AdmissionPage() {
                           <td>
                             <div className={styles.registrationId}>
                               <span className={styles.idBadge}>{safeAdmission.registrationId}</span>
-                              <div className={styles.admissionType}>
-                                {safeAdmission.admissionType}
-                              </div>
+                              <div className={styles.admissionType}>{safeAdmission.admissionType}</div>
                             </div>
                           </td>
                           <td>
@@ -741,18 +678,12 @@ export default function AdmissionPage() {
                           </td>
                           <td>
                             <div className={styles.contactInfo}>
-                              <div className={styles.phoneNumber}>
-                                📞 {safeAdmission.guardianMobileNumber}
-                              </div>
+                              <div className={styles.phoneNumber}>📞 {safeAdmission.guardianMobileNumber}</div>
                               {safeAdmission.whatsappMobile && (
-                                <div className={styles.whatsappNumber}>
-                                  💬 {safeAdmission.whatsappMobile}
-                                </div>
+                                <div className={styles.whatsappNumber}>💬 {safeAdmission.whatsappMobile}</div>
                               )}
                               {safeAdmission.studentMobileNumber && (
-                                <div className={styles.studentMobile}>
-                                  📱 Student: {safeAdmission.studentMobileNumber}
-                                </div>
+                                <div className={styles.studentMobile}>📱 Student: {safeAdmission.studentMobileNumber}</div>
                               )}
                             </div>
                           </td>
@@ -771,9 +702,7 @@ export default function AdmissionPage() {
                                     </div>
                                   ))}
                                   {safeAdmission.batches.length > 2 && (
-                                    <div className={styles.moreBatches}>
-                                      +{safeAdmission.batches.length - 2} more
-                                    </div>
+                                    <div className={styles.moreBatches}>+{safeAdmission.batches.length - 2} more</div>
                                   )}
                                 </div>
                               ) : (
@@ -791,9 +720,7 @@ export default function AdmissionPage() {
                           </td>
                           <td>
                             <div className={styles.feeInfo}>
-                              <div className={styles.feeTotal}>
-                                Total: {formatCurrency(safeAdmission.totalFee)}
-                              </div>
+                              <div className={styles.feeTotal}>Total: {formatCurrency(safeAdmission.totalFee)}</div>
                               <div className={`${styles.feePaid} ${safeAdmission.paidAmount > 0 ? styles.paid : ''}`}>
                                 Paid: {formatCurrency(safeAdmission.paidAmount)}
                               </div>
@@ -821,27 +748,21 @@ export default function AdmissionPage() {
                                 title="Edit"
                                 disabled={loading || isUpdating}
                                 type="button"
-                              >
-                                ✏️
-                              </button>
+                              >✏️</button>
                               <button
                                 onClick={() => handleDeleteClick(safeAdmission.registrationId)}
                                 className={styles.btnDelete}
                                 title="Delete"
                                 disabled={loading || isUpdating}
                                 type="button"
-                              >
-                                🗑️
-                              </button>
+                              >🗑️</button>
                               <button
                                 onClick={() => setPaymentDialog({ open: true, admission: safeAdmission })}
                                 className={styles.btnPayment}
                                 title="Add Payment"
                                 disabled={loading || isUpdating || safeAdmission.dueAmount <= 0}
                                 type="button"
-                              >
-                                💰
-                              </button>
+                              >💰</button>
                               <select
                                 value={safeAdmission.status}
                                 onChange={(e) => handleStatusChange(safeAdmission.registrationId, e.target.value as AdmissionStatus)}
@@ -849,9 +770,7 @@ export default function AdmissionPage() {
                                 disabled={loading || isUpdating}
                               >
                                 {Object.values(AdmissionStatus).map((status) => (
-                                  <option key={status} value={status}>
-                                    {getStatusDisplayText(status)}
-                                  </option>
+                                  <option key={status} value={status}>{getStatusDisplayText(status)}</option>
                                 ))}
                               </select>
                             </div>
@@ -864,7 +783,7 @@ export default function AdmissionPage() {
               )}
             </div>
 
-            {/* Pagination */}
+            {/* Pagination Full Logic */}
             {totalPages > 1 && (
               <div className={styles.pagination}>
                 <button
@@ -872,17 +791,14 @@ export default function AdmissionPage() {
                   disabled={currentPage === 1 || loading || isUpdating}
                   className={styles.paginationButton}
                   type="button"
-                >
-                  First
-                </button>
+                >First</button>
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || loading || isUpdating}
                   className={styles.paginationButton}
                   type="button"
-                >
-                  Previous
-                </button>
+                >Previous</button>
+                
                 <div className={styles.paginationPages}>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum;
@@ -903,28 +819,23 @@ export default function AdmissionPage() {
                         className={`${styles.pageNumber} ${currentPage === pageNum ? styles.activePage : ''}`}
                         disabled={loading || isUpdating}
                         type="button"
-                      >
-                        {pageNum}
-                      </button>
+                      >{pageNum}</button>
                     );
                   })}
                 </div>
+                
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages || loading || isUpdating}
                   className={styles.paginationButton}
                   type="button"
-                >
-                  Next
-                </button>
+                >Next</button>
                 <button
                   onClick={() => handlePageChange(totalPages)}
                   disabled={currentPage === totalPages || loading || isUpdating}
                   className={styles.paginationButton}
                   type="button"
-                >
-                  Last
-                </button>
+                >Last</button>
                 <span className={styles.paginationInfo}>
                   Page {currentPage} of {totalPages} • Showing {admissions.length} of {total} admissions
                 </span>
@@ -938,14 +849,8 @@ export default function AdmissionPage() {
       {(open || editingAdmission) && (
         <AdmissionFormModal
           isOpen={open || !!editingAdmission}
-          onClose={() => {
-            setOpen(false);
-            setEditingAdmission(null);
-          }}
-          onSubmit={editingAdmission ? 
-            (data) => handleUpdateAdmission(editingAdmission.registrationId, data) :
-            handleCreateAdmission
-          }
+          onClose={() => { setOpen(false); setEditingAdmission(null); }}
+          onSubmit={editingAdmission ? (data) => handleUpdateAdmission(editingAdmission.registrationId, data) : handleCreateAdmission}
           initialData={editingAdmission}
           loading={loading || isUpdating}
           isEditing={!!editingAdmission}
@@ -957,9 +862,6 @@ export default function AdmissionPage() {
           fetchBatchesByClass={async (classId) => {
             try {
               const response = await api.get(`/batches/class/${classId}`);
-              console.log('Batch response for class', classId, ':', response.data);
-              
-              // Handle API response format
               if (response.data.data) {
                 return response.data.data;
               } else if (Array.isArray(response.data)) {
@@ -967,11 +869,7 @@ export default function AdmissionPage() {
               }
               return [];
             } catch (error: any) {
-              // Backend throws 404 when no batches exist for this class - treat as empty
-              if (error.response?.status === 404) {
-                return [];
-              }
-              console.error('Failed to fetch batches:', error);
+              if (error.response?.status === 404) return [];
               return [];
             }
           }}
@@ -1003,9 +901,7 @@ export default function AdmissionPage() {
                 className={styles.modalClose}
                 type="button"
                 disabled={loading}
-              >
-                ✕
-              </button>
+              >✕</button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.paymentInfo}>
@@ -1050,8 +946,7 @@ export default function AdmissionPage() {
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  Payment Amount (BDT)
-                  <span className={styles.required}>*</span>
+                  Payment Amount (BDT) <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="number"
@@ -1075,9 +970,7 @@ export default function AdmissionPage() {
                 onClick={() => setPaymentDialog({ open: false, admission: null })}
                 className={styles.btnSecondary}
                 disabled={loading}
-              >
-                Cancel
-              </button>
+              >Cancel</button>
               <button
                 type="button"
                 onClick={handlePaymentSubmit}
@@ -1085,13 +978,8 @@ export default function AdmissionPage() {
                 disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || loading}
               >
                 {loading ? (
-                  <>
-                    <span className={styles.spinnerSmall}></span>
-                    Processing...
-                  </>
-                ) : (
-                  'Add Payment'
-                )}
+                  <><span className={styles.spinnerSmall}></span> Processing...</>
+                ) : 'Add Payment'}
               </button>
             </div>
           </div>
