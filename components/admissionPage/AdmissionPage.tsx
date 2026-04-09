@@ -159,13 +159,33 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
   }, [success, error, dispatch]);
 
   const handleCreateAdmission = useCallback(async (admissionData: any) => {
+    const { _autoSavedRegistrationId, ...cleanData } = admissionData;
+
+    if (_autoSavedRegistrationId) {
+      // Already auto-saved as INCOMPLETE — just update with final status
+      const toastId = toastManager.showLoading('Completing admission...');
+      try {
+        await dispatch(updateAdmission({
+          registrationId: _autoSavedRegistrationId,
+          admissionData: cleanData,
+        })).unwrap();
+        toastManager.updateToast(toastId, 'Admission submitted successfully!', 'success');
+        setOpen(false);
+        await dispatch(fetchAdmissions({ page: currentPage, limit: 10, sortBy: 'createdAt', sortOrder: 'desc', status: statusFilter !== "all" ? statusFilter : undefined }));
+        await dispatch(fetchAdmissionStatistics());
+      } catch (error: any) {
+        toastManager.safeUpdateToast(toastId, error.message || 'Failed to submit admission', 'error');
+      }
+      return;
+    }
+
+    // Normal create flow
     const toastId = toastManager.showLoading('Creating admission...');
-    
     try {
-      await dispatch(createAdmission(admissionData)).unwrap();
+      await dispatch(createAdmission(cleanData)).unwrap();
       toastManager.updateToast(toastId, 'Admission created successfully!', 'success');
       setOpen(false);
-      
+
       await dispatch(fetchAdmissions({
         page: currentPage,
         limit: 10,
@@ -173,9 +193,9 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
         sortOrder: 'desc',
         status: statusFilter !== "all" ? statusFilter : undefined,
       }));
-      
+
       await dispatch(fetchAdmissionStatistics());
-      
+
     } catch (error: any) {
       console.error('Create admission error:', error);
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to create admission', 'error');
@@ -442,14 +462,22 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
     </div>
   );
 
+  const isIncompleteContext = defaultStatus === AdmissionStatus.INCOMPLETE;
+
   return (
     <div className={styles.pageContainer}>
       {/* Page Header */}
       <div className={styles.pageHeader}>
         <div className={styles.headerContent}>
           <div className={styles.headerText}>
-            <h1 className={styles.pageTitle}>Admission Management</h1>
-            <p className={styles.pageSubtitle}>Manage student admissions and registrations</p>
+            <h1 className={styles.pageTitle}>
+              {isIncompleteContext ? 'Incomplete Admissions' : 'Admission Management'}
+            </h1>
+            <p className={styles.pageSubtitle}>
+              {isIncompleteContext
+                ? 'Review and complete draft admissions'
+                : 'Manage student admissions and registrations'}
+            </p>
             <div className={styles.searchStats}>
               {debouncedSearchTerm && (
                 <span className={styles.searchResultInfo}>Showing results for "{debouncedSearchTerm}"</span>
@@ -482,6 +510,30 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
           </button>
         </div>
       </div>
+
+      {/* Incomplete Admissions Info Banner */}
+      {isIncompleteContext && (
+        <div style={{
+          background: '#fffbeb',
+          border: '1px solid #fcd34d',
+          borderRadius: '10px',
+          padding: '14px 20px',
+          margin: '0 0 20px 0',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          fontSize: '14px',
+          color: '#92400e',
+        }}>
+          <span style={{ fontSize: '20px', flexShrink: 0 }}>⚠️</span>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '4px' }}>About Incomplete Admissions</strong>
+            These are draft admissions that were started but not fully submitted. They may have been
+            auto-saved when the form was partially filled, or explicitly saved as a draft.
+            Click the <strong>Complete</strong> button on any row to open the form and finish submitting the admission.
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       {displayStats && (
@@ -742,6 +794,25 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
                           </td>
                           <td>
                             <div className={styles.actionButtons}>
+                              {safeAdmission.status === AdmissionStatus.INCOMPLETE && (
+                                <button
+                                  onClick={() => startEdit(safeAdmission)}
+                                  title="Complete this admission"
+                                  disabled={loading || isUpdating}
+                                  type="button"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '5px 10px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >Complete →</button>
+                              )}
                               <button
                                 onClick={() => startEdit(safeAdmission)}
                                 className={styles.btnEdit}

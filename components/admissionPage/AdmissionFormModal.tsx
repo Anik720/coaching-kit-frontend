@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
-import { fetchAdmissionTemplates } from '@/api/admissionApi/admissionSlice';
+import {
+  fetchAdmissionTemplates,
+  createAdmission,
+  updateAdmission,
+  saveDraftForm,
+  clearDraftForm,
+} from '@/api/admissionApi/admissionSlice';
 import {
   AdmissionItem,
   AdmissionStatus,
@@ -16,6 +22,7 @@ import {
   GroupForDropdown,
   SubjectForDropdown,
   FormFields,
+  AdmissionFormDraft,
 } from '@/api/admissionApi/types/admission.types';
 import styles from './AdmissionPage.module.css';
 
@@ -62,12 +69,22 @@ export default function AdmissionFormModal({
   fetchBatchesByClass,
 }: AdmissionFormModalProps) {
   const dispatch = useDispatch<AppDispatch>();
-  
-  // Get settings and templates from Redux store
-  const { settings, templates } = useSelector((state: RootState) => state.admission);
-  
+
+  // Get settings, templates, and draftForm from Redux store
+  const { settings, templates, draftForm } = useSelector((state: RootState) => state.admission);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  
+
+  // Auto-save state
+  const [autoSavedRegId, setAutoSavedRegId] = useState<string | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Refs for debouncing
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // LOGIC: Determine active field visibility based on Template OR Global Settings
   const activeSettings = useMemo(() => {
     if (selectedTemplateId) {
@@ -124,6 +141,7 @@ export default function AdmissionFormModal({
 
   useEffect(() => {
     if (initialData) {
+      // Editing existing admission - populate from initialData
       setFormData({
         registrationId: initialData.registrationId,
         name: initialData.name,
@@ -150,38 +168,76 @@ export default function AdmissionFormModal({
         photo: null,
         batches: initialData.batches || [],
       });
+      setAutoSavedRegId(null);
+      setDraftRestored(false);
     } else {
-      const timestamp = Date.now();
-      const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
-      
-      setFormData(prev => ({
-        ...prev,
-        registrationId: generatedId,
-        name: '',
-        nameNative: '',
-        studentGender: Gender.MALE,
-        studentDateOfBirth: '',
-        presentAddress: '',
-        permanentAddress: '',
-        religion: Religion.ISLAM,
-        whatsappMobile: '',
-        studentMobileNumber: '',
-        instituteName: '',
-        fathersName: '',
-        mothersName: '',
-        guardianMobileNumber: '',
-        motherMobileNumber: '',
-        admissionType: AdmissionType.MONTHLY,
-        courseFee: 0,
-        admissionFee: 0,
-        tuitionFee: 0,
-        referBy: '',
-        admissionDate: new Date().toISOString().split('T')[0],
-        remarks: '',
-        photo: null,
-        batches: [],
-      }));
+      // New admission - check if we have a draft to restore
+      if (draftForm && isOpen) {
+        // Restore from draft
+        setFormData({
+          registrationId: draftForm.registrationId,
+          name: draftForm.formData.name,
+          nameNative: draftForm.formData.nameNative,
+          studentGender: draftForm.formData.studentGender as Gender,
+          studentDateOfBirth: draftForm.formData.studentDateOfBirth,
+          presentAddress: draftForm.formData.presentAddress,
+          permanentAddress: draftForm.formData.permanentAddress,
+          religion: draftForm.formData.religion as Religion,
+          whatsappMobile: draftForm.formData.whatsappMobile,
+          studentMobileNumber: draftForm.formData.studentMobileNumber,
+          instituteName: draftForm.formData.instituteName,
+          fathersName: draftForm.formData.fathersName,
+          mothersName: draftForm.formData.mothersName,
+          guardianMobileNumber: draftForm.formData.guardianMobileNumber,
+          motherMobileNumber: draftForm.formData.motherMobileNumber,
+          admissionType: draftForm.formData.admissionType as AdmissionType,
+          courseFee: draftForm.formData.courseFee,
+          admissionFee: draftForm.formData.admissionFee,
+          tuitionFee: draftForm.formData.tuitionFee,
+          referBy: draftForm.formData.referBy,
+          admissionDate: draftForm.formData.admissionDate,
+          remarks: draftForm.formData.remarks,
+          photo: null,
+          batches: draftForm.formData.batches,
+        });
+        setAutoSavedRegId(draftForm.autoSavedRegistrationId);
+        setDraftRestored(true);
+      } else {
+        // Fresh new form
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
+
+        setFormData(prev => ({
+          ...prev,
+          registrationId: generatedId,
+          name: '',
+          nameNative: '',
+          studentGender: Gender.MALE,
+          studentDateOfBirth: '',
+          presentAddress: '',
+          permanentAddress: '',
+          religion: Religion.ISLAM,
+          whatsappMobile: '',
+          studentMobileNumber: '',
+          instituteName: '',
+          fathersName: '',
+          mothersName: '',
+          guardianMobileNumber: '',
+          motherMobileNumber: '',
+          admissionType: AdmissionType.MONTHLY,
+          courseFee: 0,
+          admissionFee: 0,
+          tuitionFee: 0,
+          referBy: '',
+          admissionDate: new Date().toISOString().split('T')[0],
+          remarks: '',
+          photo: null,
+          batches: [],
+        }));
+        setAutoSavedRegId(null);
+        setDraftRestored(false);
+      }
       setSelectedClass('');
       setSelectedBatch('');
       setSelectedSubjects([]);
@@ -189,10 +245,78 @@ export default function AdmissionFormModal({
       setAvailableBatches([]);
       setSelectedTemplateId('');
     }
-    
+
     setErrors({});
     setTouched({});
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save to backend when name AND guardianMobileNumber are both filled (only for new admissions)
+  useEffect(() => {
+    if (isEditing) return;
+    if (!formData.name.trim() || !formData.guardianMobileNumber.trim()) return;
+
+    // Debounce 2 seconds
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      performAutoSave();
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [formData.name, formData.guardianMobileNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const performAutoSave = useCallback(async () => {
+    if (!formData.name.trim() || !formData.guardianMobileNumber.trim()) return;
+
+    setAutoSaving(true);
+    setAutoSaveStatus('saving');
+
+    // Build the payload without photo (not serializable)
+    const { photo, ...serializableFormData } = formData;
+
+    // Provide placeholders for backend-required fields that may not be filled yet
+    const autoSavePayload = {
+      ...serializableFormData,
+      instituteName: serializableFormData.instituteName || 'TBD',
+      status: AdmissionStatus.INCOMPLETE,
+    };
+
+    try {
+      if (autoSavedRegId) {
+        // Already auto-saved - update it
+        await dispatch(updateAdmission({
+          registrationId: autoSavedRegId,
+          admissionData: autoSavePayload,
+        })).unwrap();
+      } else {
+        // First auto-save - create as INCOMPLETE
+        const result = await dispatch(createAdmission(autoSavePayload as any)).unwrap();
+        if (result?.registrationId) {
+          setAutoSavedRegId(result.registrationId);
+          // Update draft in Redux with the backend registrationId
+          dispatch(saveDraftForm({
+            registrationId: formData.registrationId,
+            autoSavedRegistrationId: result.registrationId,
+            formData: serializableFormData,
+          }));
+        }
+      }
+      setAutoSaveStatus('saved');
+    } catch {
+      // Silently fail - no toast for auto-save errors
+      setAutoSaveStatus('error');
+    } finally {
+      setAutoSaving(false);
+      // Reset status after 3 seconds
+      setTimeout(() => setAutoSaveStatus('idle'), 3000);
+    }
+  }, [formData, autoSavedRegId, dispatch]);
 
   useEffect(() => {
     const fetchBatchesForClass = async () => {
@@ -236,7 +360,27 @@ export default function AdmissionFormModal({
   }, [selectedBatch, availableBatches]);
 
   const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Save draft to Redux (debounced, skip photo field)
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+      }
+      draftSaveTimerRef.current = setTimeout(() => {
+        if (!isEditing) {
+          const { photo: _photo, ...serializableData } = updated;
+          dispatch(saveDraftForm({
+            registrationId: updated.registrationId,
+            autoSavedRegistrationId: autoSavedRegId,
+            formData: serializableData,
+          }));
+        }
+      }, 500);
+
+      return updated;
+    });
+
     if (touched[field] && errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -248,22 +392,38 @@ export default function AdmissionFormModal({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     // Core Base Validation
     if (!formData.name) newErrors.name = 'Student Name is required';
     if (!formData.instituteName) newErrors.instituteName = 'Institute Name is required';
     if (!formData.guardianMobileNumber) newErrors.guardianMobileNumber = 'Guardian Mobile is required';
     if (!formData.admissionDate) newErrors.admissionDate = 'Admission Date is required';
-    
+
     // Dynamic Validation based on active template/settings
-    if (activeSettings.nameNative.isVisible && activeSettings.nameNative.isRequired && !formData.nameNative) 
+    if (activeSettings.nameNative.isVisible && activeSettings.nameNative.isRequired && !formData.nameNative)
       newErrors.nameNative = "Native Name is required";
-    if (activeSettings.studentDateOfBirth.isVisible && activeSettings.studentDateOfBirth.isRequired && !formData.studentDateOfBirth) 
+    if (activeSettings.studentDateOfBirth.isVisible && activeSettings.studentDateOfBirth.isRequired && !formData.studentDateOfBirth)
       newErrors.studentDateOfBirth = "Date of Birth is required";
-    if (activeSettings.fathersName.isVisible && activeSettings.fathersName.isRequired && !formData.fathersName) 
+    if (activeSettings.studentMobileNumber.isVisible && activeSettings.studentMobileNumber.isRequired && !formData.studentMobileNumber)
+      newErrors.studentMobileNumber = "Student Mobile is required";
+    if (activeSettings.whatsappMobile.isVisible && activeSettings.whatsappMobile.isRequired && !formData.whatsappMobile)
+      newErrors.whatsappMobile = "WhatsApp Mobile is required";
+    if (activeSettings.fathersName.isVisible && activeSettings.fathersName.isRequired && !formData.fathersName)
       newErrors.fathersName = "Father's Name is required";
-    if (activeSettings.presentAddress.isVisible && activeSettings.presentAddress.isRequired && !formData.presentAddress) 
+    if (activeSettings.mothersName.isVisible && activeSettings.mothersName.isRequired && !formData.mothersName)
+      newErrors.mothersName = "Mother's Name is required";
+    if (activeSettings.motherMobileNumber.isVisible && activeSettings.motherMobileNumber.isRequired && !formData.motherMobileNumber)
+      newErrors.motherMobileNumber = "Mother's Mobile is required";
+    if (activeSettings.presentAddress.isVisible && activeSettings.presentAddress.isRequired && !formData.presentAddress)
       newErrors.presentAddress = "Present Address is required";
+    if (activeSettings.permanentAddress.isVisible && activeSettings.permanentAddress.isRequired && !formData.permanentAddress)
+      newErrors.permanentAddress = "Permanent Address is required";
+    if (activeSettings.referBy.isVisible && activeSettings.referBy.isRequired && !formData.referBy)
+      newErrors.referBy = "Refer By is required";
+    if (activeSettings.remarks.isVisible && activeSettings.remarks.isRequired && !formData.remarks)
+      newErrors.remarks = "Remarks is required";
+    if (activeSettings.photo.isVisible && activeSettings.photo.isRequired && !formData.photo)
+      newErrors.photo = "Photo is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -309,12 +469,12 @@ export default function AdmissionFormModal({
 
   const handleSubjectToggle = (subject: SubjectForDropdown) => {
     const isSelected = selectedSubjects.some(s => s._id === subject._id);
-    let newSelectedSubjects = isSelected 
+    let newSelectedSubjects = isSelected
       ? selectedSubjects.filter(s => s._id !== subject._id)
       : [...selectedSubjects, subject];
-    
+
     setSelectedSubjects(newSelectedSubjects);
-    
+
     if (selectedBatch) {
       const updatedBatches = formData.batches.map(batch => {
         if (batch.batch === selectedBatch) {
@@ -348,6 +508,52 @@ export default function AdmissionFormModal({
     }
   };
 
+  const handleClearDraft = () => {
+    dispatch(clearDraftForm());
+    setDraftRestored(false);
+    setAutoSavedRegId(null);
+
+    // Reset to fresh form
+    const timestamp = Date.now();
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
+
+    setFormData(prev => ({
+      ...prev,
+      registrationId: generatedId,
+      name: '',
+      nameNative: '',
+      studentGender: Gender.MALE,
+      studentDateOfBirth: '',
+      presentAddress: '',
+      permanentAddress: '',
+      religion: Religion.ISLAM,
+      whatsappMobile: '',
+      studentMobileNumber: '',
+      instituteName: '',
+      fathersName: '',
+      mothersName: '',
+      guardianMobileNumber: '',
+      motherMobileNumber: '',
+      admissionType: AdmissionType.MONTHLY,
+      courseFee: 0,
+      admissionFee: 0,
+      tuitionFee: 0,
+      referBy: '',
+      admissionDate: new Date().toISOString().split('T')[0],
+      remarks: '',
+      photo: null,
+      batches: [],
+    }));
+    setSelectedClass('');
+    setSelectedBatch('');
+    setSelectedSubjects([]);
+    setAvailableSubjects([]);
+    setAvailableBatches([]);
+    setErrors({});
+    setTouched({});
+  };
+
   const totalFee = useMemo(() => {
     return formData.batches.reduce((sum, batch) => sum + (batch.admissionFee + batch.tuitionFee + batch.courseFee), 0) || (formData.admissionFee + formData.tuitionFee + formData.courseFee);
   }, [formData.batches, formData.admissionFee, formData.tuitionFee, formData.courseFee]);
@@ -358,8 +564,19 @@ export default function AdmissionFormModal({
       ...formData,
       totalFee,
       dueAmount: totalFee - (initialData?.paidAmount || 0),
-      status: isDraft ? AdmissionStatus.INCOMPLETE : (initialData?.status === AdmissionStatus.INCOMPLETE ? AdmissionStatus.PENDING : (initialData?.status || AdmissionStatus.PENDING))
+      status: isDraft
+        ? AdmissionStatus.INCOMPLETE
+        : (initialData?.status === AdmissionStatus.INCOMPLETE
+          ? AdmissionStatus.PENDING
+          : (initialData?.status || AdmissionStatus.PENDING)),
+      _autoSavedRegistrationId: isDraft ? null : autoSavedRegId,
     };
+
+    if (!isDraft) {
+      // Clear draft from Redux on full submit
+      dispatch(clearDraftForm());
+    }
+
     onSubmit(submissionData);
   };
 
@@ -377,14 +594,69 @@ export default function AdmissionFormModal({
             <h2 className={styles.modalTitle}>{isEditing ? 'Edit Admission' : 'Create New Admission'}</h2>
             <p className={styles.modalSubtitle}>Register a new student to your institution</p>
           </div>
+          {/* Auto-save status indicator */}
+          {!isEditing && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+              {autoSaveStatus === 'saving' && (
+                <span style={{ color: '#6366f1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{
+                    width: '10px', height: '10px', border: '2px solid #6366f1',
+                    borderTopColor: 'transparent', borderRadius: '50%',
+                    display: 'inline-block', animation: 'spin 0.8s linear infinite'
+                  }}></span>
+                  Auto-saving...
+                </span>
+              )}
+              {autoSaveStatus === 'saved' && (
+                <span style={{ color: '#10b981' }}>Draft saved</span>
+              )}
+            </div>
+          )}
           <button onClick={onClose} className={styles.modalClose} disabled={loading} type="button">✕</button>
         </div>
-        
+
+        {/* Draft Restored Banner */}
+        {draftRestored && !isEditing && (
+          <div style={{
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            margin: '0 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '14px',
+            color: '#1e40af',
+          }}>
+            <span>
+              <strong>Draft restored</strong> — your previous progress has been loaded.
+            </span>
+            <button
+              type="button"
+              onClick={handleClearDraft}
+              style={{
+                background: '#dbeafe',
+                border: '1px solid #93c5fd',
+                borderRadius: '6px',
+                padding: '4px 12px',
+                fontSize: '12px',
+                color: '#1d4ed8',
+                cursor: 'pointer',
+                marginLeft: '12px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Start Fresh
+            </button>
+          </div>
+        )}
+
         {loading && <div className={styles.modalLoading}><div className={styles.spinnerLarge}></div><p>Processing...</p></div>}
-        
+
         <form onSubmit={e => { e.preventDefault(); submitData(false); }} className={styles.modalForm}>
           <div className={styles.modalBody}>
-            
+
             {/* TEMPLATE SELECTION CARD */}
             {!isEditing && (
               <div className={styles.formSectionCard} style={{ border: '2px solid #6366f1', background: '#f5f3ff', marginBottom: '24px' }}>
@@ -425,7 +697,7 @@ export default function AdmissionFormModal({
                     <input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={() => handleBlur('name')} className={`${styles.input} ${errors.name ? styles.inputError : ''}`} required />
                     {errors.name && <div className={styles.errorMessage}>{errors.name}</div>}
                   </div>
-                  
+
                   {activeSettings.nameNative.isVisible && (
                     <div className={styles.formField}>
                       <label className={styles.label}>Name (Native) {activeSettings.nameNative.isRequired && '*'}</label>
@@ -481,6 +753,9 @@ export default function AdmissionFormModal({
                     {activeSettings.mothersName.isVisible && (
                       <div className={styles.formField}><label className={styles.label}>Mother's Name {activeSettings.mothersName.isRequired && '*'}</label><input type="text" value={formData.mothersName} onChange={e => handleChange('mothersName', e.target.value)} className={styles.input} /></div>
                     )}
+                    {activeSettings.motherMobileNumber.isVisible && (
+                      <div className={styles.formField}><label className={styles.label}>Mother's Mobile {activeSettings.motherMobileNumber.isRequired && '*'}</label><input type="tel" value={formData.motherMobileNumber} onChange={e => handleChange('motherMobileNumber', e.target.value)} className={styles.input} /></div>
+                    )}
                   </div>
                 </div>
               )}
@@ -491,6 +766,9 @@ export default function AdmissionFormModal({
                   <div className={styles.sectionHeader}><div className={styles.sectionIcon}>🏠</div><h3 className={styles.sectionTitle}>Address Details</h3></div>
                   <div className={styles.formGrid}>
                     <div className={styles.formFieldFull}><label className={styles.label}>Present Address {activeSettings.presentAddress.isRequired && '*'}</label><textarea value={formData.presentAddress} onChange={e => handleChange('presentAddress', e.target.value)} className={styles.textarea} rows={2} /></div>
+                    {activeSettings.permanentAddress.isVisible && (
+                      <div className={styles.formFieldFull}><label className={styles.label}>Permanent Address {activeSettings.permanentAddress.isRequired && '*'}</label><textarea value={formData.permanentAddress} onChange={e => handleChange('permanentAddress', e.target.value)} className={styles.textarea} rows={2} /></div>
+                    )}
                   </div>
                 </div>
               )}
@@ -499,6 +777,14 @@ export default function AdmissionFormModal({
               <div className={styles.formSectionCard}>
                 <div className={styles.sectionHeader}><div className={styles.sectionIcon}>🎓</div><h3 className={styles.sectionTitle}>Academic Information</h3></div>
                 <div className={styles.formGrid} style={{ marginBottom: '20px' }}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Type</label>
+                    <select value={formData.admissionType} onChange={e => handleChange('admissionType', e.target.value as AdmissionType)} className={styles.select}>
+                      {Object.values(AdmissionType).map(type => (
+                        <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className={styles.formField}><label className={styles.label}>Institute Name <span className={styles.required}>*</span></label><input type="text" value={formData.instituteName} onChange={e => handleChange('instituteName', e.target.value)} className={styles.input} required /></div>
                   <div className={styles.formField}><label className={styles.label}>Admission Date <span className={styles.required}>*</span></label><input type="date" value={formData.admissionDate} onChange={e => handleChange('admissionDate', e.target.value)} className={styles.input} required /></div>
                 </div>
@@ -551,6 +837,9 @@ export default function AdmissionFormModal({
                 <div className={styles.formSectionCard}>
                   <div className={styles.sectionHeader}><div className={styles.sectionIcon}>📝</div><h3 className={styles.sectionTitle}>Additional Information</h3></div>
                   <div className={styles.formGrid}>
+                    {activeSettings.referBy.isVisible && (
+                      <div className={styles.formField}><label className={styles.label}>Refer By {activeSettings.referBy.isRequired && '*'}</label><input type="text" value={formData.referBy} onChange={e => handleChange('referBy', e.target.value)} className={styles.input} /></div>
+                    )}
                     {activeSettings.remarks.isVisible && (
                       <div className={styles.formFieldFull}><label className={styles.label}>Remarks</label><textarea value={formData.remarks} onChange={e => handleChange('remarks', e.target.value)} className={styles.textarea} rows={2} /></div>
                     )}
@@ -562,7 +851,7 @@ export default function AdmissionFormModal({
               )}
             </div>
           </div>
-          
+
           <div className={styles.modalFooter}>
             <button type="button" onClick={onClose} className={styles.btnSecondary} disabled={loading}>Cancel</button>
             <button type="button" onClick={() => submitData(true)} className={styles.btnDraft} disabled={loading}>Save Draft</button>

@@ -15,7 +15,8 @@ import {
   SubjectForDropdown,
   AdmissionSetting,
   FormFields,
-  AdmissionTemplate // NEW
+  AdmissionTemplate, // NEW
+  AdmissionFormDraft,
 } from './types/admission.types';
 
 const initialState: AdmissionState = {
@@ -35,6 +36,7 @@ const initialState: AdmissionState = {
   subjects: [],
   settings: null,
   templates: [], // NEW: Initial state for templates
+  draftForm: null,
 };
 
 // Async thunks
@@ -430,6 +432,12 @@ const admissionSlice = createSlice({
       state.groups = [];
       state.subjects = [];
     },
+    saveDraftForm: (state, action: PayloadAction<AdmissionFormDraft>) => {
+      state.draftForm = action.payload;
+    },
+    clearDraftForm: (state) => {
+      state.draftForm = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -748,6 +756,8 @@ export const {
   clearSuccess,
   setCurrentAdmission,
   clearDropdownData,
+  saveDraftForm,
+  clearDraftForm,
 } = admissionSlice.actions;
 
 export default admissionSlice.reducer;
