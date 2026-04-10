@@ -75,6 +75,7 @@ export default function BatchesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState<string | null>(null);
   const [viewBatch, setViewBatch] = useState<BatchItem | null>(null);
+  const [editBatch, setEditBatch] = useState<BatchItem | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Use debounced search term
@@ -145,6 +146,9 @@ export default function BatchesPage() {
         isActive: batchData.status === 'active',
         description: batchData.description || '',
         monthlyClassCount: Math.max(1, Number(batchData.monthlyClassCount) || 12),
+        admissionFee: parseFloat(batchData.admissionFee) || 0,
+        tuitionFee: parseFloat(batchData.tuitionFee) || 0,
+        courseFee: parseFloat(batchData.courseFee) || 0,
         createdBy: userId,
         };
         
@@ -520,6 +524,15 @@ export default function BatchesPage() {
                               </svg>
                             </button>
                             <button
+                              onClick={() => setEditBatch(batch)}
+                              className={styles.btnSave}
+                              title="Edit Batch"
+                              disabled={loading}
+                              type="button"
+                            >
+                              ✏️
+                            </button>
+                            <button
                               onClick={() => handleDeleteClick(batch._id)}
                               className={styles.btnDelete}
                               title="Delete"
@@ -629,6 +642,23 @@ export default function BatchesPage() {
         />
       )}
 
+      {/* Edit Batch Modal */}
+      {editBatch && (
+        <EditBatchModal
+          batch={editBatch}
+          onClose={() => setEditBatch(null)}
+          onUpdate={async (batchData) => {
+            await handleUpdateBatch(editBatch._id, batchData);
+            setEditBatch(null);
+            dispatch(fetchBatches({ page: currentPage, limit: 10, sortBy: 'createdAt', sortOrder: 'desc' }));
+          }}
+          loading={loading}
+          classes={classes}
+          groups={groups}
+          subjects={subjects}
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={!!batchToDelete}
@@ -673,6 +703,9 @@ function CreateBatchModal({
     batchClosingDate: '',
     monthlyClassCount: '',
     description: '',
+    admissionFee: '',
+    tuitionFee: '',
+    courseFee: '',
     maxStudents: '50',
     status: 'upcoming' as 'active' | 'inactive' | 'completed' | 'upcoming',
   });
@@ -796,6 +829,9 @@ function CreateBatchModal({
         ...formData,
         monthlyClassCount: Math.max(1, parseInt(formData.monthlyClassCount, 10) || 12),
         maxStudents: parseInt(formData.maxStudents) || 50,
+        admissionFee: parseFloat(formData.admissionFee as any) || 0,
+        tuitionFee: parseFloat(formData.tuitionFee as any) || 0,
+        courseFee: parseFloat(formData.courseFee as any) || 0,
       };
       
       console.log('🟡 Submitting data:', submitData);
@@ -1069,6 +1105,55 @@ function CreateBatchModal({
 
             <div className={styles.formRow}>
               <div className={styles.formField}>
+                <label className={styles.label} htmlFor="admissionFee">
+                  Admission Fee
+                </label>
+                <input
+                  id="admissionFee"
+                  type="number"
+                  value={formData.admissionFee}
+                  onChange={(e) => handleChange('admissionFee', e.target.value)}
+                  placeholder="0"
+                  className={styles.input}
+                  disabled={loading}
+                  min="0"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="tuitionFee">
+                  Tuition Fee
+                </label>
+                <input
+                  id="tuitionFee"
+                  type="number"
+                  value={formData.tuitionFee}
+                  onChange={(e) => handleChange('tuitionFee', e.target.value)}
+                  placeholder="0"
+                  className={styles.input}
+                  disabled={loading}
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.label} htmlFor="courseFee">
+                Course Fee
+              </label>
+              <input
+                id="courseFee"
+                type="number"
+                value={formData.courseFee}
+                onChange={(e) => handleChange('courseFee', e.target.value)}
+                placeholder="0"
+                className={styles.input}
+                disabled={loading}
+                min="0"
+              />
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
                 <label className={styles.label} htmlFor="batchStartingDate">
                   Batch Starting Date
                   <span className={styles.required}>*</span>
@@ -1316,6 +1401,13 @@ function BatchDetailModal({
             <Row label="Max Students" value={String(batch.maxStudents)} />
           </Section>
 
+          {/* Fee Information */}
+          <Section title="Fee Information">
+            <Row label="Admission Fee"  value={`BDT ${(batch.admissionFee ?? 0).toLocaleString()}`} />
+            <Row label="Tuition Fee"    value={`BDT ${(batch.tuitionFee ?? 0).toLocaleString()}`} />
+            <Row label="Course Fee"     value={`BDT ${(batch.courseFee ?? 0).toLocaleString()}`} />
+          </Section>
+
           {/* Schedule */}
           <Section title="Schedule">
             <Row label="Starting Date" value={new Date(batch.batchStartingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
@@ -1364,6 +1456,208 @@ function Row({ label, value }: { label: string; value: string }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #f3f4f6' }}>
       <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{label}</span>
       <span style={{ fontSize: '14px', color: '#1f2937', fontWeight: '600', textAlign: 'right', maxWidth: '60%' }}>{value || '—'}</span>
+    </div>
+  );
+}
+
+function EditBatchModal({
+  batch, onClose, onUpdate, loading, classes, groups, subjects,
+}: {
+  batch: BatchItem;
+  onClose: () => void;
+  onUpdate: (data: any) => Promise<void>;
+  loading: boolean;
+  classes: any[];
+  groups: any[];
+  subjects: SubjectItem[];
+}) {
+  const getSubjectIds = (): string[] => {
+    const subs = batch.subjects;
+    if (!Array.isArray(subs)) return [];
+    return subs.map(s => (typeof s === 'object' && '_id' in s ? (s as any)._id : String(s)));
+  };
+
+  const [formData, setFormData] = useState({
+    batchName: batch.batchName,
+    className: typeof batch.className === 'object' ? (batch.className as any)._id : batch.className,
+    group: typeof batch.group === 'object' ? (batch.group as any)._id : batch.group,
+    subjectIds: getSubjectIds(),
+    sessionYear: batch.sessionYear,
+    batchStartingDate: batch.batchStartingDate?.split('T')[0] ?? '',
+    batchClosingDate: batch.batchClosingDate?.split('T')[0] ?? '',
+    monthlyClassCount: String(batch.monthlyClassCount ?? 12),
+    maxStudents: String(batch.maxStudents ?? 50),
+    description: batch.description ?? '',
+    status: batch.status,
+    admissionFee: String(batch.admissionFee ?? 0),
+    tuitionFee: String(batch.tuitionFee ?? 0),
+    courseFee: String(batch.courseFee ?? 0),
+  });
+
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
+        setSubjectDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const subjectIds = formData.subjectIds;
+    await onUpdate({
+      batchName: formData.batchName,
+      className: formData.className,
+      group: formData.group,
+      subjects: subjectIds,
+      subject: subjectIds[0],
+      sessionYear: formData.sessionYear,
+      batchStartingDate: formData.batchStartingDate,
+      batchClosingDate: formData.batchClosingDate,
+      monthlyClassCount: Math.max(1, parseInt(formData.monthlyClassCount) || 12),
+      maxStudents: parseInt(formData.maxStudents) || 50,
+      description: formData.description,
+      status: formData.status,
+      admissionFee: parseFloat(formData.admissionFee) || 0,
+      tuitionFee: parseFloat(formData.tuitionFee) || 0,
+      courseFee: parseFloat(formData.courseFee) || 0,
+    });
+  };
+
+  const toggleSubject = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subjectIds: prev.subjectIds.includes(id)
+        ? prev.subjectIds.filter(s => s !== id)
+        : [...prev.subjectIds, id],
+    }));
+  };
+
+  const f = (field: string, val: string) => setFormData(prev => ({ ...prev, [field]: val }));
+
+  return (
+    <div className={styles.modalOverlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>Edit Batch</h2>
+          <button onClick={onClose} className={styles.modalClose} type="button" disabled={loading}>✕</button>
+        </div>
+        {loading && <div className={styles.modalLoading}><div className={styles.spinnerLarge}></div></div>}
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formField}>
+              <label className={styles.label}>Batch Name <span className={styles.required}>*</span></label>
+              <input type="text" value={formData.batchName} onChange={e => f('batchName', e.target.value)} className={styles.input} disabled={loading} required />
+            </div>
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Class</label>
+                <select value={formData.className} onChange={e => f('className', e.target.value)} className={styles.select} disabled={loading}>
+                  <option value="">Select Class</option>
+                  {classes.map(c => <option key={c._id} value={c._id}>{c.classname}</option>)}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Group</label>
+                <select value={formData.group} onChange={e => f('group', e.target.value)} className={styles.select} disabled={loading}>
+                  <option value="">Select Group</option>
+                  {groups.map(g => <option key={g._id} value={g._id}>{g.groupName}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Subjects</label>
+                <div ref={dropdownRef} className={styles.subjectDropdownWrapper}>
+                  <button type="button" disabled={loading} onClick={() => setSubjectDropdownOpen(o => !o)}
+                    className={`${styles.select} ${styles.subjectDropdownTrigger}`}>
+                    {formData.subjectIds.length === 0 ? 'Select subjects' : `${formData.subjectIds.length} subject(s) selected`}
+                  </button>
+                  {subjectDropdownOpen && (
+                    <div className={styles.subjectDropdownMenu}>
+                      {subjects.map(s => (
+                        <label key={s._id} className={styles.subjectDropdownItem}>
+                          <input type="checkbox" checked={formData.subjectIds.includes(s._id)} onChange={() => toggleSubject(s._id)} />
+                          <span>{s.subjectName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Session Year</label>
+                <input type="text" value={formData.sessionYear} onChange={e => f('sessionYear', e.target.value)} className={styles.input} placeholder="2024-2025" disabled={loading} />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Admission Fee</label>
+                <input type="number" value={formData.admissionFee} onChange={e => f('admissionFee', e.target.value)} className={styles.input} min="0" disabled={loading} />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Tuition Fee</label>
+                <input type="number" value={formData.tuitionFee} onChange={e => f('tuitionFee', e.target.value)} className={styles.input} min="0" disabled={loading} />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Course Fee</label>
+                <input type="number" value={formData.courseFee} onChange={e => f('courseFee', e.target.value)} className={styles.input} min="0" disabled={loading} />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Monthly Class Count <span className={styles.required}>*</span></label>
+                <input type="number" value={formData.monthlyClassCount} onChange={e => f('monthlyClassCount', e.target.value)} className={styles.input} min="1" max="31" disabled={loading} />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Starting Date</label>
+                <input type="date" value={formData.batchStartingDate} onChange={e => f('batchStartingDate', e.target.value)} className={styles.input} disabled={loading} />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Closing Date</label>
+                <input type="date" value={formData.batchClosingDate} onChange={e => f('batchClosingDate', e.target.value)} className={styles.input} min={formData.batchStartingDate} disabled={loading} />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Max Students</label>
+                <input type="number" value={formData.maxStudents} onChange={e => f('maxStudents', e.target.value)} className={styles.input} min="1" max="1000" disabled={loading} />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Status</label>
+                <select value={formData.status} onChange={e => f('status', e.target.value)} className={styles.select} disabled={loading}>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.label}>Description</label>
+              <textarea value={formData.description} onChange={e => f('description', e.target.value)} className={styles.textarea} rows={3} disabled={loading} maxLength={500} />
+            </div>
+          </div>
+          <div className={styles.modalFooter}>
+            <button type="button" onClick={onClose} className={styles.btnSecondary} disabled={loading}>Cancel</button>
+            <button type="submit" className={styles.btnPrimary} disabled={loading}>
+              {loading ? <><span className={styles.spinnerSmall}></span>Saving...</> : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

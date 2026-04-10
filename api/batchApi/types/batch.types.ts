@@ -64,6 +64,9 @@ export interface BatchItem {
   status: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive: boolean;
   description: string;
+  admissionFee?: number;
+  tuitionFee?: number;
+  courseFee?: number;
   maxStudents: number;
   createdBy: string | User;
   createdAt: string;
@@ -94,6 +97,9 @@ export interface CreateBatchDto {
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
   description?: string;
+  admissionFee?: number;
+  tuitionFee?: number;
+  courseFee?: number;
   maxStudents?: number;
   createdBy?: string;
 }
@@ -111,6 +117,9 @@ export interface UpdateBatchDto {
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
   description?: string;
+  admissionFee?: number;
+  tuitionFee?: number;
+  courseFee?: number;
   maxStudents?: number;
 }
 
@@ -157,6 +166,9 @@ export interface CreateBatchResponse {
   status: string;
   isActive: boolean;
   description: string;
+  admissionFee?: number;
+  tuitionFee?: number;
+  courseFee?: number;
   maxStudents: number;
   createdBy: string | User;
   createdAt: string;
