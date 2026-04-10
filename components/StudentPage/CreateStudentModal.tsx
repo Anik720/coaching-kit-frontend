@@ -11,6 +11,7 @@ import {
   StudentBatch 
 } from '@/api/studentApi/types/student.types';
 import styles from './CreateStudentModal.module.css';
+import { subjectsFromBatchEntry } from '@/utils/batchSubjectsFromApi';
 
 interface ClassForDropdown {
   _id: string;
@@ -182,9 +183,9 @@ export default function CreateStudentModal({
           batchName: batch.batchName,
           batchId: batch.batchId,
           subjects: [], // Add with empty subjects initially
-          admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.admissionFee || 0),
-          tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.tuitionFee || 0),
-          courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (batch.courseFee || 0),
+          admissionFee: 0,
+          tuitionFee: 0,
+          courseFee: 0,
         };
         newBatches = [...(prev.batches || []), newBatch];
       }
@@ -434,23 +435,12 @@ export default function CreateStudentModal({
                               const seenSubjectIds = new Set<string>();
                               const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
                               batchEntries.forEach(entry => {
-                                const rawSubject = entry.subject;
-                                if (!rawSubject) return;
-                                let subjectId: string;
-                                let subjectName: string;
-                                if (typeof rawSubject === 'object' && rawSubject._id) {
-                                  subjectId = String(rawSubject._id);
-                                  subjectName = rawSubject.subjectName || 'Subject';
-                                } else if (typeof rawSubject === 'string') {
-                                  subjectId = rawSubject;
-                                  subjectName = 'Subject';
-                                } else {
-                                  return;
-                                }
-                                if (!seenSubjectIds.has(subjectId)) {
-                                  seenSubjectIds.add(subjectId);
-                                  batchSubjects.push({ _id: subjectId, subjectName });
-                                }
+                                subjectsFromBatchEntry(entry).forEach(s => {
+                                  if (!seenSubjectIds.has(s._id)) {
+                                    seenSubjectIds.add(s._id);
+                                    batchSubjects.push(s);
+                                  }
+                                });
                               });
 
                               if (batchSubjects.length === 0) {

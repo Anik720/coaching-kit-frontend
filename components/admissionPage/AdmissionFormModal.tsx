@@ -23,6 +23,7 @@ import {
   FormFields,
   AdmissionFormDraft,
 } from '@/api/admissionApi/types/admission.types';
+import { subjectsFromBatchEntry } from '@/utils/batchSubjectsFromApi';
 import styles from './AdmissionPage.module.css';
 
 interface AdmissionFormModalProps {
@@ -358,9 +359,9 @@ export default function AdmissionFormModal({
           batchName: batchData.batchName,
           batchId: batchData.batchId || batchData._id,
           subjects: [],
-          admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batchData.admissionFee || 0),
-          tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batchData.tuitionFee || 0),
-          courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (batchData.courseFee || 0),
+          admissionFee: 0,
+          tuitionFee: 0,
+          courseFee: 0,
         };
         newBatches = [...prev.batches, newBatch];
       }
@@ -696,16 +697,7 @@ export default function AdmissionFormModal({
                             const batchData = availableBatches.find(b => b._id === batchObj.batch);
                             if (!batchData) return null;
 
-                            // Normalize subject — may be { _id, subjectName } object or a raw string ID
-                            const rawSubject = batchData.subject;
-                            const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
-                            if (rawSubject) {
-                              if (typeof rawSubject === 'object' && rawSubject._id) {
-                                batchSubjects.push({ _id: String(rawSubject._id), subjectName: rawSubject.subjectName || 'Subject' });
-                              } else if (typeof rawSubject === 'string') {
-                                batchSubjects.push({ _id: rawSubject, subjectName: 'Subject' });
-                              }
-                            }
+                            const batchSubjects = subjectsFromBatchEntry(batchData);
 
                             if (batchSubjects.length === 0) {
                               return (

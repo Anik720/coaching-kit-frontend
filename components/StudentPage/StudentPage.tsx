@@ -11,6 +11,8 @@ import api from "@/api/axios";
 import CreateStudentModal from "./CreateStudentModal";
 import EditStudentModal from "./EditStudentModal";
 
+const PAGE_SIZE = 10;
+
 // Custom hook for debounce
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -78,6 +80,7 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
   const [hasFetchedClasses, setHasFetchedClasses] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const tableSectionRef = useRef<HTMLDivElement>(null);
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   // Fetch classes on component mount - ONLY ONCE
@@ -113,7 +116,7 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
           class: filterClass || undefined,
           batch: filterBatch || undefined,
           page: currentPage,
-          limit: 10,
+          limit: PAGE_SIZE,
           sortBy: "createdAt",
           sortOrder: "desc",
         });
@@ -208,7 +211,7 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
     (newPage: number) => {
       if (newPage >= 1 && newPage <= totalPages) {
         setCurrentPage(newPage);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        tableSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     },
     [totalPages]
@@ -469,7 +472,7 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
       </div>
 
       {/* Students Table */}
-      <div className={styles.tableCard}>
+      <div className={styles.tableCard} ref={tableSectionRef}>
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>
             All Students
@@ -585,6 +588,9 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
           </div>
         ) : (
           <>
+            <div className={styles.scrollHint}>
+              Scroll left/right to view all columns
+            </div>
             <div className={styles.tableWrapper}>
               {students.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -602,7 +608,7 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
                   )}
                 </div>
               ) : (
-                <table className={styles.table}>
+                <table className={styles.table} aria-label="Student list table">
                   <thead>
                     <tr>
                       <th>Photo</th>
@@ -1004,11 +1010,6 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
                             ) : (
                               <span style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No subjects selected</span>
                             )}
-                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                              {batchObj.admissionFee > 0 && <span>Admission: {formatCurrency(batchObj.admissionFee)}</span>}
-                              {batchObj.tuitionFee > 0 && <span>Tuition: {formatCurrency(batchObj.tuitionFee)}</span>}
-                              {batchObj.courseFee > 0 && <span>Course: {formatCurrency(batchObj.courseFee)}</span>}
-                            </div>
                           </div>
                         ))}
                       </div>

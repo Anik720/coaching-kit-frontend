@@ -17,6 +17,7 @@ class StudentService {
   // Get all students with pagination and filtering
   async getAllStudents(params?: StudentQueryParams): Promise<StudentsResponse> {
     const queryParams = new URLSearchParams();
+    const requestedLimit = params?.limit || 10;
    
     if (params) {
       if (params.search) queryParams.append('search', params.search);
@@ -32,6 +33,7 @@ class StudentService {
       if (params.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     }
+    if (!queryParams.has('limit')) queryParams.append('limit', '10');
 
     const response = await api.get<any>(
       `/students${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
@@ -45,8 +47,8 @@ class StudentService {
       data:       list,
       total:      res.total      ?? list.length,
       page:       res.page       ?? (params?.page  || 1),
-      limit:      res.limit      ?? (params?.limit || 10),
-      totalPages: res.totalPages ?? Math.ceil((res.total ?? list.length) / (params?.limit || 10)),
+      limit:      res.limit      ?? requestedLimit,
+      totalPages: res.totalPages ?? Math.ceil((res.total ?? list.length) / requestedLimit),
     };
   }
 

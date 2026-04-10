@@ -24,6 +24,7 @@ import { AdmissionBatch } from '@/api/admissionApi/types/admission.types';
 import { toastManager } from '@/utils/toastConfig';
 import styles from './AdmissionPage.module.css';
 import api from '@/api/axios';
+import { subjectsFromBatchEntry } from '@/utils/batchSubjectsFromApi';
 
 // ----- Helpers -----
 const generateRegistrationId = () => {
@@ -161,9 +162,9 @@ export default function NewAdmissionPage() {
         batchName: batch.batchName,
         batchId: batch.batchId,
         subjects: [],
-        admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.admissionFee || 0),
-        tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.tuitionFee || 0),
-        courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (batch.courseFee || 0),
+        admissionFee: 0,
+        tuitionFee: 0,
+        courseFee: 0,
       };
       return { ...prev, batches: [...prev.batches, newBatch] };
     });
@@ -372,16 +373,7 @@ export default function NewAdmissionPage() {
                           {formData.batches.map(batchObj => {
                             const batchData = safeBatches.find(b => b._id === batchObj.batch);
                             if (!batchData) return null;
-                            // Normalize subject — may be { _id, subjectName } object or a raw string ID
-                            const rawSubject = batchData.subject;
-                            const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
-                            if (rawSubject) {
-                              if (typeof rawSubject === 'object' && rawSubject._id) {
-                                batchSubjects.push({ _id: String(rawSubject._id), subjectName: rawSubject.subjectName || 'Subject' });
-                              } else if (typeof rawSubject === 'string') {
-                                batchSubjects.push({ _id: rawSubject, subjectName: 'Subject' });
-                              }
-                            }
+                            const batchSubjects = subjectsFromBatchEntry(batchData);
                             if (batchSubjects.length === 0) {
                               return (
                                 <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>

@@ -273,26 +273,32 @@ const batchSlice = createSlice({
       .addCase(createBatch.fulfilled, (state, action: PayloadAction<CreateBatchResponse>) => {
         state.loading = false;
         state.success = true;
+        const p = action.payload;
+        const normalizedSubject =
+          p.subject == null
+            ? undefined
+            : typeof p.subject === 'string'
+              ? p.subject
+              : { _id: p.subject._id, subjectName: p.subject.subjectName || '' };
         // Type cast CreateBatchResponse to BatchItem
         const batchItem: BatchItem = {
-          ...action.payload,
-          status: action.payload.status as 'active' | 'inactive' | 'completed' | 'upcoming',
-          className: typeof action.payload.className === 'string' 
-            ? action.payload.className 
-            : { _id: action.payload.className._id, classname: action.payload.className.classname || '' },
-          group: typeof action.payload.group === 'string'
-            ? action.payload.group
-            : { _id: action.payload.group._id, groupName: action.payload.group.groupName || '' },
-          subject: typeof action.payload.subject === 'string'
-            ? action.payload.subject
-            : { _id: action.payload.subject._id, subjectName: action.payload.subject.subjectName || '' },
-          createdBy: typeof action.payload.createdBy === 'string'
-            ? action.payload.createdBy
+          ...p,
+          status: p.status as 'active' | 'inactive' | 'completed' | 'upcoming',
+          className: typeof p.className === 'string' 
+            ? p.className 
+            : { _id: p.className._id, classname: p.className.classname || '' },
+          group: typeof p.group === 'string'
+            ? p.group
+            : { _id: p.group._id, groupName: p.group.groupName || '' },
+          subject: normalizedSubject,
+          subjects: p.subjects,
+          createdBy: typeof p.createdBy === 'string'
+            ? p.createdBy
             : {
-                id: (action.payload.createdBy as any)._id || action.payload.createdBy.id,
-                email: action.payload.createdBy.email,
-                username: action.payload.createdBy.username,
-                role: action.payload.createdBy.role
+                id: (p.createdBy as any)._id || p.createdBy.id,
+                email: p.createdBy.email,
+                username: p.createdBy.username,
+                role: p.createdBy.role
               }
         };
         state.batches.unshift(batchItem);
