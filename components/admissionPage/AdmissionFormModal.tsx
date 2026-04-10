@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
-import { fetchAdmissionTemplates } from '@/api/admissionApi/admissionSlice';
+import {
+  fetchAdmissionTemplates,
+  createAdmission,
+  updateAdmission,
+  saveDraftForm,
+  clearDraftForm,
+} from '@/api/admissionApi/admissionSlice';
 import {
   AdmissionItem,
   AdmissionStatus,
@@ -14,8 +20,8 @@ import {
   BatchForDropdown,
   ClassForDropdown,
   GroupForDropdown,
-  SubjectForDropdown,
   FormFields,
+  AdmissionFormDraft,
 } from '@/api/admissionApi/types/admission.types';
 import styles from './AdmissionPage.module.css';
 
@@ -26,10 +32,10 @@ interface AdmissionFormModalProps {
   initialData?: AdmissionItem | null;
   loading: boolean;
   isEditing: boolean;
-  batches: BatchForDropdown[];
-  classes: ClassForDropdown[];
-  groups: GroupForDropdown[];
-  subjects: SubjectForDropdown[];
+  batches?: any[];
+  classes: any[];
+  groups?: any[];
+  subjects?: any[];
   dropdownsLoaded: boolean;
   fetchBatchesByClass: (classId: string) => Promise<any[]>;
 }
@@ -62,12 +68,17 @@ export default function AdmissionFormModal({
   fetchBatchesByClass,
 }: AdmissionFormModalProps) {
   const dispatch = useDispatch<AppDispatch>();
-  
-  // Get settings and templates from Redux store
-  const { settings, templates } = useSelector((state: RootState) => state.admission);
-  
+
+  // Get settings, templates, and draftForm from Redux store
+  const { settings, templates, draftForm } = useSelector((state: RootState) => state.admission);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  
+
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Refs for debouncing
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // LOGIC: Determine active field visibility based on Template OR Global Settings
   const activeSettings = useMemo(() => {
     if (selectedTemplateId) {
@@ -106,9 +117,6 @@ export default function AdmissionFormModal({
   });
 
   const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedBatch, setSelectedBatch] = useState<string>('');
-  const [selectedSubjects, setSelectedSubjects] = useState<SubjectForDropdown[]>([]);
-  const [availableSubjects, setAvailableSubjects] = useState<SubjectForDropdown[]>([]);
   const [availableBatches, setAvailableBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
 
@@ -124,6 +132,7 @@ export default function AdmissionFormModal({
 
   useEffect(() => {
     if (initialData) {
+      // Editing existing admission - populate from initialData
       setFormData({
         registrationId: initialData.registrationId,
         name: initialData.name,
@@ -150,57 +159,90 @@ export default function AdmissionFormModal({
         photo: null,
         batches: initialData.batches || [],
       });
+      setDraftRestored(false);
     } else {
-      const timestamp = Date.now();
-      const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
-      
-      setFormData(prev => ({
-        ...prev,
-        registrationId: generatedId,
-        name: '',
-        nameNative: '',
-        studentGender: Gender.MALE,
-        studentDateOfBirth: '',
-        presentAddress: '',
-        permanentAddress: '',
-        religion: Religion.ISLAM,
-        whatsappMobile: '',
-        studentMobileNumber: '',
-        instituteName: '',
-        fathersName: '',
-        mothersName: '',
-        guardianMobileNumber: '',
-        motherMobileNumber: '',
-        admissionType: AdmissionType.MONTHLY,
-        courseFee: 0,
-        admissionFee: 0,
-        tuitionFee: 0,
-        referBy: '',
-        admissionDate: new Date().toISOString().split('T')[0],
-        remarks: '',
-        photo: null,
-        batches: [],
-      }));
+      // New admission - check if we have a draft to restore
+      if (draftForm && isOpen) {
+        // Restore from draft
+        setFormData({
+          registrationId: draftForm.registrationId,
+          name: draftForm.formData.name,
+          nameNative: draftForm.formData.nameNative,
+          studentGender: draftForm.formData.studentGender as Gender,
+          studentDateOfBirth: draftForm.formData.studentDateOfBirth,
+          presentAddress: draftForm.formData.presentAddress,
+          permanentAddress: draftForm.formData.permanentAddress,
+          religion: draftForm.formData.religion as Religion,
+          whatsappMobile: draftForm.formData.whatsappMobile,
+          studentMobileNumber: draftForm.formData.studentMobileNumber,
+          instituteName: draftForm.formData.instituteName,
+          fathersName: draftForm.formData.fathersName,
+          mothersName: draftForm.formData.mothersName,
+          guardianMobileNumber: draftForm.formData.guardianMobileNumber,
+          motherMobileNumber: draftForm.formData.motherMobileNumber,
+          admissionType: draftForm.formData.admissionType as AdmissionType,
+          courseFee: draftForm.formData.courseFee,
+          admissionFee: draftForm.formData.admissionFee,
+          tuitionFee: draftForm.formData.tuitionFee,
+          referBy: draftForm.formData.referBy,
+          admissionDate: draftForm.formData.admissionDate,
+          remarks: draftForm.formData.remarks,
+          photo: null,
+          batches: draftForm.formData.batches,
+        });
+        setDraftRestored(true);
+      } else {
+        // Fresh new form
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
+
+        setFormData(prev => ({
+          ...prev,
+          registrationId: generatedId,
+          name: '',
+          nameNative: '',
+          studentGender: Gender.MALE,
+          studentDateOfBirth: '',
+          presentAddress: '',
+          permanentAddress: '',
+          religion: Religion.ISLAM,
+          whatsappMobile: '',
+          studentMobileNumber: '',
+          instituteName: '',
+          fathersName: '',
+          mothersName: '',
+          guardianMobileNumber: '',
+          motherMobileNumber: '',
+          admissionType: AdmissionType.MONTHLY,
+          courseFee: 0,
+          admissionFee: 0,
+          tuitionFee: 0,
+          referBy: '',
+          admissionDate: new Date().toISOString().split('T')[0],
+          remarks: '',
+          photo: null,
+          batches: [],
+        }));
+        setDraftRestored(false);
+      }
       setSelectedClass('');
-      setSelectedBatch('');
-      setSelectedSubjects([]);
-      setAvailableSubjects([]);
       setAvailableBatches([]);
       setSelectedTemplateId('');
     }
-    
+
     setErrors({});
     setTouched({});
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save to backend removed based on user request
+
+
 
   useEffect(() => {
     const fetchBatchesForClass = async () => {
       if (!selectedClass) {
         setAvailableBatches([]);
-        setSelectedBatch('');
-        setSelectedSubjects([]);
-        setAvailableSubjects([]);
         return;
       }
 
@@ -218,25 +260,37 @@ export default function AdmissionFormModal({
     fetchBatchesForClass();
   }, [selectedClass, fetchBatchesByClass]);
 
-  useEffect(() => {
-    if (selectedBatch) {
-      const selectedBatchData = availableBatches.find(b => b._id === selectedBatch);
-      if (selectedBatchData) {
-        const batchSubjects = selectedBatchData.subject ? [selectedBatchData.subject] : [];
-        const formattedSubjects: SubjectForDropdown[] = batchSubjects.map((subject: any) => ({
-          _id: subject._id,
-          subjectName: subject.subjectName,
-        }));
-        setAvailableSubjects(formattedSubjects);
-      }
-    } else {
-      setAvailableSubjects([]);
-      setSelectedSubjects([]);
-    }
-  }, [selectedBatch, availableBatches]);
-
   const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+
+      if (field === 'admissionType') {
+        if (value === AdmissionType.COURSE) {
+          updated.admissionFee = 0;
+          updated.tuitionFee = 0;
+        } else if (value === AdmissionType.MONTHLY) {
+          updated.courseFee = 0;
+        }
+      }
+
+      // Save draft to Redux (debounced, skip photo field)
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+      }
+      draftSaveTimerRef.current = setTimeout(() => {
+        if (!isEditing) {
+          const { photo: _photo, ...serializableData } = updated;
+          dispatch(saveDraftForm({
+            registrationId: updated.registrationId,
+            autoSavedRegistrationId: null,
+            formData: serializableData,
+          }));
+        }
+      }, 500);
+
+      return updated;
+    });
+
     if (touched[field] && errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -248,22 +302,38 @@ export default function AdmissionFormModal({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     // Core Base Validation
     if (!formData.name) newErrors.name = 'Student Name is required';
     if (!formData.instituteName) newErrors.instituteName = 'Institute Name is required';
     if (!formData.guardianMobileNumber) newErrors.guardianMobileNumber = 'Guardian Mobile is required';
     if (!formData.admissionDate) newErrors.admissionDate = 'Admission Date is required';
-    
+
     // Dynamic Validation based on active template/settings
-    if (activeSettings.nameNative.isVisible && activeSettings.nameNative.isRequired && !formData.nameNative) 
+    if (activeSettings.nameNative.isVisible && activeSettings.nameNative.isRequired && !formData.nameNative)
       newErrors.nameNative = "Native Name is required";
-    if (activeSettings.studentDateOfBirth.isVisible && activeSettings.studentDateOfBirth.isRequired && !formData.studentDateOfBirth) 
+    if (activeSettings.studentDateOfBirth.isVisible && activeSettings.studentDateOfBirth.isRequired && !formData.studentDateOfBirth)
       newErrors.studentDateOfBirth = "Date of Birth is required";
-    if (activeSettings.fathersName.isVisible && activeSettings.fathersName.isRequired && !formData.fathersName) 
+    if (activeSettings.studentMobileNumber.isVisible && activeSettings.studentMobileNumber.isRequired && !formData.studentMobileNumber)
+      newErrors.studentMobileNumber = "Student Mobile is required";
+    if (activeSettings.whatsappMobile.isVisible && activeSettings.whatsappMobile.isRequired && !formData.whatsappMobile)
+      newErrors.whatsappMobile = "WhatsApp Mobile is required";
+    if (activeSettings.fathersName.isVisible && activeSettings.fathersName.isRequired && !formData.fathersName)
       newErrors.fathersName = "Father's Name is required";
-    if (activeSettings.presentAddress.isVisible && activeSettings.presentAddress.isRequired && !formData.presentAddress) 
+    if (activeSettings.mothersName.isVisible && activeSettings.mothersName.isRequired && !formData.mothersName)
+      newErrors.mothersName = "Mother's Name is required";
+    if (activeSettings.motherMobileNumber.isVisible && activeSettings.motherMobileNumber.isRequired && !formData.motherMobileNumber)
+      newErrors.motherMobileNumber = "Mother's Mobile is required";
+    if (activeSettings.presentAddress.isVisible && activeSettings.presentAddress.isRequired && !formData.presentAddress)
       newErrors.presentAddress = "Present Address is required";
+    if (activeSettings.permanentAddress.isVisible && activeSettings.permanentAddress.isRequired && !formData.permanentAddress)
+      newErrors.permanentAddress = "Permanent Address is required";
+    if (activeSettings.referBy.isVisible && activeSettings.referBy.isRequired && !formData.referBy)
+      newErrors.referBy = "Refer By is required";
+    if (activeSettings.remarks.isVisible && activeSettings.remarks.isRequired && !formData.remarks)
+      newErrors.remarks = "Remarks is required";
+    if (activeSettings.photo.isVisible && activeSettings.photo.isRequired && !formData.photo)
+      newErrors.photo = "Photo is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -271,65 +341,48 @@ export default function AdmissionFormModal({
 
   const handleClassSelect = (classId: string) => {
     setSelectedClass(classId);
-    setSelectedBatch('');
-    setSelectedSubjects([]);
     setAvailableBatches([]);
-    setAvailableSubjects([]);
+    setFormData(prev => ({ ...prev, batches: [] }));
   };
 
-  const handleBatchSelect = (batchId: string) => {
-    setSelectedBatch(batchId);
-    if (!batchId) {
-      setSelectedSubjects([]);
-      return;
-    }
-    const selectedBatchData = availableBatches.find(b => b._id === batchId);
-    if (selectedBatchData) {
-      const newBatch: AdmissionBatch = {
-        batch: selectedBatchData._id,
-        batchName: selectedBatchData.batchName,
-        batchId: selectedBatchData.batchId,
-        subjects: selectedSubjects.map(subject => ({
-          subjectName: subject.subjectName,
-          subjectId: subject._id,
-        })),
-        admissionFee: selectedBatchData.admissionFee || 0,
-        tuitionFee: selectedBatchData.tuitionFee || 0,
-        courseFee: selectedBatchData.courseFee || 0,
-      };
-      setFormData(prev => ({
-        ...prev,
-        admissionFee: selectedBatchData.admissionFee || prev.admissionFee,
-        tuitionFee: selectedBatchData.tuitionFee || prev.tuitionFee,
-        courseFee: selectedBatchData.courseFee || prev.courseFee,
-        batches: [...prev.batches.filter(b => b.batch !== batchId), newBatch],
-      }));
-    }
+  const handleBatchToggle = (batchData: any) => {
+    setFormData(prev => {
+      const isSelected = prev.batches.some(b => b.batch === batchData._id);
+      let newBatches;
+      
+      if (isSelected) {
+        newBatches = prev.batches.filter(b => b.batch !== batchData._id);
+      } else {
+        const newBatch: AdmissionBatch = {
+          batch: batchData._id,
+          batchName: batchData.batchName,
+          batchId: batchData.batchId || batchData._id,
+          subjects: [],
+          admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batchData.admissionFee || 0),
+          tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batchData.tuitionFee || 0),
+          courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (batchData.courseFee || 0),
+        };
+        newBatches = [...prev.batches, newBatch];
+      }
+
+      return { ...prev, batches: newBatches };
+    });
   };
 
-  const handleSubjectToggle = (subject: SubjectForDropdown) => {
-    const isSelected = selectedSubjects.some(s => s._id === subject._id);
-    let newSelectedSubjects = isSelected 
-      ? selectedSubjects.filter(s => s._id !== subject._id)
-      : [...selectedSubjects, subject];
-    
-    setSelectedSubjects(newSelectedSubjects);
-    
-    if (selectedBatch) {
-      const updatedBatches = formData.batches.map(batch => {
-        if (batch.batch === selectedBatch) {
-          return {
-            ...batch,
-            subjects: newSelectedSubjects.map(sub => ({
-              subjectName: sub.subjectName,
-              subjectId: sub._id,
-            })),
-          };
+  const handleSubjectToggle = (batchId: string, subject: any) => {
+    setFormData(prev => {
+      const updatedBatches = prev.batches.map(b => {
+        if (b.batch === batchId) {
+          const isSelected = b.subjects.some(s => s.subjectId === subject._id);
+          const newSubjects = isSelected
+            ? b.subjects.filter(s => s.subjectId !== subject._id)
+            : [...b.subjects, { subjectId: subject._id, subjectName: subject.subjectName }];
+          return { ...b, subjects: newSubjects };
         }
-        return batch;
+        return b;
       });
-      setFormData(prev => ({ ...prev, batches: updatedBatches }));
-    }
+      return { ...prev, batches: updatedBatches };
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -340,12 +393,48 @@ export default function AdmissionFormModal({
     }
   };
 
-  const handleRemoveBatch = (batchId: string) => {
-    setFormData(prev => ({ ...prev, batches: prev.batches.filter(b => b.batch !== batchId) }));
-    if (selectedBatch === batchId) {
-      setSelectedBatch('');
-      setSelectedSubjects([]);
-    }
+
+
+  const handleClearDraft = () => {
+    dispatch(clearDraftForm());
+    setDraftRestored(false);
+
+    // Reset to fresh form
+    const timestamp = Date.now();
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const generatedId = `REG${timestamp.toString().slice(-6)}${randomNum}`;
+
+    setFormData(prev => ({
+      ...prev,
+      registrationId: generatedId,
+      name: '',
+      nameNative: '',
+      studentGender: Gender.MALE,
+      studentDateOfBirth: '',
+      presentAddress: '',
+      permanentAddress: '',
+      religion: Religion.ISLAM,
+      whatsappMobile: '',
+      studentMobileNumber: '',
+      instituteName: '',
+      fathersName: '',
+      mothersName: '',
+      guardianMobileNumber: '',
+      motherMobileNumber: '',
+      admissionType: AdmissionType.MONTHLY,
+      courseFee: 0,
+      admissionFee: 0,
+      tuitionFee: 0,
+      referBy: '',
+      admissionDate: new Date().toISOString().split('T')[0],
+      remarks: '',
+      photo: null,
+      batches: [],
+    }));
+    setSelectedClass('');
+    setAvailableBatches([]);
+    setErrors({});
+    setTouched({});
   };
 
   const totalFee = useMemo(() => {
@@ -358,13 +447,24 @@ export default function AdmissionFormModal({
       ...formData,
       totalFee,
       dueAmount: totalFee - (initialData?.paidAmount || 0),
-      status: isDraft ? AdmissionStatus.INCOMPLETE : (initialData?.status === AdmissionStatus.INCOMPLETE ? AdmissionStatus.PENDING : (initialData?.status || AdmissionStatus.PENDING))
+      status: isDraft
+        ? AdmissionStatus.INCOMPLETE
+        : (initialData?.status === AdmissionStatus.INCOMPLETE
+          ? AdmissionStatus.PENDING
+          : (initialData?.status || AdmissionStatus.PENDING)),
+      _autoSavedRegistrationId: null,
     };
+
+    if (!isDraft) {
+      // Clear draft from Redux on full submit
+      dispatch(clearDraftForm());
+    }
+
     onSubmit(submissionData);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0 }).format(amount);
+    return new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
   };
 
   if (!isOpen) return null;
@@ -377,14 +477,52 @@ export default function AdmissionFormModal({
             <h2 className={styles.modalTitle}>{isEditing ? 'Edit Admission' : 'Create New Admission'}</h2>
             <p className={styles.modalSubtitle}>Register a new student to your institution</p>
           </div>
+
           <button onClick={onClose} className={styles.modalClose} disabled={loading} type="button">✕</button>
         </div>
-        
+
+        {/* Draft Restored Banner */}
+        {draftRestored && !isEditing && (
+          <div style={{
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            margin: '0 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '14px',
+            color: '#1e40af',
+          }}>
+            <span>
+              <strong>Draft restored</strong> — your previous progress has been loaded.
+            </span>
+            <button
+              type="button"
+              onClick={handleClearDraft}
+              style={{
+                background: '#dbeafe',
+                border: '1px solid #93c5fd',
+                borderRadius: '6px',
+                padding: '4px 12px',
+                fontSize: '12px',
+                color: '#1d4ed8',
+                cursor: 'pointer',
+                marginLeft: '12px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Start Fresh
+            </button>
+          </div>
+        )}
+
         {loading && <div className={styles.modalLoading}><div className={styles.spinnerLarge}></div><p>Processing...</p></div>}
-        
+
         <form onSubmit={e => { e.preventDefault(); submitData(false); }} className={styles.modalForm}>
           <div className={styles.modalBody}>
-            
+
             {/* TEMPLATE SELECTION CARD */}
             {!isEditing && (
               <div className={styles.formSectionCard} style={{ border: '2px solid #6366f1', background: '#f5f3ff', marginBottom: '24px' }}>
@@ -425,7 +563,7 @@ export default function AdmissionFormModal({
                     <input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={() => handleBlur('name')} className={`${styles.input} ${errors.name ? styles.inputError : ''}`} required />
                     {errors.name && <div className={styles.errorMessage}>{errors.name}</div>}
                   </div>
-                  
+
                   {activeSettings.nameNative.isVisible && (
                     <div className={styles.formField}>
                       <label className={styles.label}>Name (Native) {activeSettings.nameNative.isRequired && '*'}</label>
@@ -471,7 +609,7 @@ export default function AdmissionFormModal({
               </div>
 
               {/* Section 3: Family Info */}
-              {(activeSettings.fathersName.isVisible || activeSettings.mothersName.isVisible) && (
+              {(activeSettings.fathersName.isVisible || activeSettings.mothersName.isVisible || activeSettings.motherMobileNumber.isVisible) && (
                 <div className={styles.formSectionCard}>
                   <div className={styles.sectionHeader}><div className={styles.sectionIcon}>👨‍👩‍👧‍👦</div><h3 className={styles.sectionTitle}>Family Information</h3></div>
                   <div className={styles.formGrid}>
@@ -481,16 +619,24 @@ export default function AdmissionFormModal({
                     {activeSettings.mothersName.isVisible && (
                       <div className={styles.formField}><label className={styles.label}>Mother's Name {activeSettings.mothersName.isRequired && '*'}</label><input type="text" value={formData.mothersName} onChange={e => handleChange('mothersName', e.target.value)} className={styles.input} /></div>
                     )}
+                    {activeSettings.motherMobileNumber.isVisible && (
+                      <div className={styles.formField}><label className={styles.label}>Mother's Mobile {activeSettings.motherMobileNumber.isRequired && '*'}</label><input type="tel" value={formData.motherMobileNumber} onChange={e => handleChange('motherMobileNumber', e.target.value)} className={styles.input} /></div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Section 4: Address */}
-              {activeSettings.presentAddress.isVisible && (
+              {(activeSettings.presentAddress.isVisible || activeSettings.permanentAddress.isVisible) && (
                 <div className={styles.formSectionCard}>
                   <div className={styles.sectionHeader}><div className={styles.sectionIcon}>🏠</div><h3 className={styles.sectionTitle}>Address Details</h3></div>
                   <div className={styles.formGrid}>
-                    <div className={styles.formFieldFull}><label className={styles.label}>Present Address {activeSettings.presentAddress.isRequired && '*'}</label><textarea value={formData.presentAddress} onChange={e => handleChange('presentAddress', e.target.value)} className={styles.textarea} rows={2} /></div>
+                    {activeSettings.presentAddress.isVisible && (
+                      <div className={styles.formFieldFull}><label className={styles.label}>Present Address {activeSettings.presentAddress.isRequired && '*'}</label><textarea value={formData.presentAddress} onChange={e => handleChange('presentAddress', e.target.value)} className={styles.textarea} rows={2} /></div>
+                    )}
+                    {activeSettings.permanentAddress.isVisible && (
+                      <div className={styles.formFieldFull}><label className={styles.label}>Permanent Address {activeSettings.permanentAddress.isRequired && '*'}</label><textarea value={formData.permanentAddress} onChange={e => handleChange('permanentAddress', e.target.value)} className={styles.textarea} rows={2} /></div>
+                    )}
                   </div>
                 </div>
               )}
@@ -499,6 +645,14 @@ export default function AdmissionFormModal({
               <div className={styles.formSectionCard}>
                 <div className={styles.sectionHeader}><div className={styles.sectionIcon}>🎓</div><h3 className={styles.sectionTitle}>Academic Information</h3></div>
                 <div className={styles.formGrid} style={{ marginBottom: '20px' }}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Type</label>
+                    <select value={formData.admissionType} onChange={e => handleChange('admissionType', e.target.value as AdmissionType)} className={styles.select}>
+                      {Object.values(AdmissionType).map(type => (
+                        <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className={styles.formField}><label className={styles.label}>Institute Name <span className={styles.required}>*</span></label><input type="text" value={formData.instituteName} onChange={e => handleChange('instituteName', e.target.value)} className={styles.input} required /></div>
                   <div className={styles.formField}><label className={styles.label}>Admission Date <span className={styles.required}>*</span></label><input type="date" value={formData.admissionDate} onChange={e => handleChange('admissionDate', e.target.value)} className={styles.input} required /></div>
                 </div>
@@ -514,25 +668,76 @@ export default function AdmissionFormModal({
                     </div>
                     {selectedClass && (
                       <div className={styles.selectionStep}>
-                        <span className={styles.stepTitle}>2. Select Batch</span>
-                        {loadingBatches ? <p>Loading...</p> : (
-                          <select value={selectedBatch} onChange={e => handleBatchSelect(e.target.value)} className={styles.select}>
-                            <option value="">Choose Batch</option>
-                            {availableBatches.map(b => <option key={b._id} value={b._id}>{b.batchName}</option>)}
-                          </select>
+                        <span className={styles.stepTitle}>2. Select Batches <span className={styles.required}>*</span></span>
+                        {loadingBatches ? <p>Loading...</p> : availableBatches.length === 0 ? <p style={{color: '#ef4444'}}>No batches available</p> : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
+                            {availableBatches.map(b => (
+                              <label key={b._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'white', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '8px', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.batches.some(fb => fb.batch === b._id)}
+                                  onChange={() => handleBatchToggle(b)}
+                                  style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                />
+                                <span style={{ fontSize: '15px', fontWeight: 500, color: '#334155' }}>
+                                  {b.batchName}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )}
-                    {selectedBatch && (
-                      <div className={styles.selectionStep}>
+                    {formData.batches && formData.batches.length > 0 && (
+                      <div className={styles.selectionStep} style={{borderTop: '1px solid #e2e8f0', paddingTop: '16px'}}>
                         <span className={styles.stepTitle}>3. Select Subjects</span>
-                        <div className={styles.subjectGrid}>
-                          {availableSubjects.map(s => (
-                            <div key={s._id} className={styles.subjectCheckbox}>
-                              <input type="checkbox" id={`sub-${s._id}`} checked={selectedSubjects.some(sub => sub._id === s._id)} onChange={() => handleSubjectToggle(s)} />
-                              <label htmlFor={`sub-${s._id}`}>{s.subjectName}</label>
-                            </div>
-                          ))}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                          {formData.batches.map(batchObj => {
+                            const batchData = availableBatches.find(b => b._id === batchObj.batch);
+                            if (!batchData) return null;
+
+                            // Normalize subject — may be { _id, subjectName } object or a raw string ID
+                            const rawSubject = batchData.subject;
+                            const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
+                            if (rawSubject) {
+                              if (typeof rawSubject === 'object' && rawSubject._id) {
+                                batchSubjects.push({ _id: String(rawSubject._id), subjectName: rawSubject.subjectName || 'Subject' });
+                              } else if (typeof rawSubject === 'string') {
+                                batchSubjects.push({ _id: rawSubject, subjectName: 'Subject' });
+                              }
+                            }
+
+                            if (batchSubjects.length === 0) {
+                              return (
+                                <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>
+                                  No subjects available for {batchObj.batchName}
+                                </div>
+                              );
+                            }
+
+                            return batchSubjects.map((subj) => {
+                              const isSelected = batchObj.subjects.some(s => String(s.subjectId) === String(subj._id));
+                              return (
+                                <label key={`${batchObj.batch}-${subj._id}`} style={{
+                                  display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                                  background: isSelected ? '#ede9fe' : 'white',
+                                  border: `1px solid ${isSelected ? '#8b5cf6' : '#cbd5e1'}`,
+                                  padding: '8px 14px', borderRadius: '24px', transition: 'all 0.2s',
+                                  boxShadow: isSelected ? '0 2px 4px rgba(139, 92, 246, 0.15)' : 'none'
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => handleSubjectToggle(batchObj.batch, subj)}
+                                    style={{ cursor: 'pointer', display: 'none' }}
+                                  />
+                                  <span style={{ fontSize: '14px', fontWeight: 600, color: isSelected ? '#4c1d95' : '#475569' }}>
+                                    {subj.subjectName} <span style={{ fontWeight: 400, opacity: 0.8 }}>({batchObj.batchName})</span>
+                                  </span>
+                                </label>
+                              );
+                            });
+                          })}
                         </div>
                       </div>
                     )}
@@ -542,15 +747,37 @@ export default function AdmissionFormModal({
 
               {/* Fee Summary */}
               <div className={styles.formSectionCard}>
-                <div className={styles.sectionHeader}><div className={styles.sectionIcon}>💰</div><h3 className={styles.sectionTitle}>Fee Summary</h3></div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>Total: {formatCurrency(totalFee)}</div>
+                <div className={styles.sectionHeader}><div className={styles.sectionIcon}>💰</div><h3 className={styles.sectionTitle}>Fee Information</h3></div>
+                <div className={styles.formGrid}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Fee</label>
+                    <input type="number" value={formData.admissionFee} onChange={e => handleChange('admissionFee', Number(e.target.value) || 0)} className={`${styles.input} ${errors.admissionFee ? styles.inputError : ''}`} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.COURSE} />
+                    {errors.admissionFee && <div className={styles.errorMessage}>{errors.admissionFee}</div>}
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Tuition Fee</label>
+                    <input type="number" value={formData.tuitionFee} onChange={e => handleChange('tuitionFee', Number(e.target.value) || 0)} className={`${styles.input} ${errors.tuitionFee ? styles.inputError : ''}`} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.COURSE} />
+                    {errors.tuitionFee && <div className={styles.errorMessage}>{errors.tuitionFee}</div>}
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Course Fee</label>
+                    <input type="number" value={formData.courseFee} onChange={e => handleChange('courseFee', Number(e.target.value) || 0)} className={`${styles.input} ${errors.courseFee ? styles.inputError : ''}`} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.MONTHLY} />
+                    {errors.courseFee && <div className={styles.errorMessage}>{errors.courseFee}</div>}
+                  </div>
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981', marginTop: '16px', padding: '12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'right' }}>
+                  Total Fee: {formatCurrency(totalFee)}
+                </div>
               </div>
 
               {/* Additional Details */}
-              {(activeSettings.remarks.isVisible || activeSettings.photo.isVisible) && (
+              {(activeSettings.remarks.isVisible || activeSettings.photo.isVisible || activeSettings.referBy.isVisible) && (
                 <div className={styles.formSectionCard}>
                   <div className={styles.sectionHeader}><div className={styles.sectionIcon}>📝</div><h3 className={styles.sectionTitle}>Additional Information</h3></div>
                   <div className={styles.formGrid}>
+                    {activeSettings.referBy.isVisible && (
+                      <div className={styles.formField}><label className={styles.label}>Refer By {activeSettings.referBy.isRequired && '*'}</label><input type="text" value={formData.referBy} onChange={e => handleChange('referBy', e.target.value)} className={styles.input} /></div>
+                    )}
                     {activeSettings.remarks.isVisible && (
                       <div className={styles.formFieldFull}><label className={styles.label}>Remarks</label><textarea value={formData.remarks} onChange={e => handleChange('remarks', e.target.value)} className={styles.textarea} rows={2} /></div>
                     )}
@@ -562,7 +789,7 @@ export default function AdmissionFormModal({
               )}
             </div>
           </div>
-          
+
           <div className={styles.modalFooter}>
             <button type="button" onClick={onClose} className={styles.btnSecondary} disabled={loading}>Cancel</button>
             <button type="button" onClick={() => submitData(true)} className={styles.btnDraft} disabled={loading}>Save Draft</button>

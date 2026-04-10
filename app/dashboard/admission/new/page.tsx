@@ -1,7 +1,5 @@
-import AdmissionPage from '@/components/admissionPage/AdmissionPage';
-import { AdmissionStatus } from '@/api/admissionApi/types/admission.types';
+import NewAdmissionPage from '@/components/admissionPage/NewAdmissionPage';
 
-export default function OpenApplicationsRoute() {
-  // Shows only pending applications waiting for approval
-  return <AdmissionPage defaultStatus={AdmissionStatus.PENDING} />;
+export default function NewAdmissionRoute() {
+  return <NewAdmissionPage />;
 }

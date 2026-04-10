@@ -28,7 +28,7 @@ const useDebounce = (value: string, delay: number) => {
   return debouncedValue;
 };
 
-export default function StudentsPage() {
+export default function StudentsPage({ defaultStatus }: { defaultStatus?: StudentStatus }) {
   const {
     students,
     loading,
@@ -42,6 +42,7 @@ export default function StudentsPage() {
     classes,
     batches,
     fetchStudents,
+    fetchStudentByIdAsync,
     createStudent,
     updateStudent,
     deleteStudent,
@@ -56,7 +57,7 @@ export default function StudentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>(defaultStatus || "");
   const [filterAdmissionType, setFilterAdmissionType] = useState<string>("");
   const [filterClass, setFilterClass] = useState<string>("");
   const [filterBatch, setFilterBatch] = useState<string>("");
@@ -263,13 +264,23 @@ export default function StudentsPage() {
   }, [makePayment, paymentModal, paymentAmount, paymentMethod]);
 
   const handleViewStudent = useCallback(async (student: StudentItem) => {
-    setCurrentStudent(student);
+    try {
+      const fresh = await fetchStudentByIdAsync(student._id);
+      setCurrentStudent(fresh);
+    } catch {
+      setCurrentStudent(student);
+    }
     setViewStudentModal(true);
-  }, [setCurrentStudent]);
+  }, [fetchStudentByIdAsync, setCurrentStudent]);
 
-  const handleEditClick = useCallback((student: StudentItem) => {
-    setEditStudentModal(student);
-  }, []);
+  const handleEditClick = useCallback(async (student: StudentItem) => {
+    try {
+      const fresh = await fetchStudentByIdAsync(student._id);
+      setEditStudentModal(fresh);
+    } catch {
+      setEditStudentModal(student);
+    }
+  }, [fetchStudentByIdAsync]);
 
   const handleUpdateStudent = useCallback(async (id: string, studentData: any) => {
     const toastId = toastManager.showLoading("Updating student...");
@@ -295,7 +306,7 @@ export default function StudentsPage() {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 2
     }).format(amount).replace('BDT', '৳');
   }, []);
 
@@ -345,6 +356,7 @@ export default function StudentsPage() {
   // Get status display text - memoized
   const getStatusText = useCallback((status: string) => {
     switch (status) {
+      case StudentStatus.PENDING: return 'Pending';
       case StudentStatus.ACTIVE: return 'Active';
       case StudentStatus.INACTIVE: return 'Inactive';
       case StudentStatus.GRADUATED: return 'Graduated';
@@ -505,6 +517,7 @@ export default function StudentsPage() {
               disabled={loading}
             >
               <option value="">All Status</option>
+              <option value={StudentStatus.PENDING}>Pending</option>
               <option value={StudentStatus.ACTIVE}>Active</option>
               <option value={StudentStatus.INACTIVE}>Inactive</option>
               <option value={StudentStatus.GRADUATED}>Graduated</option>
@@ -632,9 +645,13 @@ export default function StudentsPage() {
                         <td>
                           <div className={styles.classInfo}>
                             <span className={styles.className}>{student.class?.classname || "N/A"}</span>
-                            {student.batch && (
+                            {student.batches && student.batches.length > 0 ? (
+                              student.batches.map(b => (
+                                <span key={b.batch} className={styles.batchName} style={{ display: 'block' }}>{b.batchName}</span>
+                              ))
+                            ) : student.batch ? (
                               <span className={styles.batchName}>{student.batch.batchName}</span>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                         <td>
@@ -666,7 +683,7 @@ export default function StudentsPage() {
                         </td>
                         <td>
                           <span
-                            className={`${styles.statusBadge} ${student.isActive ? styles.active : styles.inactive}`}
+                            className={`${styles.statusBadge} ${student.status === StudentStatus.PENDING ? styles.pending : student.isActive ? styles.active : styles.inactive}`}
                           >
                             {getStatusText(student.status)}
                           </span>
@@ -938,92 +955,189 @@ export default function StudentsPage() {
           <div className={`${styles.modal} ${styles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Student Details</h2>
-              <button
-                onClick={() => setViewStudentModal(false)}
-                className={styles.modalClose}
-                type="button"
-              >
-                ✕
-              </button>
+              <button onClick={() => setViewStudentModal(false)} className={styles.modalClose} type="button">✕</button>
             </div>
             <div className={styles.modalBody}>
-              <div className={styles.formGrid}>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Registration ID</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.registrationId}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Student Name</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.nameEnglish}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Date of Birth</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{formatDate(currentStudent.dateOfBirth)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Gender</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{getGenderText(currentStudent.gender)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Religion</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{getReligionText(currentStudent.religion)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Father's Name</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.fatherName}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Father's Mobile</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.fatherMobileNumber}</div>
-                </div>
-                <div className={styles.formFieldFull}>
-                  <label className={styles.label}>Present Address</label>
-                  <div className={`${styles.textarea} ${styles.viewMode}`}>{currentStudent.presentAddress}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Admission Type</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{getAdmissionTypeText(currentStudent.admissionType)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Admission Date</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{formatDate(currentStudent.admissionDate)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Total Amount</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{formatCurrency(currentStudent.totalAmount)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Paid Amount</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{formatCurrency(currentStudent.paidAmount)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Due Amount</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{formatCurrency(currentStudent.dueAmount)}</div>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label}>Status</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{getStatusText(currentStudent.status)}</div>
-                </div>
-                <div className={styles.formFieldFull}>
-                  <label className={styles.label}>Created At</label>
-                  <div className={`${styles.input} ${styles.viewMode}`}>{new Date(currentStudent.createdAt).toLocaleString()}</div>
-                </div>
-                {currentStudent.remarks && (
-                  <div className={styles.formFieldFull}>
-                    <label className={styles.label}>Remarks</label>
-                    <div className={`${styles.textarea} ${styles.viewMode}`}>{currentStudent.remarks}</div>
+
+              {/* Academic Info */}
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Academic Information</h3>
+                <div className={styles.formGrid}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Registration ID</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.registrationId}</div>
                   </div>
-                )}
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Class</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.class?.classname || '—'}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Type</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{getAdmissionTypeText(currentStudent.admissionType)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Date</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{formatDate(currentStudent.admissionDate)}</div>
+                  </div>
+                  {/* Batches + Subjects */}
+                  {currentStudent.batches && currentStudent.batches.length > 0 && (
+                    <div className={styles.formFieldFull}>
+                      <label className={styles.label}>Enrolled Batches & Subjects</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                        {currentStudent.batches.map(batchObj => (
+                          <div key={batchObj.batch} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 16px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '14px', color: '#334155', marginBottom: '8px' }}>
+                              📚 {batchObj.batchName}
+                            </div>
+                            {batchObj.subjects && batchObj.subjects.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {batchObj.subjects.map(subj => (
+                                  <span key={subj.subjectId} style={{
+                                    background: '#ede9fe', border: '1px solid #8b5cf6',
+                                    color: '#4c1d95', padding: '4px 12px', borderRadius: '20px',
+                                    fontSize: '13px', fontWeight: 600,
+                                  }}>
+                                    {subj.subjectName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No subjects selected</span>
+                            )}
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                              {batchObj.admissionFee > 0 && <span>Admission: {formatCurrency(batchObj.admissionFee)}</span>}
+                              {batchObj.tuitionFee > 0 && <span>Tuition: {formatCurrency(batchObj.tuitionFee)}</span>}
+                              {batchObj.courseFee > 0 && <span>Course: {formatCurrency(batchObj.courseFee)}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Personal Info */}
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Personal Information</h3>
+                <div className={styles.formGrid}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Name (English)</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.nameEnglish}</div>
+                  </div>
+                  {currentStudent.subunitCategory && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Name (Bangla)</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.subunitCategory}</div>
+                    </div>
+                  )}
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Date of Birth</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{formatDate(currentStudent.dateOfBirth)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Gender</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{getGenderText(currentStudent.gender)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Religion</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{getReligionText(currentStudent.religion)}</div>
+                  </div>
+                  {currentStudent.studentMobileNumber && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Student Mobile</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.studentMobileNumber}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Guardian / Contact */}
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Guardian Information</h3>
+                <div className={styles.formGrid}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Father's Name</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.fatherName || '—'}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Father's Mobile</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.fatherMobileNumber || '—'}</div>
+                  </div>
+                  {currentStudent.motherName && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Mother's Name</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.motherName}</div>
+                    </div>
+                  )}
+                  {currentStudent.motherMobileNumber && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Mother's Mobile</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.motherMobileNumber}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Address</h3>
+                <div className={styles.formGrid}>
+                  <div className={styles.formFieldFull}>
+                    <label className={styles.label}>Present Address</label>
+                    <div className={`${styles.textarea} ${styles.viewMode}`}>{currentStudent.presentAddress || '—'}</div>
+                  </div>
+                  {currentStudent.permanentAddress && (
+                    <div className={styles.formFieldFull}>
+                      <label className={styles.label}>Permanent Address</label>
+                      <div className={`${styles.textarea} ${styles.viewMode}`}>{currentStudent.permanentAddress}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fee Info */}
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Fee Information</h3>
+                <div className={styles.formGrid}>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Total Amount</label>
+                    <div className={`${styles.input} ${styles.viewMode}`} style={{ color: '#0f172a', fontWeight: 700 }}>{formatCurrency(currentStudent.totalAmount)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Paid Amount</label>
+                    <div className={`${styles.input} ${styles.viewMode}`} style={{ color: '#16a34a', fontWeight: 700 }}>{formatCurrency(currentStudent.paidAmount)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Due Amount</label>
+                    <div className={`${styles.input} ${styles.viewMode}`} style={{ color: currentStudent.dueAmount > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>{formatCurrency(currentStudent.dueAmount)}</div>
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Status</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{getStatusText(currentStudent.status)}</div>
+                  </div>
+                  {currentStudent.referredBy && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Referred By</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.referredBy}</div>
+                    </div>
+                  )}
+                  {currentStudent.remarks && (
+                    <div className={styles.formFieldFull}>
+                      <label className={styles.label}>Remarks</label>
+                      <div className={`${styles.textarea} ${styles.viewMode}`}>{currentStudent.remarks}</div>
+                    </div>
+                  )}
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Registered On</label>
+                    <div className={`${styles.input} ${styles.viewMode}`}>{new Date(currentStudent.createdAt).toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+
             </div>
             <div className={styles.modalFooter}>
-              <button
-                type="button"
-                onClick={() => setViewStudentModal(false)}
-                className={styles.btnPrimary}
-              >
-                Close
-              </button>
+              <button type="button" onClick={() => setViewStudentModal(false)} className={styles.btnPrimary}>Close</button>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
-import AdmissionPage from '@/components/admissionPage/AdmissionPage';
-import { AdmissionStatus } from '@/api/admissionApi/types/admission.types';
+import StudentsPage from '@/components/StudentPage/StudentPage';
+import { StudentStatus } from '@/api/studentApi/types/student.types';
 
 export default function IncompleteAdmissionsRoute() {
-  // এটি স্বয়ংক্রিয়ভাবে শুধু Incomplete স্ট্যাটাসের ডাটাগুলো ফিল্টার করে দেখাবে
-  return <AdmissionPage defaultStatus={AdmissionStatus.INCOMPLETE} />;
+  // Return the main student page but force filtering to PENDING students
+  return <StudentsPage defaultStatus={StudentStatus.PENDING} />;
 }

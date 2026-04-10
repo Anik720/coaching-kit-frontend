@@ -159,16 +159,16 @@ class StudentService {
   // Get batches by class ID
   async getBatchesByClass(classId: string): Promise<any[]> {
     try {
-      const response = await api.get(`/batches/class/${classId}`);
+      const response = await api.get(`/batches/class/${classId}?limit=1000`);
       console.log('Batches by class response:', response.data);
-      
+
       // Handle different response formats
       if (response.data.data) {
         return response.data.data;
       } else if (Array.isArray(response.data)) {
         return response.data;
       }
-      
+
       return [];
     } catch (error: any) {
       console.error('Failed to fetch batches by class:', error.response?.data?.message || error.message);

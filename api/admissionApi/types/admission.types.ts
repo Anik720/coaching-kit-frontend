@@ -237,6 +237,35 @@ export interface AdmissionTemplate {
 }
 // ==========================================
 
+export interface AdmissionFormDraft {
+  registrationId: string;
+  autoSavedRegistrationId: string | null;
+  formData: {
+    name: string;
+    nameNative: string;
+    studentGender: string;
+    studentDateOfBirth: string;
+    presentAddress: string;
+    permanentAddress: string;
+    religion: string;
+    whatsappMobile: string;
+    studentMobileNumber: string;
+    instituteName: string;
+    fathersName: string;
+    mothersName: string;
+    guardianMobileNumber: string;
+    motherMobileNumber: string;
+    admissionType: string;
+    courseFee: number;
+    admissionFee: number;
+    tuitionFee: number;
+    referBy: string;
+    admissionDate: string;
+    remarks: string;
+    batches: AdmissionBatch[];
+  };
+}
+
 export interface AdmissionState {
   admissions: AdmissionItem[];
   currentAdmission: AdmissionItem | null;
@@ -254,6 +283,7 @@ export interface AdmissionState {
   subjects: any[];
   settings: AdmissionSetting | null;
   templates: AdmissionTemplate[]; // NEW: Added templates array
+  draftForm: AdmissionFormDraft | null;
 }
 
 // Batch related interfaces for dropdowns

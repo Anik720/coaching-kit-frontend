@@ -82,7 +82,7 @@ export const useAdmission = () => {
     clearError: () => dispatch(clearError()),
     clearSuccess: () => dispatch(clearSuccess()),
     fetchBatchesByClass: (classId: string) => 
-    dispatch(fetchBatchesByClass(classId)),
+      dispatch(fetchBatchesByClass(classId)).unwrap(),
     setCurrentAdmission: (admission: any | null) => dispatch(setCurrentAdmission(admission)),
     clearDropdownData: () => dispatch(clearDropdownData()),
   };
