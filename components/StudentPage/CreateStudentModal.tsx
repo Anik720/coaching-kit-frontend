@@ -235,10 +235,16 @@ export default function CreateStudentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
+    const isMonthly = formData.admissionType === AdmissionType.MONTHLY;
     const payload: CreateStudentDto = {
       ...formData,
       fatherName: formData.fatherName || formData.fathersName,
-      monthlyTuitionFee: formData.monthlyTuitionFee || formData.tuitionFee,
+      admissionFee: isMonthly ? (formData.admissionFee || 0) : 0,
+      monthlyTuitionFee: isMonthly ? (formData.monthlyTuitionFee || formData.tuitionFee || 0) : 0,
+      courseFee: isMonthly ? 0 : (formData.courseFee || 0),
+      totalAmount: isMonthly
+        ? (formData.admissionFee || 0) + (formData.monthlyTuitionFee || formData.tuitionFee || 0)
+        : (formData.courseFee || 0),
       localGuardianMobileNumber: formData.localGuardianMobileNumber || undefined,
       paymentInstallment: formData.paymentInstallment ? Number(formData.paymentInstallment) : undefined,
       lastExamBoard: formData.lastExamBoard || undefined,

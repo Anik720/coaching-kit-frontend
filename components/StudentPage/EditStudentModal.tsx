@@ -124,13 +124,17 @@ export default function EditStudentModal({
 
   // Auto-calculate total amount
   useEffect(() => {
-    const batchesTotal = formData.batches?.reduce((sum, b) => sum + (b.admissionFee || 0) + (b.tuitionFee || 0) + (b.courseFee || 0), 0) || 0;
+    const isMonthly = formData.admissionType === AdmissionType.MONTHLY;
+    const batchesTotal = formData.batches?.reduce((sum, b) => {
+      if (isMonthly) return sum + (b.admissionFee || 0) + (b.tuitionFee || 0);
+      else return sum + (b.courseFee || 0);
+    }, 0) || 0;
     if (batchesTotal > 0) {
       setFormData(prev => ({ ...prev, totalAmount: batchesTotal }));
-    } else if (formData.admissionType === AdmissionType.MONTHLY) {
+    } else if (isMonthly) {
       setFormData(prev => ({ ...prev, totalAmount: (prev.admissionFee || 0) + (prev.monthlyTuitionFee || 0) }));
     } else if (formData.admissionType === AdmissionType.COURSE) {
-      setFormData(prev => ({ ...prev, totalAmount: (prev.admissionFee || 0) + (prev.courseFee || 0) }));
+      setFormData(prev => ({ ...prev, totalAmount: prev.courseFee || 0 }));
     }
   }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType, formData.batches]);
 
