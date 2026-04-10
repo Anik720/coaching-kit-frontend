@@ -144,7 +144,7 @@ export default function BatchesPage() {
         status: batchData.status || 'upcoming',
         isActive: batchData.status === 'active',
         description: batchData.description || '',
-        monthlyClassCount: Number(batchData.monthlyClassCount) || 0,
+        monthlyClassCount: Math.max(1, Number(batchData.monthlyClassCount) || 12),
         createdBy: userId,
         };
         
@@ -794,7 +794,7 @@ function CreateBatchModal({
       // Convert string values to numbers
       const submitData = {
         ...formData,
-        monthlyClassCount: parseInt(formData.monthlyClassCount) || 0,
+        monthlyClassCount: Math.max(1, parseInt(formData.monthlyClassCount, 10) || 12),
         maxStudents: parseInt(formData.maxStudents) || 50,
       };
       
