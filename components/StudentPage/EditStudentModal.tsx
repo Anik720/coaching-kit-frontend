@@ -122,21 +122,18 @@ export default function EditStudentModal({
 
 
 
-  // Auto-calculate total amount
+  // Auto-calculate total amount from top-level fee fields (source of truth)
   useEffect(() => {
-    const isMonthly = formData.admissionType === AdmissionType.MONTHLY;
-    const batchesTotal = formData.batches?.reduce((sum, b) => {
-      if (isMonthly) return sum + (b.admissionFee || 0) + (b.tuitionFee || 0);
-      else return sum + (b.courseFee || 0);
-    }, 0) || 0;
-    if (batchesTotal > 0) {
-      setFormData(prev => ({ ...prev, totalAmount: batchesTotal }));
-    } else if (isMonthly) {
-      setFormData(prev => ({ ...prev, totalAmount: (prev.admissionFee || 0) + (prev.monthlyTuitionFee || 0) }));
+    let total = 0;
+    if (formData.admissionType === AdmissionType.MONTHLY) {
+      total = (formData.admissionFee || 0) + (formData.monthlyTuitionFee || 0);
     } else if (formData.admissionType === AdmissionType.COURSE) {
-      setFormData(prev => ({ ...prev, totalAmount: prev.courseFee || 0 }));
+      total = formData.courseFee || 0;
+    } else {
+      total = formData.admissionFee || 0;
     }
-  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType, formData.batches]);
+    setFormData(prev => ({ ...prev, totalAmount: total }));
+  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
