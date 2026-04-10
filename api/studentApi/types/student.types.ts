@@ -52,6 +52,7 @@ export enum Religion {
 }
 
 export enum StudentStatus {
+  PENDING = 'pending',
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   GRADUATED = 'graduated',
@@ -59,11 +60,27 @@ export enum StudentStatus {
   SUSPENDED = 'suspended'
 }
 
+export interface BatchSubject {
+  subjectName: string;
+  subjectId: string;
+}
+
+export interface StudentBatch {
+  batch: string; // Document ID string
+  batchName: string;
+  batchId: string;
+  subjects: BatchSubject[];
+  admissionFee: number;
+  tuitionFee: number;
+  courseFee: number;
+}
+
 export interface StudentItem {
   _id: string;
   registrationId: string;
   class?: ClassDetails;
   batch?: BatchDetails;
+  batches?: StudentBatch[];
   nameEnglish: string;
   subunitCategory?: string;
   dateOfBirth: string;
@@ -108,31 +125,32 @@ export interface StudentsResponse {
 
 export interface CreateStudentDto {
   registrationId: string;
-  class: string;
+  class?: string;
   batch?: string;
-  nameEnglish: string;
+  batches?: StudentBatch[];
+  nameEnglish?: string;
   subunitCategory?: string;
-  dateOfBirth: string;
-  gender: Gender;
-  religion: Religion;
+  dateOfBirth?: string;
+  gender?: Gender;
+  religion?: Religion;
   instituteName?: string;
   studentMobileNumber?: string;
   wardNumber?: string;
   whatsappMobile?: string;
-  presentAddress: string;
+  presentAddress?: string;
   permanentAddress?: string;
   photoUrl?: string;
-  fatherName: string;
-  fatherMobileNumber: string;
+  fatherName?: string;
+  fatherMobileNumber?: string;
   motherName?: string;
   motherMobileNumber?: string;
-  admissionType: AdmissionType;
-  admissionFee: number;
+  admissionType?: AdmissionType;
+  admissionFee?: number;
   monthlyTuitionFee?: number;
   courseFee?: number;
-  totalAmount: number;
+  totalAmount?: number;
   paidAmount?: number;
-  admissionDate: string;
+  admissionDate?: string;
   nextPaymentDate?: string;
   referredBy?: string;
   status?: StudentStatus;
@@ -144,6 +162,7 @@ export interface UpdateStudentDto {
   registrationId?: string;
   class?: string;
   batch?: string;
+  batches?: StudentBatch[];
   nameEnglish?: string;
   subunitCategory?: string;
   dateOfBirth?: string;

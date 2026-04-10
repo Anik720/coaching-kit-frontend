@@ -118,7 +118,7 @@ const Sidebar: React.FC = () => {
       ],
     },
 
-    /* ================= ADMISSION MODULE UPDATED ================= */
+    /* ================= ADMISSION MODULE ================= */
     {
       category: 'Admission',
       basePath: '/dashboard/admission',
@@ -130,7 +130,7 @@ const Sidebar: React.FC = () => {
         { label: 'Admission Templates', href: '/dashboard/admission/template-settings', icon: '📋' },
       ],
     },
-    /* ============================================================ */
+    /* ===================================================== */
 
     { label: 'Student Reports', href: '/dashboard/student-reports', icon: '📈' },
     {

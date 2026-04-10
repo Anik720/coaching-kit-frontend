@@ -53,6 +53,7 @@ export const useStudent = () => {
   const actions = {
     fetchStudents: useCallback((params?: any) => dispatch(fetchStudents(params)), [dispatch]),
     fetchStudentById: useCallback((id: string) => dispatch(fetchStudentById(id)), [dispatch]),
+    fetchStudentByIdAsync: useCallback((id: string) => dispatch(fetchStudentById(id)).unwrap(), [dispatch]),
     createStudent: useCallback((data: any) => dispatch(createStudent(data)), [dispatch]),
     updateStudent: useCallback((id: string, data: any) => 
       dispatch(updateStudent({ id, studentData: data })), [dispatch]),
@@ -63,7 +64,7 @@ export const useStudent = () => {
     fetchMyStudents: useCallback((params?: any) => dispatch(fetchMyStudents(params)), [dispatch]),
     fetchMyStatsSummary: useCallback(() => dispatch(fetchMyStatsSummary()), [dispatch]),
     fetchBatchesByClass: useCallback((classId: string) => 
-      dispatch(fetchBatchesByClass(classId)), [dispatch]),
+      dispatch(fetchBatchesByClass(classId)).unwrap(), [dispatch]),
     resetStudentState: useCallback(() => dispatch(resetStudentState()), [dispatch]),
     setError: useCallback((error: string | null) => dispatch(setError(error)), [dispatch]),
     clearError: useCallback(() => dispatch(clearError()), [dispatch]),

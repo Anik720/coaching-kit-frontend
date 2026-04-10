@@ -8,6 +8,8 @@ import {
   StudentStatus,
   UpdateStudentDto,
   StudentItem,
+  StudentBatch,
+  BatchSubject,
 } from '@/api/studentApi/types/student.types';
 import styles from './CreateStudentModal.module.css';
 
@@ -22,6 +24,8 @@ interface BatchForDropdown {
   batchId: number | string;
   sessionYear: string;
   className?: { classname: string };
+  subject?: any;
+  subjectDetails?: any[];
 }
 
 interface EditStudentModalProps {
@@ -30,12 +34,19 @@ interface EditStudentModalProps {
   onUpdate: (id: string, studentData: UpdateStudentDto) => Promise<void>;
   loading?: boolean;
   classes?: ClassForDropdown[];
-  fetchBatchesByClass?: (classId: string) => Promise<BatchForDropdown[]>;
+  fetchBatchesByClass?: (classId: string) => Promise<any>;
 }
 
 function toDateInput(dateStr: string) {
   if (!dateStr) return '';
   return dateStr.split('T')[0];
+}
+
+function getClassId(cls: any): string {
+  if (!cls) return '';
+  if (typeof cls === 'string') return cls;
+  if (typeof cls === 'object' && cls._id) return String(cls._id);
+  return '';
 }
 
 export default function EditStudentModal({
@@ -46,9 +57,10 @@ export default function EditStudentModal({
   classes = [],
   fetchBatchesByClass,
 }: EditStudentModalProps) {
+
   const [formData, setFormData] = useState<UpdateStudentDto>({
     registrationId: student.registrationId,
-    class: student.class?._id || '',
+    class: getClassId(student.class),
     batch: student.batch?._id || '',
     nameEnglish: student.nameEnglish,
     subunitCategory: student.subunitCategory || '',
@@ -71,10 +83,11 @@ export default function EditStudentModal({
     status: student.status,
     isActive: student.isActive,
     remarks: student.remarks || '',
+    batches: student.batches || [],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedClass, setSelectedClass] = useState<string>(student.class?._id || '');
+  const [selectedClass, setSelectedClass] = useState<string>(getClassId(student.class));
   const [availableBatches, setAvailableBatches] = useState<BatchForDropdown[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
 
@@ -89,6 +102,13 @@ export default function EditStudentModal({
       try {
         const batches = await fetchBatchesByClass(selectedClass);
         setAvailableBatches(batches);
+        // Ensure student's original batches are pre-selected
+        if (student.batches && student.batches.length > 0) {
+          setFormData(prev => {
+            if (prev.batches && prev.batches.length > 0) return prev;
+            return { ...prev, batches: student.batches! };
+          });
+        }
       } catch {
         setAvailableBatches([]);
       } finally {
@@ -98,20 +118,19 @@ export default function EditStudentModal({
     loadBatches();
   }, [selectedClass, fetchBatchesByClass]);
 
+
+
   // Auto-calculate total amount
   useEffect(() => {
-    if (formData.admissionType === AdmissionType.MONTHLY) {
-      setFormData(prev => ({
-        ...prev,
-        totalAmount: (prev.admissionFee || 0) + (prev.monthlyTuitionFee || 0),
-      }));
+    const batchesTotal = formData.batches?.reduce((sum, b) => sum + (b.admissionFee || 0) + (b.tuitionFee || 0) + (b.courseFee || 0), 0) || 0;
+    if (batchesTotal > 0) {
+      setFormData(prev => ({ ...prev, totalAmount: batchesTotal }));
+    } else if (formData.admissionType === AdmissionType.MONTHLY) {
+      setFormData(prev => ({ ...prev, totalAmount: (prev.admissionFee || 0) + (prev.monthlyTuitionFee || 0) }));
     } else if (formData.admissionType === AdmissionType.COURSE) {
-      setFormData(prev => ({
-        ...prev,
-        totalAmount: (prev.admissionFee || 0) + (prev.courseFee || 0),
-      }));
+      setFormData(prev => ({ ...prev, totalAmount: (prev.admissionFee || 0) + (prev.courseFee || 0) }));
     }
-  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType]);
+  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType, formData.batches]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -128,11 +147,48 @@ export default function EditStudentModal({
   const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const classId = e.target.value;
     setSelectedClass(classId);
-    setFormData(prev => ({ ...prev, class: classId, batch: '' }));
+    setFormData(prev => ({ ...prev, class: classId, batches: [] }));
+    setAvailableBatches([]);
   };
 
-  const handleBatchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, batch: e.target.value }));
+  const handleBatchToggle = (batch: any) => {
+    setFormData(prev => {
+      const isSelected = prev.batches?.some(b => b.batch === batch._id);
+      let newBatches;
+      
+      if (isSelected) {
+        newBatches = prev.batches?.filter(b => b.batch !== batch._id) || [];
+      } else {
+        const newBatch: StudentBatch = {
+          batch: batch._id,
+          batchName: batch.batchName,
+          batchId: String(batch.batchId),
+          subjects: [], // Add with empty subjects initially
+          admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (formData.admissionFee || 0),
+          tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (formData.monthlyTuitionFee || 0),
+          courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (formData.courseFee || 0),
+        };
+        newBatches = [...(prev.batches || []), newBatch];
+      }
+
+      return { ...prev, batches: newBatches };
+    });
+  };
+
+  const handleSubjectToggle = (batchId: string, subject: any) => {
+    setFormData(prev => {
+      const updatedBatches = (prev.batches || []).map(b => {
+        if (b.batch === batchId) {
+          const isSelected = b.subjects.some(s => String(s.subjectId) === String(subject._id));
+          const newSubjects = isSelected
+            ? b.subjects.filter(s => String(s.subjectId) !== String(subject._id))
+            : [...b.subjects, { subjectId: subject._id, subjectName: subject.subjectName }];
+          return { ...b, subjects: newSubjects };
+        }
+        return b;
+      });
+      return { ...prev, batches: updatedBatches };
+    });
   };
 
   const validateForm = (): boolean => {
@@ -211,23 +267,134 @@ export default function EditStudentModal({
                   {errors.class && <span className={styles.errorMessage}>{errors.class}</span>}
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.label}>Select Batch</label>
-                  <select
-                    value={formData.batch || ''}
-                    onChange={handleBatchChange}
-                    className={styles.input}
-                    disabled={loading || !selectedClass || loadingBatches}
-                  >
-                    <option value="">
-                      {!selectedClass ? 'Select class first' : loadingBatches ? 'Loading...' : availableBatches.length === 0 ? 'No batches available' : 'Select the batch'}
-                    </option>
-                    {availableBatches.map(batch => (
-                      <option key={batch._id} value={batch._id}>
-                        {batch.batchName} - {batch.className?.classname || ''} - {batch.sessionYear}
-                      </option>
-                    ))}
-                  </select>
+                <div className={styles.formFieldFull} style={{ marginTop: '16px' }}>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+                    <div className={styles.formGrid}>
+                      <div className={styles.formFieldFull}>
+                        <label className={styles.label}>1. Select Batches <span className={styles.required}>*</span></label>
+                        {!selectedClass ? (
+                          <div style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic', marginTop: '8px' }}>Select class first to view available batches</div>
+                        ) : loadingBatches ? (
+                          <div style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>Loading batches...</div>
+                        ) : availableBatches.length === 0 ? (
+                          <div style={{ color: '#ef4444', fontSize: '14px', marginTop: '8px' }}>No batches available for this class</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
+                            {availableBatches
+                              .filter((b, idx, arr) => arr.findIndex(x => String(x._id) === String(b._id)) === idx)
+                              .map(b => {
+                              const isChecked = formData.batches?.some(fb => String(fb.batch) === String(b._id));
+                              return (
+                                <label key={b._id} style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                                  background: isChecked ? '#ede9fe' : 'white',
+                                  padding: '10px 14px',
+                                  border: `2px solid ${isChecked ? '#8b5cf6' : '#cbd5e1'}`,
+                                  borderRadius: '8px', transition: 'all 0.2s',
+                                  boxShadow: isChecked ? '0 2px 6px rgba(139,92,246,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!isChecked}
+                                    onChange={() => handleBatchToggle(b)}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#8b5cf6' }}
+                                  />
+                                  <span style={{ fontSize: '14px', fontWeight: 600, color: isChecked ? '#4c1d95' : '#334155' }}>
+                                    {b.batchName} <span style={{ fontWeight: 400, color: '#64748b', fontSize: '12px' }}>({b.sessionYear})</span>
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {errors.batches && <span className={styles.errorMessage}>{errors.batches}</span>}
+                      </div>
+
+                      {formData.batches && formData.batches.length > 0 && (
+                        <div className={styles.formFieldFull} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                          <label className={styles.label}>2. Select Subjects</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                            {formData.batches.map(batchObj => {
+                              // Collect ALL subjects for this batch from all matching entries in availableBatches
+                              const batchEntries = availableBatches.filter(b => String(b._id) === String(batchObj.batch));
+
+                              // Batches still loading — show existing saved subjects as selected
+                              if (batchEntries.length === 0) {
+                                if (!batchObj.subjects || batchObj.subjects.length === 0) return null;
+                                return batchObj.subjects.map(subj => (
+                                  <label key={`saved-${batchObj.batch}-${subj.subjectId}`} style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    background: '#ede9fe', border: '2px solid #8b5cf6',
+                                    padding: '8px 14px', borderRadius: '24px',
+                                    boxShadow: '0 2px 4px rgba(139,92,246,0.15)',
+                                  }}>
+                                    <input type="checkbox" checked readOnly style={{ width: '14px', height: '14px', accentColor: '#8b5cf6' }} />
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#4c1d95' }}>
+                                      {subj.subjectName} <span style={{ fontWeight: 400, opacity: 0.7, fontSize: '12px' }}>({batchObj.batchName})</span>
+                                    </span>
+                                  </label>
+                                ));
+                              }
+
+                              // Collect unique subjects from all entries for this batch
+                              const seenSubjectIds = new Set<string>();
+                              const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
+                              batchEntries.forEach(entry => {
+                                const rawSubject = entry.subject;
+                                if (!rawSubject) return;
+                                let subjectId: string;
+                                let subjectName: string;
+                                if (typeof rawSubject === 'object' && rawSubject._id) {
+                                  subjectId = String(rawSubject._id);
+                                  subjectName = rawSubject.subjectName || 'Subject';
+                                } else if (typeof rawSubject === 'string') {
+                                  subjectId = rawSubject;
+                                  subjectName = 'Subject';
+                                } else {
+                                  return;
+                                }
+                                if (!seenSubjectIds.has(subjectId)) {
+                                  seenSubjectIds.add(subjectId);
+                                  batchSubjects.push({ _id: subjectId, subjectName });
+                                }
+                              });
+
+                              if (batchSubjects.length === 0) {
+                                return (
+                                  <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>
+                                    No subjects available for {batchObj.batchName}
+                                  </div>
+                                );
+                              }
+
+                              return batchSubjects.map((subj) => {
+                                const isSelected = batchObj.subjects.some(s => String(s.subjectId) === String(subj._id));
+                                return (
+                                  <label key={`${batchObj.batch}-${subj._id}`} style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                                    background: isSelected ? '#ede9fe' : 'white',
+                                    border: `2px solid ${isSelected ? '#8b5cf6' : '#cbd5e1'}`,
+                                    padding: '8px 14px', borderRadius: '24px', transition: 'all 0.2s',
+                                    boxShadow: isSelected ? '0 2px 4px rgba(139, 92, 246, 0.15)' : 'none'
+                                  }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => handleSubjectToggle(batchObj.batch, subj)}
+                                      style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#8b5cf6' }}
+                                    />
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: isSelected ? '#4c1d95' : '#475569' }}>
+                                      {subj.subjectName} <span style={{ fontWeight: 400, opacity: 0.8, fontSize: '12px' }}>({batchObj.batchName})</span>
+                                    </span>
+                                  </label>
+                                );
+                              });
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className={styles.formField}>

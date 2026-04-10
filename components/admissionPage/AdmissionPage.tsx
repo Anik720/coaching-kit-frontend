@@ -161,25 +161,6 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
   const handleCreateAdmission = useCallback(async (admissionData: any) => {
     const { _autoSavedRegistrationId, ...cleanData } = admissionData;
 
-    if (_autoSavedRegistrationId) {
-      // Already auto-saved as INCOMPLETE — just update with final status
-      const toastId = toastManager.showLoading('Completing admission...');
-      try {
-        await dispatch(updateAdmission({
-          registrationId: _autoSavedRegistrationId,
-          admissionData: cleanData,
-        })).unwrap();
-        toastManager.updateToast(toastId, 'Admission submitted successfully!', 'success');
-        setOpen(false);
-        await dispatch(fetchAdmissions({ page: currentPage, limit: 10, sortBy: 'createdAt', sortOrder: 'desc', status: statusFilter !== "all" ? statusFilter : undefined }));
-        await dispatch(fetchAdmissionStatistics());
-      } catch (error: any) {
-        toastManager.safeUpdateToast(toastId, error.message || 'Failed to submit admission', 'error');
-      }
-      return;
-    }
-
-    // Normal create flow
     const toastId = toastManager.showLoading('Creating admission...');
     try {
       await dispatch(createAdmission(cleanData)).unwrap();
@@ -201,6 +182,7 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to create admission', 'error');
     }
   }, [dispatch, currentPage, statusFilter]);
+
 
   const handleUpdateAdmission = useCallback(async (registrationId: string, admissionData: any) => {
     setIsUpdating(true);
@@ -371,6 +353,7 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
@@ -932,7 +915,7 @@ export default function AdmissionPage({ defaultStatus = "all", autoOpenNew = fal
           dropdownsLoaded={dropdownsLoaded}
           fetchBatchesByClass={async (classId) => {
             try {
-              const response = await api.get(`/batches/class/${classId}`);
+              const response = await api.get(`/batches/class/${classId}?limit=1000`);
               if (response.data.data) {
                 return response.data.data;
               } else if (Array.isArray(response.data)) {

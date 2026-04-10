@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { AdmissionType, Gender, Religion, StudentStatus, CreateStudentDto } from '@/api/studentApi/types/student.types';
+import { 
+  AdmissionType, 
+  Gender, 
+  Religion, 
+  StudentStatus, 
+  CreateStudentDto, 
+  BatchSubject, 
+  StudentBatch 
+} from '@/api/studentApi/types/student.types';
 import styles from './CreateStudentModal.module.css';
 
 interface ClassForDropdown {
@@ -22,14 +30,16 @@ interface BatchForDropdown {
 interface CreateStudentModalProps {
   onClose: () => void;
   onCreate: (studentData: CreateStudentDto) => Promise<void>;
+  onSaveDraft?: (studentData: CreateStudentDto) => Promise<void>;
   loading?: boolean;
   classes?: ClassForDropdown[];
-  fetchBatchesByClass?: (classId: string) => Promise<BatchForDropdown[]>;
+  fetchBatchesByClass?: (classId: string) => Promise<any>;
 }
 
 export default function CreateStudentModal({ 
   onClose, 
   onCreate, 
+  onSaveDraft,
   loading = false,
   classes = [],
   fetchBatchesByClass
@@ -63,11 +73,12 @@ export default function CreateStudentModal({
     motherMobileNumber: '',
     referredBy: '',
     remarks: '',
+    batches: [] as StudentBatch[],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedClass, setSelectedClass] = useState<string>('');
-  const [availableBatches, setAvailableBatches] = useState<BatchForDropdown[]>([]);
+  const [availableBatches, setAvailableBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
 
   // Generate registration ID on component mount
@@ -109,6 +120,8 @@ export default function CreateStudentModal({
     loadBatches();
   }, [selectedClass, fetchBatchesByClass]);
 
+
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -124,10 +137,18 @@ export default function CreateStudentModal({
         [name]: checkbox.checked
       }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setFormData(prev => {
+        const updated = { ...prev, [name]: value };
+        if (name === 'admissionType') {
+          if (value === AdmissionType.COURSE) {
+            updated.admissionFee = 0;
+            updated.monthlyTuitionFee = 0;
+          } else if (value === AdmissionType.MONTHLY) {
+            updated.courseFee = 0;
+          }
+        }
+        return updated;
+      });
     }
 
     // Clear error for this field
@@ -142,59 +163,75 @@ export default function CreateStudentModal({
   const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const classId = e.target.value;
     setSelectedClass(classId);
-    setFormData(prev => ({
-      ...prev,
-      class: classId,
-      batch: '' // Reset batch when class changes
-    }));
-    
-    // Clear batch error if exists
-    if (errors.batch) {
-      setErrors(prev => ({
-        ...prev,
-        batch: ''
-      }));
-    }
+    setFormData(prev => ({ ...prev, class: classId, batches: [] }));
+    setAvailableBatches([]);
+    if (errors.class) setErrors(prev => ({ ...prev, class: '' }));
+    if (errors.batches) setErrors(prev => ({ ...prev, batches: '' }));
   };
 
-  const handleBatchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const batchId = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      batch: batchId
-    }));
-    
-    // Clear batch error if exists
-    if (errors.batch) {
-      setErrors(prev => ({
-        ...prev,
-        batch: ''
-      }));
-    }
+  const handleBatchToggle = (batch: any) => {
+    setFormData(prev => {
+      const isSelected = prev.batches?.some(b => b.batch === batch._id);
+      let newBatches;
+      
+      if (isSelected) {
+        newBatches = prev.batches?.filter(b => b.batch !== batch._id) || [];
+      } else {
+        const newBatch: StudentBatch = {
+          batch: batch._id,
+          batchName: batch.batchName,
+          batchId: batch.batchId,
+          subjects: [], // Add with empty subjects initially
+          admissionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.admissionFee || 0),
+          tuitionFee: prev.admissionType === AdmissionType.COURSE ? 0 : (batch.tuitionFee || 0),
+          courseFee: prev.admissionType === AdmissionType.MONTHLY ? 0 : (batch.courseFee || 0),
+        };
+        newBatches = [...(prev.batches || []), newBatch];
+      }
+
+      return { ...prev, batches: newBatches };
+    });
+    if (errors.batches) setErrors(prev => ({ ...prev, batches: '' }));
+  };
+
+  const handleSubjectToggle = (batchId: string, subject: any) => {
+    setFormData(prev => {
+      const updatedBatches = (prev.batches || []).map(b => {
+        if (b.batch === batchId) {
+          const isSelected = b.subjects.some(s => s.subjectId === subject._id);
+          const newSubjects = isSelected
+            ? b.subjects.filter(s => s.subjectId !== subject._id)
+            : [...b.subjects, { subjectId: subject._id, subjectName: subject.subjectName }];
+          return { ...b, subjects: newSubjects };
+        }
+        return b;
+      });
+      return { ...prev, batches: updatedBatches };
+    });
   };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.class.trim()) {
+    if (!(formData.class ?? '').trim()) {
       newErrors.class = 'Class is required';
     }
 
-    if (!formData.batch?.trim()) {
-      newErrors.batch = 'Batch is required';
+    if (!formData.batches || formData.batches.length === 0) {
+      newErrors.batches = 'At least one batch is required';
     }
 
-    if (!formData.nameEnglish.trim()) {
+    if (!(formData.nameEnglish ?? '').trim()) {
       newErrors.nameEnglish = 'Student name is required';
     }
 
-    if (!formData.fatherName.trim()) {
+    if (!(formData.fatherName ?? '').trim()) {
       newErrors.fatherName = "Father's name is required";
     }
 
-    if (!formData.fatherMobileNumber.trim()) {
+    if (!(formData.fatherMobileNumber ?? '').trim()) {
       newErrors.fatherMobileNumber = "Father's mobile number is required";
-    } else if (!/^01[3-9]\d{8}$/.test(formData.fatherMobileNumber)) {
+    } else if (!/^01[3-9]\d{8}$/.test(formData.fatherMobileNumber ?? '')) {
       newErrors.fatherMobileNumber = 'Please enter a valid Bangladeshi mobile number';
     }
 
@@ -202,19 +239,19 @@ export default function CreateStudentModal({
       newErrors.dateOfBirth = 'Date of birth is required';
     }
 
-    if (!formData.presentAddress.trim()) {
+    if (!(formData.presentAddress ?? '').trim()) {
       newErrors.presentAddress = 'Present address is required';
     }
 
-    if (!formData.instituteName?.trim()) {
+    if (!(formData.instituteName ?? '').trim()) {
       newErrors.instituteName = 'Institute name is required';
     }
 
-    if (formData.admissionFee < 0) {
+    if ((formData.admissionFee ?? 0) < 0) {
       newErrors.admissionFee = 'Admission fee cannot be negative';
     }
 
-    if (formData.totalAmount < 0) {
+    if ((formData.totalAmount ?? 0) < 0) {
       newErrors.totalAmount = 'Total amount cannot be negative';
     }
 
@@ -244,9 +281,31 @@ export default function CreateStudentModal({
     }
   };
 
+  const handleSaveDraft = async () => {
+    // Drafts only require a registrationId — everything else is optional
+    const draftData: CreateStudentDto = {
+      ...formData,
+      status: StudentStatus.PENDING,
+      isActive: false,
+    };
+
+    try {
+      if (onSaveDraft) {
+        await onSaveDraft(draftData);
+      } else {
+        await onCreate(draftData);
+      }
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+    }
+  };
+
   // Calculate total amount automatically
   useEffect(() => {
-    if (formData.admissionType === AdmissionType.MONTHLY) {
+    const batchesTotal = formData.batches?.reduce((sum, b) => sum + (b.admissionFee || 0) + (b.tuitionFee || 0) + (b.courseFee || 0), 0) || 0;
+    if (batchesTotal > 0) {
+      setFormData(prev => ({ ...prev, totalAmount: batchesTotal }));
+    } else if (formData.admissionType === AdmissionType.MONTHLY) {
       setFormData(prev => ({
         ...prev,
         totalAmount: (prev.admissionFee || 0) + (prev.monthlyTuitionFee || 0)
@@ -257,7 +316,7 @@ export default function CreateStudentModal({
         totalAmount: (prev.admissionFee || 0) + (prev.courseFee || 0)
       }));
     }
-  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType]);
+  }, [formData.admissionFee, formData.monthlyTuitionFee, formData.courseFee, formData.admissionType, formData.batches]);
 
   const safeClasses = Array.isArray(classes) ? classes : [];
   const safeBatches = Array.isArray(availableBatches) ? availableBatches : [];
@@ -330,36 +389,106 @@ export default function CreateStudentModal({
                   {errors.class && <span className={styles.errorMessage}>{errors.class}</span>}
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="batch">
-                    Select Batch <span className={styles.required}>*</span>
-                  </label>
-                  <select
-                    id="batch"
-                    name="batch"
-                    value={formData.batch}
-                    onChange={handleBatchChange}
-                    className={`${styles.input} ${errors.batch ? styles.inputError : ''}`}
-                    disabled={loading || !selectedClass || loadingBatches || safeBatches.length === 0}
-                    required
-                  >
-                    <option value="">
-                      {!selectedClass 
-                        ? 'Select class first' 
-                        : loadingBatches 
-                          ? 'Loading batches...' 
-                          : safeBatches.length === 0 
-                            ? 'No batches available' 
-                            : 'Select the batch'
-                      }
-                    </option>
-                    {safeBatches.map(batch => (
-                      <option key={batch._id} value={batch._id}>
-                        {batch.batchName} - {batch.className?.classname || ''} - {batch.sessionYear}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.batch && <span className={styles.errorMessage}>{errors.batch}</span>}
+                <div className={styles.formFieldFull} style={{ marginTop: '16px' }}>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+                    <div className={styles.formGrid}>
+                      <div className={styles.formFieldFull}>
+                        <label className={styles.label}>1. Select Batches <span className={styles.required}>*</span></label>
+                        {!selectedClass ? (
+                          <div style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic', marginTop: '8px' }}>Select class first to view available batches</div>
+                        ) : loadingBatches ? (
+                          <div style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>Loading batches...</div>
+                        ) : safeBatches.length === 0 ? (
+                          <div style={{ color: '#ef4444', fontSize: '14px', marginTop: '8px' }}>No batches available for this class</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
+                            {safeBatches
+                              .filter((b, idx, arr) => arr.findIndex(x => String(x._id) === String(b._id)) === idx)
+                              .map(b => (
+                              <label key={b._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'white', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '8px', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.batches?.some(fb => fb.batch === b._id)}
+                                  onChange={() => handleBatchToggle(b)}
+                                  style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                />
+                                <span style={{ fontSize: '15px', fontWeight: 500, color: '#334155' }}>
+                                  {b.batchName} ({b.sessionYear})
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {errors.batches && <span className={styles.errorMessage}>{errors.batches}</span>}
+                      </div>
+
+                      {formData.batches && formData.batches.length > 0 && (
+                        <div className={styles.formFieldFull} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                          <label className={styles.label}>2. Select Subjects</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                            {formData.batches.map(batchObj => {
+                              // Collect ALL subjects for this batch from all matching entries
+                              const batchEntries = safeBatches.filter(b => String(b._id) === String(batchObj.batch));
+                              if (batchEntries.length === 0) return null;
+
+                              const seenSubjectIds = new Set<string>();
+                              const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
+                              batchEntries.forEach(entry => {
+                                const rawSubject = entry.subject;
+                                if (!rawSubject) return;
+                                let subjectId: string;
+                                let subjectName: string;
+                                if (typeof rawSubject === 'object' && rawSubject._id) {
+                                  subjectId = String(rawSubject._id);
+                                  subjectName = rawSubject.subjectName || 'Subject';
+                                } else if (typeof rawSubject === 'string') {
+                                  subjectId = rawSubject;
+                                  subjectName = 'Subject';
+                                } else {
+                                  return;
+                                }
+                                if (!seenSubjectIds.has(subjectId)) {
+                                  seenSubjectIds.add(subjectId);
+                                  batchSubjects.push({ _id: subjectId, subjectName });
+                                }
+                              });
+
+                              if (batchSubjects.length === 0) {
+                                return (
+                                  <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>
+                                    No subjects available for {batchObj.batchName}
+                                  </div>
+                                );
+                              }
+
+                              return batchSubjects.map((subj) => {
+                                const isSelected = batchObj.subjects.some(s => String(s.subjectId) === String(subj._id));
+                                return (
+                                  <label key={`${batchObj.batch}-${subj._id}`} style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                                    background: isSelected ? '#ede9fe' : 'white',
+                                    border: `1px solid ${isSelected ? '#8b5cf6' : '#cbd5e1'}`,
+                                    padding: '8px 14px', borderRadius: '24px', transition: 'all 0.2s',
+                                    boxShadow: isSelected ? '0 2px 4px rgba(139, 92, 246, 0.15)' : 'none'
+                                  }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => handleSubjectToggle(batchObj.batch, subj)}
+                                      style={{ cursor: 'pointer', display: 'none' }}
+                                    />
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: isSelected ? '#4c1d95' : '#475569' }}>
+                                      {subj.subjectName} <span style={{ fontWeight: 400, opacity: 0.8 }}>({batchObj.batchName})</span>
+                                    </span>
+                                  </label>
+                                );
+                              });
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -681,6 +810,7 @@ export default function CreateStudentModal({
                     className={`${styles.input} ${errors.admissionFee ? styles.inputError : ''}`}
                     min="0"
                     step="100"
+                    disabled={formData.admissionType === AdmissionType.COURSE}
                   />
                   {errors.admissionFee && <span className={styles.errorMessage}>{errors.admissionFee}</span>}
                 </div>
@@ -765,6 +895,22 @@ export default function CreateStudentModal({
               disabled={loading}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className={styles.btnDraft}
+              disabled={loading}
+              title="Save as draft (incomplete) — you can complete later"
+            >
+              {loading ? (
+                <>
+                  <span className={styles.spinnerSmall}></span>
+                  Saving...
+                </>
+              ) : (
+                '💾 Save Draft'
+              )}
             </button>
             <button
               type="submit"

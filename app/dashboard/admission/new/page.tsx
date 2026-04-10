@@ -1,5 +1,5 @@
-import AdmissionPage from '@/components/admissionPage/AdmissionPage';
+import NewAdmissionPage from '@/components/admissionPage/NewAdmissionPage';
 
 export default function NewAdmissionRoute() {
-  return <AdmissionPage defaultStatus="all" autoOpenNew={true} />;
+  return <NewAdmissionPage />;
 }
