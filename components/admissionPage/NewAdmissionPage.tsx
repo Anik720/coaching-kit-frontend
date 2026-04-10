@@ -26,12 +26,27 @@ import styles from './AdmissionPage.module.css';
 import api from '@/api/axios';
 import { subjectsFromBatchEntry } from '@/utils/batchSubjectsFromApi';
 
-// ----- Helpers -----
 const generateRegistrationId = () => {
   const ts = Date.now().toString().slice(-6);
   const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `REG${ts}${rand}`;
 };
+
+const BOARDS = [
+  'Dhaka Board', 'Rajshahi Board', 'Comilla Board', 'Jessore Board',
+  'Chittagong Board', 'Barisal Board', 'Sylhet Board', 'Dinajpur Board',
+  'Mymensingh Board', 'Bangladesh Madrasah Education Board',
+  'Bangladesh Technical Education Board',
+];
+
+const EXAMINATIONS = [
+  'SSC (Secondary School Certificate)', 'HSC (Higher Secondary Certificate)',
+  'Dakhil (SSC সমমান)', 'Alim (HSC সমমান)', 'Fazil', 'Kamil',
+  'SSC Vocational', 'HSC Vocational', 'Diploma in Engineering',
+  'Diploma in Textile', 'Trade Course / Certificate Course',
+];
+
+const EXAM_YEARS = Array.from({ length: 100 }, (_, i) => String(2000 + i));
 
 export default function NewAdmissionPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -61,26 +76,30 @@ export default function NewAdmissionPage() {
     studentMobileNumber: '',
     instituteName: '',
     fathersName: '',
+    fatherMobileNumber: '',
     mothersName: '',
-    guardianMobileNumber: '',
     motherMobileNumber: '',
+    localGuardianMobileNumber: '',
     admissionType: AdmissionType.MONTHLY,
     courseFee: 0,
     admissionFee: 0,
     tuitionFee: 0,
+    paymentInstallment: '' as string | number,
     referBy: '',
     admissionDate: new Date().toISOString().split('T')[0],
     remarks: '',
     batches: [] as AdmissionBatch[],
+    lastExamBoard: '',
+    lastExamName: '',
+    lastExamYear: '',
+    lastExamResult: '',
   });
 
-  // Load classes and templates on mount
   useEffect(() => {
     dispatch(fetchStudentClasses());
     dispatch(fetchAdmissionTemplates());
   }, [dispatch]);
 
-  // Load batches when class is selected
   useEffect(() => {
     if (!selectedClass) {
       setAvailableBatches([]);
@@ -90,13 +109,11 @@ export default function NewAdmissionPage() {
     api.get(`/batches/class/${selectedClass}?limit=1000`)
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
-        console.log('Available batches for class:', data);
         setAvailableBatches(data);
       })
       .catch(() => setAvailableBatches([]))
       .finally(() => setLoadingBatches(false));
   }, [selectedClass]);
-
 
   const activeSettings = useMemo(() => {
     const defaultFields = {
@@ -121,8 +138,11 @@ export default function NewAdmissionPage() {
   }, [selectedTemplateId, templates, settings]);
 
   const totalFee = useMemo(() => {
-    return formData.admissionFee + formData.tuitionFee + formData.courseFee;
-  }, [formData.admissionFee, formData.tuitionFee, formData.courseFee]);
+    if (formData.admissionType === AdmissionType.MONTHLY) {
+      return formData.admissionFee + formData.tuitionFee;
+    }
+    return formData.courseFee;
+  }, [formData.admissionFee, formData.tuitionFee, formData.courseFee, formData.admissionType]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => {
@@ -131,11 +151,12 @@ export default function NewAdmissionPage() {
         if (value === AdmissionType.COURSE) {
           updated.admissionFee = 0;
           updated.tuitionFee = 0;
+          updated.paymentInstallment = '';
         } else if (value === AdmissionType.MONTHLY) {
           updated.courseFee = 0;
+          updated.paymentInstallment = '';
         }
       }
-      // debounced draft save
       if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
       draftSaveTimerRef.current = setTimeout(() => {
         dispatch(saveDraftForm({ registrationId: updated.registrationId, autoSavedRegistrationId: null, formData: updated }));
@@ -154,19 +175,38 @@ export default function NewAdmissionPage() {
   const handleBatchToggle = (batch: any) => {
     setFormData(prev => {
       const isSelected = prev.batches.some(b => b.batch === batch._id);
+      let updatedBatches: AdmissionBatch[];
+
       if (isSelected) {
-        return { ...prev, batches: prev.batches.filter(b => b.batch !== batch._id) };
+        updatedBatches = prev.batches.filter(b => b.batch !== batch._id);
+      } else {
+        // Auto-select all subjects from this batch
+        const batchSubjects = subjectsFromBatchEntry(batch);
+        const autoSubjects = batchSubjects.map(s => ({ subjectId: s._id, subjectName: s.subjectName }));
+        const newBatch: AdmissionBatch = {
+          batch: batch._id,
+          batchName: batch.batchName,
+          batchId: batch.batchId,
+          subjects: autoSubjects,
+          admissionFee: batch.admissionFee || 0,
+          tuitionFee: batch.tuitionFee || 0,
+          courseFee: batch.courseFee || 0,
+        };
+        updatedBatches = [...prev.batches, newBatch];
       }
-      const newBatch: AdmissionBatch = {
-        batch: batch._id,
-        batchName: batch.batchName,
-        batchId: batch.batchId,
-        subjects: [],
-        admissionFee: 0,
-        tuitionFee: 0,
-        courseFee: 0,
+
+      // Auto-populate fee fields as sum of all selected batches
+      const totalAdmissionFee = updatedBatches.reduce((s, b) => s + (b.admissionFee || 0), 0);
+      const totalTuitionFee = updatedBatches.reduce((s, b) => s + (b.tuitionFee || 0), 0);
+      const totalCourseFee = updatedBatches.reduce((s, b) => s + (b.courseFee || 0), 0);
+
+      return {
+        ...prev,
+        batches: updatedBatches,
+        admissionFee: totalAdmissionFee,
+        tuitionFee: totalTuitionFee,
+        courseFee: totalCourseFee,
       };
-      return { ...prev, batches: [...prev.batches, newBatch] };
     });
   };
 
@@ -189,11 +229,11 @@ export default function NewAdmissionPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = 'Student name is required';
-    if (!formData.guardianMobileNumber.trim()) newErrors.guardianMobileNumber = "Guardian mobile is required";
-    if (!formData.instituteName.trim()) newErrors.instituteName = "Institute name is required";
+    if (!formData.localGuardianMobileNumber.trim()) newErrors.localGuardianMobileNumber = 'Local guardian mobile is required';
+    if (!formData.instituteName.trim()) newErrors.instituteName = 'Institute name is required';
     if (activeSettings.fathersName?.isRequired && !formData.fathersName.trim()) newErrors.fathersName = "Father's name is required";
-    if (activeSettings.presentAddress?.isRequired && !formData.presentAddress.trim()) newErrors.presentAddress = "Present address is required";
-    if (activeSettings.studentDateOfBirth?.isRequired && !formData.studentDateOfBirth) newErrors.studentDateOfBirth = "Date of birth is required";
+    if (activeSettings.presentAddress?.isRequired && !formData.presentAddress.trim()) newErrors.presentAddress = 'Present address is required';
+    if (activeSettings.studentDateOfBirth?.isRequired && !formData.studentDateOfBirth) newErrors.studentDateOfBirth = 'Date of birth is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -213,20 +253,26 @@ export default function NewAdmissionPage() {
       permanentAddress: formData.permanentAddress || undefined,
       instituteName: formData.instituteName,
       fatherName: formData.fathersName,
-      fatherMobileNumber: formData.guardianMobileNumber,
+      fatherMobileNumber: formData.fatherMobileNumber || undefined,
       motherName: formData.mothersName || undefined,
       motherMobileNumber: formData.motherMobileNumber || undefined,
       studentMobileNumber: formData.studentMobileNumber || undefined,
       whatsappMobile: formData.whatsappMobile || undefined,
+      localGuardianMobileNumber: formData.localGuardianMobileNumber || undefined,
       admissionType: formData.admissionType,
       admissionFee: formData.admissionFee,
       monthlyTuitionFee: formData.tuitionFee,
       courseFee: formData.courseFee,
+      paymentInstallment: formData.paymentInstallment ? Number(formData.paymentInstallment) : undefined,
       totalAmount: totalFee,
       paidAmount: 0,
       admissionDate: formData.admissionDate,
       referredBy: formData.referBy || undefined,
       remarks: formData.remarks || undefined,
+      lastExamBoard: formData.lastExamBoard || undefined,
+      lastExamName: formData.lastExamName || undefined,
+      lastExamYear: formData.lastExamYear || undefined,
+      lastExamResult: formData.lastExamResult || undefined,
       batch: formData.batches[0]?.batch || undefined,
       batches: formData.batches as any,
       class: selectedClass || '',
@@ -240,18 +286,20 @@ export default function NewAdmissionPage() {
       await dispatch(createStudent(studentPayload)).unwrap();
       dispatch(clearDraftForm());
       toastManager.updateToast(toastId, 'Student registered successfully!', 'success');
-      // Reset form
       setFormData({
         registrationId: generateRegistrationId(),
         name: '', nameNative: '', studentGender: Gender.MALE, studentDateOfBirth: '',
         presentAddress: '', permanentAddress: '', religion: Religion.ISLAM,
         whatsappMobile: '', studentMobileNumber: '', instituteName: '', fathersName: '',
-        mothersName: '', guardianMobileNumber: '', motherMobileNumber: '',
+        fatherMobileNumber: '', mothersName: '', motherMobileNumber: '',
+        localGuardianMobileNumber: '',
         admissionType: AdmissionType.MONTHLY, courseFee: 0, admissionFee: 0, tuitionFee: 0,
-        referBy: '', admissionDate: new Date().toISOString().split('T')[0], remarks: '', batches: [],
+        paymentInstallment: '',
+        referBy: '', admissionDate: new Date().toISOString().split('T')[0], remarks: '',
+        batches: [],
+        lastExamBoard: '', lastExamName: '', lastExamYear: '', lastExamResult: '',
       });
       setSelectedClass(''); setAvailableBatches([]); setErrors({}); setTouched({});
-      // Redirect to students list after 1.5s
       setTimeout(() => router.push('/dashboard/students/lists'), 1500);
     } catch (error: any) {
       toastManager.safeUpdateToast(toastId, error.message || 'Failed to register student', 'error');
@@ -276,7 +324,6 @@ export default function NewAdmissionPage() {
             <p className={styles.pageSubtitle}>Register a new student to your institution</p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Template Select */}
             {templates.length > 0 && (
               <select
                 value={selectedTemplateId}
@@ -296,7 +343,6 @@ export default function NewAdmissionPage() {
         </div>
       </div>
 
-      {/* Inline Form */}
       <div style={{ padding: '0 0 40px 0' }}>
         <form onSubmit={handleSubmit}>
 
@@ -312,26 +358,29 @@ export default function NewAdmissionPage() {
                 <input type="text" value={formData.registrationId} readOnly className={`${styles.input} ${styles.readOnly}`} />
               </div>
               <div className={styles.formField}>
+                <label className={styles.label}>Admission Date</label>
+                <input type="date" value={formData.admissionDate} onChange={e => handleChange('admissionDate', e.target.value)} className={styles.input} />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Select Class</label>
+                <select value={selectedClass} onChange={e => handleClassSelect(e.target.value)} className={styles.input} disabled={safeClasses.length === 0}>
+                  <option value="">Select class</option>
+                  {safeClasses.map(cls => <option key={cls._id} value={cls._id}>{cls.classname}</option>)}
+                </select>
+              </div>
+              <div className={styles.formField}>
                 <label className={styles.label}>Admission Type <span style={{ color: '#ef4444' }}>*</span></label>
                 <select value={formData.admissionType} onChange={e => handleChange('admissionType', e.target.value)} className={styles.input}>
                   <option value={AdmissionType.MONTHLY}>Monthly</option>
                   <option value={AdmissionType.COURSE}>Course</option>
                 </select>
               </div>
-              <div className={styles.formField}>
-                <label className={styles.label}>1. Select Class</label>
-                <select value={selectedClass} onChange={e => handleClassSelect(e.target.value)} className={styles.input} disabled={safeClasses.length === 0}>
-                  <option value="">Select class</option>
-                  {safeClasses.map(cls => <option key={cls._id} value={cls._id}>{cls.classname}</option>)}
-                </select>
-              </div>
               {selectedClass && (
                 <div className={styles.formFieldFull} style={{ marginTop: '8px' }}>
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
-                    {/* Step 2: Select Batches */}
                     <div style={{ marginBottom: '16px' }}>
                       <label className={styles.label} style={{ marginBottom: '8px', display: 'block' }}>
-                        2. Select Batches <span style={{ color: '#ef4444' }}>*</span>
+                        Select Batches <span style={{ color: '#ef4444' }}>*</span>
                       </label>
                       {loadingBatches ? (
                         <div style={{ color: '#64748b', fontSize: '14px' }}>Loading batches...</div>
@@ -346,7 +395,6 @@ export default function NewAdmissionPage() {
                               padding: '10px 14px',
                               border: `2px solid ${formData.batches.some(fb => fb.batch === b._id) ? '#8b5cf6' : '#cbd5e1'}`,
                               borderRadius: '8px', transition: 'all 0.2s',
-                              boxShadow: formData.batches.some(fb => fb.batch === b._id) ? '0 2px 6px rgba(139,92,246,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
                             }}>
                               <input
                                 type="checkbox"
@@ -363,24 +411,21 @@ export default function NewAdmissionPage() {
                       )}
                     </div>
 
-                    {/* Step 3: Select Subjects per Batch */}
                     {formData.batches.length > 0 && (
                       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                         <label className={styles.label} style={{ marginBottom: '10px', display: 'block' }}>
-                          3. Select Subjects
+                          Select Subjects
                         </label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                           {formData.batches.map(batchObj => {
                             const batchData = safeBatches.find(b => b._id === batchObj.batch);
                             if (!batchData) return null;
                             const batchSubjects = subjectsFromBatchEntry(batchData);
-                            if (batchSubjects.length === 0) {
-                              return (
-                                <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>
-                                  No subjects for {batchObj.batchName}
-                                </div>
-                              );
-                            }
+                            if (batchSubjects.length === 0) return (
+                              <div key={batchObj.batch} style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', padding: '6px 12px', background: '#f1f5f9', borderRadius: '6px' }}>
+                                No subjects for {batchObj.batchName}
+                              </div>
+                            );
                             return batchSubjects.map((subj) => {
                               const isSelected = batchObj.subjects.some(s => String(s.subjectId) === String(subj._id));
                               return (
@@ -389,14 +434,8 @@ export default function NewAdmissionPage() {
                                   background: isSelected ? '#ede9fe' : 'white',
                                   border: `2px solid ${isSelected ? '#8b5cf6' : '#cbd5e1'}`,
                                   padding: '8px 14px', borderRadius: '24px', transition: 'all 0.2s',
-                                  boxShadow: isSelected ? '0 2px 4px rgba(139,92,246,0.15)' : 'none',
                                 }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => handleSubjectToggle(batchObj.batch, subj)}
-                                    style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#8b5cf6' }}
-                                  />
+                                  <input type="checkbox" checked={isSelected} onChange={() => handleSubjectToggle(batchObj.batch, subj)} style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#8b5cf6' }} />
                                   <span style={{ fontSize: '14px', fontWeight: 600, color: isSelected ? '#4c1d95' : '#475569' }}>
                                     {subj.subjectName} <span style={{ fontWeight: 400, opacity: 0.7, fontSize: '12px' }}>({batchObj.batchName})</span>
                                   </span>
@@ -410,10 +449,6 @@ export default function NewAdmissionPage() {
                   </div>
                 </div>
               )}
-              <div className={styles.formField}>
-                <label className={styles.label}>Admission Date</label>
-                <input type="date" value={formData.admissionDate} onChange={e => handleChange('admissionDate', e.target.value)} className={styles.input} />
-              </div>
             </div>
           </div>
 
@@ -495,9 +530,8 @@ export default function NewAdmissionPage() {
                 </div>
               )}
               <div className={styles.formField}>
-                <label className={styles.label}>Guardian Mobile <span style={{ color: '#ef4444' }}>*</span></label>
-                <input type="tel" value={formData.guardianMobileNumber} onChange={e => handleChange('guardianMobileNumber', e.target.value)} onBlur={() => setTouched(p => ({ ...p, guardianMobileNumber: true }))} className={`${styles.input} ${errors.guardianMobileNumber ? styles.inputError : ''}`} placeholder="01XXXXXXXXX" />
-                {errors.guardianMobileNumber && <div className={styles.errorMessage}>{errors.guardianMobileNumber}</div>}
+                <label className={styles.label}>Father's Mobile</label>
+                <input type="tel" value={formData.fatherMobileNumber} onChange={e => handleChange('fatherMobileNumber', e.target.value)} className={styles.input} placeholder="01XXXXXXXXX" />
               </div>
               {activeSettings.mothersName?.isVisible && (
                 <div className={styles.formField}>
@@ -511,6 +545,11 @@ export default function NewAdmissionPage() {
                   <input type="tel" value={formData.motherMobileNumber} onChange={e => handleChange('motherMobileNumber', e.target.value)} className={styles.input} placeholder="01XXXXXXXXX" />
                 </div>
               )}
+              <div className={styles.formField}>
+                <label className={styles.label}>Local Guardian Mobile <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="tel" value={formData.localGuardianMobileNumber} onChange={e => handleChange('localGuardianMobileNumber', e.target.value)} onBlur={() => setTouched(p => ({ ...p, localGuardianMobileNumber: true }))} className={`${styles.input} ${errors.localGuardianMobileNumber ? styles.inputError : ''}`} placeholder="01XXXXXXXXX" />
+                {errors.localGuardianMobileNumber && <div className={styles.errorMessage}>{errors.localGuardianMobileNumber}</div>}
+              </div>
             </div>
           </div>
 
@@ -546,44 +585,99 @@ export default function NewAdmissionPage() {
               <h3 className={styles.sectionTitle}>Fee Information</h3>
             </div>
             <div className={styles.formGrid}>
+              {formData.admissionType === AdmissionType.MONTHLY && (
+                <>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Admission Fee</label>
+                    <input type="number" value={formData.admissionFee} onChange={e => handleChange('admissionFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Monthly Tuition Fee</label>
+                    <input type="number" value={formData.tuitionFee} onChange={e => handleChange('tuitionFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" />
+                  </div>
+                </>
+              )}
+              {formData.admissionType === AdmissionType.COURSE && (
+                <>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Course Fee</label>
+                    <input type="number" value={formData.courseFee} onChange={e => handleChange('courseFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" />
+                  </div>
+                  <div className={styles.formField}>
+                    <label className={styles.label}>Payment Installment</label>
+                    <select value={formData.paymentInstallment} onChange={e => handleChange('paymentInstallment', e.target.value)} className={styles.input}>
+                      <option value="">Select the Installment</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                  </div>
+                </>
+              )}
               <div className={styles.formField}>
-                <label className={styles.label}>Admission Fee</label>
-                <input type="number" value={formData.admissionFee} onChange={e => handleChange('admissionFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.COURSE} />
+                <label className={styles.label}>Admission Date</label>
+                <input type="date" value={formData.admissionDate} onChange={e => handleChange('admissionDate', e.target.value)} className={styles.input} />
               </div>
-              <div className={styles.formField}>
-                <label className={styles.label}>Tuition Fee</label>
-                <input type="number" value={formData.tuitionFee} onChange={e => handleChange('tuitionFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.COURSE} />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label}>Course Fee</label>
-                <input type="number" value={formData.courseFee} onChange={e => handleChange('courseFee', Number(e.target.value) || 0)} className={styles.input} placeholder="0" min="0" disabled={formData.admissionType === AdmissionType.MONTHLY} />
-              </div>
+              {activeSettings.referBy?.isVisible && (
+                <div className={styles.formField}>
+                  <label className={styles.label}>Refer By</label>
+                  <input type="text" value={formData.referBy} onChange={e => handleChange('referBy', e.target.value)} className={styles.input} placeholder="Person who referred" />
+                </div>
+              )}
             </div>
             <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981', marginTop: '16px', padding: '12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'right' }}>
               Total Fee: {formatCurrency(totalFee)}
             </div>
           </div>
 
+          {/* Last Academic Information */}
+          <div className={styles.formSectionCard}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionIcon}>📚</div>
+              <h3 className={styles.sectionTitle}>Last Academic Information</h3>
+            </div>
+            <div className={styles.formGrid}>
+              <div className={styles.formField}>
+                <label className={styles.label}>Name of Board</label>
+                <select value={formData.lastExamBoard} onChange={e => handleChange('lastExamBoard', e.target.value)} className={styles.input}>
+                  <option value="">Select One</option>
+                  {BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Name of Examination</label>
+                <select value={formData.lastExamName} onChange={e => handleChange('lastExamName', e.target.value)} className={styles.input}>
+                  <option value="">Select One</option>
+                  {EXAMINATIONS.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Year of Examination</label>
+                <select value={formData.lastExamYear} onChange={e => handleChange('lastExamYear', e.target.value)} className={styles.input}>
+                  <option value="">Select One</option>
+                  {EXAM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label}>Result</label>
+                <input type="text" value={formData.lastExamResult} onChange={e => handleChange('lastExamResult', e.target.value)} className={styles.input} placeholder="e.g. GPA 5.00" />
+              </div>
+            </div>
+          </div>
+
           {/* Additional Info */}
-          {(activeSettings.referBy?.isVisible || activeSettings.remarks?.isVisible) && (
+          {activeSettings.remarks?.isVisible && (
             <div className={styles.formSectionCard}>
               <div className={styles.sectionHeader}>
                 <div className={styles.sectionIcon}>📝</div>
                 <h3 className={styles.sectionTitle}>Additional Information</h3>
               </div>
               <div className={styles.formGrid}>
-                {activeSettings.referBy?.isVisible && (
-                  <div className={styles.formField}>
-                    <label className={styles.label}>Referred By</label>
-                    <input type="text" value={formData.referBy} onChange={e => handleChange('referBy', e.target.value)} className={styles.input} placeholder="Person who referred" />
-                  </div>
-                )}
-                {activeSettings.remarks?.isVisible && (
-                  <div className={styles.formFieldFull}>
-                    <label className={styles.label}>Remarks</label>
-                    <textarea value={formData.remarks} onChange={e => handleChange('remarks', e.target.value)} className={styles.textarea} rows={2} />
-                  </div>
-                )}
+                <div className={styles.formFieldFull}>
+                  <label className={styles.label}>Remarks</label>
+                  <textarea value={formData.remarks} onChange={e => handleChange('remarks', e.target.value)} className={styles.textarea} rows={2} />
+                </div>
               </div>
             </div>
           )}

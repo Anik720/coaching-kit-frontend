@@ -252,17 +252,24 @@ export interface AdmissionFormDraft {
     studentMobileNumber: string;
     instituteName: string;
     fathersName: string;
+    fatherMobileNumber?: string;
     mothersName: string;
-    guardianMobileNumber: string;
+    guardianMobileNumber?: string;
+    localGuardianMobileNumber?: string;
     motherMobileNumber: string;
     admissionType: string;
     courseFee: number;
     admissionFee: number;
     tuitionFee: number;
+    paymentInstallment?: string | number;
     referBy: string;
     admissionDate: string;
     remarks: string;
     batches: AdmissionBatch[];
+    lastExamBoard?: string;
+    lastExamName?: string;
+    lastExamYear?: string;
+    lastExamResult?: string;
   };
 }
 

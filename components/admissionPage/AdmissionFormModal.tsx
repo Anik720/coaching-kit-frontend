@@ -179,7 +179,7 @@ export default function AdmissionFormModal({
           instituteName: draftForm.formData.instituteName,
           fathersName: draftForm.formData.fathersName,
           mothersName: draftForm.formData.mothersName,
-          guardianMobileNumber: draftForm.formData.guardianMobileNumber,
+          guardianMobileNumber: draftForm.formData.guardianMobileNumber ?? '',
           motherMobileNumber: draftForm.formData.motherMobileNumber,
           admissionType: draftForm.formData.admissionType as AdmissionType,
           courseFee: draftForm.formData.courseFee,
