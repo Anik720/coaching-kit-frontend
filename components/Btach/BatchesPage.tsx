@@ -14,10 +14,27 @@ import {
   fetchGroups,
   fetchSubjects
 } from "@/api/batchApi/batchSlice";
-import { BatchItem } from "@/api/batchApi/types/batch.types";
+import { BatchItem, SubjectItem } from "@/api/batchApi/types/batch.types";
 import { toastManager } from "@/utils/toastConfig";
 import styles from './Batches.module.css';
 import ConfirmationModal from "../common/ConfirmationModal";
+
+function formatBatchSubjectsDisplay(batch: BatchItem, catalog: SubjectItem[]): string {
+  const subs = batch.subjects;
+  if (Array.isArray(subs) && subs.length > 0) {
+    return subs
+      .map((s) =>
+        typeof s === "object" && s != null && "subjectName" in s
+          ? s.subjectName
+          : catalog.find((o) => o._id === s)?.subjectName ?? String(s)
+      )
+      .join(", ");
+  }
+  const sub = batch.subject;
+  if (sub == null) return "N/A";
+  if (typeof sub === "object" && "subjectName" in sub) return sub.subjectName || "N/A";
+  return catalog.find((o) => o._id === sub)?.subjectName ?? String(sub);
+}
 
 // Debounce hook for search optimization
 const useDebounce = (value: string, delay: number) => {
@@ -113,17 +130,16 @@ export default function BatchesPage() {
         console.log('🟡 User ID:', userId);
         
         // Prepare the data for API
+        const subjectIds: string[] = batchData.subjectIds || [];
         const apiData = {
         batchName: batchData.batchName,
         className: batchData.className,
         group: batchData.group,
-        subject: batchData.subject,
+        subjects: subjectIds,
+        subject: subjectIds[0],
         sessionYear: batchData.sessionYear,
         batchStartingDate: batchData.batchStartingDate,
         batchClosingDate: batchData.batchClosingDate,
-        admissionFee: Number(batchData.admissionFee) || 0,
-        tuitionFee: Number(batchData.tuitionFee) || 0,
-        courseFee: Number(batchData.courseFee) || 0,
         maxStudents: Number(batchData.maxStudents) || 50,
         status: batchData.status || 'upcoming',
         isActive: batchData.status === 'active',
@@ -228,15 +244,11 @@ export default function BatchesPage() {
     const upcomingBatches = batches.filter(b => b.status === 'upcoming').length;
     const completedBatches = batches.filter(b => b.status === 'completed').length;
     
-    const totalRevenue = batches.reduce((sum, batch) => {
-      return sum + (batch.admissionFee + batch.tuitionFee + batch.courseFee) * (batch.maxStudents || 50) * 0.7;
-    }, 0);
-    
-    const averageFee = batches.length > 0 
-      ? batches.reduce((sum, batch) => sum + (batch.admissionFee + batch.tuitionFee + batch.courseFee), 0) / batches.length
-      : 0;
+    const totalSeatCapacity = batches.reduce((sum, batch) => sum + (batch.maxStudents || 0), 0);
+    const avgSeatsPerBatch =
+      batches.length > 0 ? Math.round(totalSeatCapacity / batches.length) : 0;
 
-    return { totalBatches, activeBatches, upcomingBatches, completedBatches, totalRevenue, averageFee };
+    return { totalBatches, activeBatches, upcomingBatches, completedBatches, totalSeatCapacity, avgSeatsPerBatch };
   }, [batches, total]);
 
   // Helper function to get display name
@@ -331,12 +343,12 @@ export default function BatchesPage() {
         
         <div className={styles.statCard}>
           <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-            💰
+            👥
           </div>
           <div className={styles.statContent}>
-            <p className={styles.statLabel}>Total Revenue</p>
-            <p className={styles.statValue}>${stats.totalRevenue.toLocaleString()}</p>
-            <span className={styles.statSubtext}>Avg: ${stats.averageFee.toFixed(2)} per batch</span>
+            <p className={styles.statLabel}>Total seat capacity</p>
+            <p className={styles.statValue}>{stats.totalSeatCapacity.toLocaleString()}</p>
+            <span className={styles.statSubtext}>Avg {stats.avgSeatsPerBatch} seats / batch</span>
           </div>
         </div>
 
@@ -426,11 +438,11 @@ export default function BatchesPage() {
                       <th>Batch Name</th>
                       <th>Class</th>
                       <th>Group</th>
-                      <th>Subject</th>
+                      <th>Subjects</th>
                       <th>Session</th>
                       <th>Dates</th>
                       <th>Classes/Mo</th>
-                      <th>Fees</th>
+                      <th>Max seats</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -443,9 +455,6 @@ export default function BatchesPage() {
                             <span className={styles.classIcon}>📅</span>
                             <div>
                               <span className={styles.className}>{batch.batchName}</span>
-                              <div className={styles.batchInfo}>
-                                <span className={styles.maxStudents}>Max: {batch.maxStudents} students</span>
-                              </div>
                             </div>
                           </div>
                         </td>
@@ -456,7 +465,7 @@ export default function BatchesPage() {
                           {getDisplayName(batch.group, 'groupName')}
                         </td>
                         <td>
-                          {getDisplayName(batch.subject, 'subjectName')}
+                          {formatBatchSubjectsDisplay(batch, subjects)}
                         </td>
                         <td className={styles.dateCell}>
                           {batch.sessionYear}
@@ -475,14 +484,7 @@ export default function BatchesPage() {
                         <td>
                           {batch.monthlyClassCount || 0}
                         </td>
-                        <td>
-                          <div className={styles.feesCell}>
-                            <div>Admission: ${batch.admissionFee}</div>
-                            <div>Tuition: ${batch.tuitionFee}</div>
-                            <div>Course: ${batch.courseFee}</div>
-                            <div className={styles.totalFee}>Total: ${(batch.admissionFee + batch.tuitionFee + batch.courseFee).toLocaleString()}</div>
-                          </div>
-                        </td>
+                        <td>{batch.maxStudents ?? '—'}</td>
                         <td>
                           <div className={styles.statusCell}>
                             <span className={`${styles.statusBadge} ${
@@ -623,6 +625,7 @@ export default function BatchesPage() {
           batch={viewBatch}
           onClose={() => setViewBatch(null)}
           getDisplayName={getDisplayName}
+          subjectCatalog={subjects}
         />
       )}
 
@@ -664,13 +667,10 @@ function CreateBatchModal({
     batchName: '',
     className: '',
     group: '',
-    subject: '',
+    subjectIds: [] as string[],
     sessionYear: '',
     batchStartingDate: '',
     batchClosingDate: '',
-    admissionFee: '',
-    tuitionFee: '',
-    courseFee: '',
     monthlyClassCount: '',
     description: '',
     maxStudents: '50',
@@ -680,6 +680,18 @@ function CreateBatchModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const subjectDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(e.target as Node)) {
+        setSubjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const validateField = (name: string, value: any) => {
     // If field hasn't been touched and form hasn't been submitted, don't show error
@@ -700,8 +712,8 @@ function CreateBatchModal({
         if (!value) return 'Group is required';
         break;
       
-      case 'subject':
-        if (!value) return 'Subject is required';
+      case 'subjectIds':
+        if (!Array.isArray(value) || value.length === 0) return 'Select at least one subject';
         break;
       
       case 'sessionYear':
@@ -718,12 +730,6 @@ function CreateBatchModal({
         if (formData.batchStartingDate && new Date(value) <= new Date(formData.batchStartingDate)) {
           return 'Batch closing date must be after starting date';
         }
-        break;
-      
-      case 'admissionFee':
-      case 'tuitionFee':
-      case 'courseFee':
-        if (value && parseFloat(value) < 0) return 'Fee cannot be negative';
         break;
       
       case 'monthlyClassCount':
@@ -788,9 +794,6 @@ function CreateBatchModal({
       // Convert string values to numbers
       const submitData = {
         ...formData,
-        admissionFee: parseFloat(formData.admissionFee) || 0,
-        tuitionFee: parseFloat(formData.tuitionFee) || 0,
-        courseFee: parseFloat(formData.courseFee) || 0,
         monthlyClassCount: parseInt(formData.monthlyClassCount) || 0,
         maxStudents: parseInt(formData.maxStudents) || 50,
       };
@@ -818,6 +821,29 @@ function CreateBatchModal({
     }
   };
 
+  const handleSubjectsMultiSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const subjectIds = Array.from(e.target.selectedOptions, (o) => o.value);
+    setFormData((prev) => ({ ...prev, subjectIds }));
+    setTouched((t) => ({ ...t, subjectIds: true }));
+    if (submitAttempted || touched.subjectIds) {
+      const err = validateField("subjectIds", subjectIds);
+      setErrors((er) => ({ ...er, subjectIds: err }));
+    }
+  };
+
+  const handleSubjectToggle = (subjectId: string) => {
+    const current = formData.subjectIds;
+    const updated = current.includes(subjectId)
+      ? current.filter((id) => id !== subjectId)
+      : [...current, subjectId];
+    setFormData((prev) => ({ ...prev, subjectIds: updated }));
+    setTouched((t) => ({ ...t, subjectIds: true }));
+    if (submitAttempted || touched.subjectIds) {
+      const err = validateField('subjectIds', updated);
+      setErrors((er) => ({ ...er, subjectIds: err }));
+    }
+  };
+
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const error = validateField(field, formData[field as keyof typeof formData]);
@@ -827,22 +853,18 @@ function CreateBatchModal({
   // Check if form is valid (for button disable state)
   const isFormValid = () => {
     // Basic validation - check if required fields are filled
-    const requiredFields = ['batchName', 'className', 'group', 'subject', 'sessionYear', 'batchStartingDate', 'batchClosingDate', 'monthlyClassCount'];
-    const allRequiredFilled = requiredFields.every(field => 
-      field in formData && formData[field as keyof typeof formData]?.toString().trim() !== ''
-    );
+    const requiredFields = ['batchName', 'className', 'group', 'sessionYear', 'batchStartingDate', 'batchClosingDate', 'monthlyClassCount'];
+    const allRequiredFilled =
+      requiredFields.every(
+        (field) =>
+          field in formData &&
+          formData[field as keyof typeof formData]?.toString().trim() !== ''
+      ) && formData.subjectIds.length > 0;
     
     // Check for any validation errors
     const hasErrors = Object.keys(errors).length > 0;
     
     return allRequiredFilled && !hasErrors;
-  };
-
-  const calculateTotalFee = () => {
-    const admission = parseFloat(formData.admissionFee) || 0;
-    const tuition = parseFloat(formData.tuitionFee) || 0;
-    const course = parseFloat(formData.courseFee) || 0;
-    return admission + tuition + course;
   };
 
   // Auto-generate session year from start date
@@ -977,30 +999,47 @@ function CreateBatchModal({
 
             <div className={styles.formRow}>
               <div className={styles.formField}>
-                <label className={styles.label} htmlFor="subject">
-                  Subject
+                <label className={styles.label}>
+                  Subjects
                   <span className={styles.required}>*</span>
                 </label>
-                <select
-                  id="subject"
-                  value={formData.subject}
-                  onChange={(e) => handleChange('subject', e.target.value)}
-                  onBlur={() => handleBlur('subject')}
-                  className={`${styles.select} ${errors.subject ? styles.inputError : ''}`}
-                  disabled={loading || subjects.length === 0}
-                >
-                  <option value="">Select Subject</option>
-                  {subjects.map(sub => (
-                    <option key={sub._id} value={sub._id}>
-                      {sub.subjectName}
-                    </option>
-                  ))}
-                </select>
-                {errors.subject && (
-                  <div className={styles.errorMessage}>{errors.subject}</div>
+                {subjects.length === 0 ? (
+                  <div style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>No subjects loaded. Add subjects in Academic settings first.</div>
+                ) : (
+                  <div ref={subjectDropdownRef} className={styles.subjectDropdownWrapper}>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => setSubjectDropdownOpen((o) => !o)}
+                      className={`${styles.select} ${styles.subjectDropdownTrigger} ${errors.subjectIds ? styles.inputError : ''} ${formData.subjectIds.length === 0 ? styles.placeholder : ''}`}
+                    >
+                      {formData.subjectIds.length === 0
+                        ? 'Select subjects'
+                        : formData.subjectIds.length === 1
+                        ? subjects.find((s) => s._id === formData.subjectIds[0])?.subjectName || '1 subject selected'
+                        : `${formData.subjectIds.length} subjects selected`}
+                    </button>
+                    {subjectDropdownOpen && (
+                      <div className={styles.subjectDropdownMenu}>
+                        {subjects.map((sub) => (
+                          <label key={sub._id} className={styles.subjectDropdownItem}>
+                            <input
+                              type="checkbox"
+                              checked={formData.subjectIds.includes(sub._id)}
+                              onChange={() => handleSubjectToggle(sub._id)}
+                            />
+                            <span>{sub.subjectName}{sub.subjectCode ? ` — ${sub.subjectCode}` : ''}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-                {!errors.subject && formData.subject && (
-                  <div className={styles.helpText}>✓ Subject selected</div>
+                {errors.subjectIds && (
+                  <div className={styles.errorMessage}>{errors.subjectIds}</div>
+                )}
+                {!errors.subjectIds && formData.subjectIds.length > 0 && (
+                  <div className={styles.helpText}>{formData.subjectIds.length} subject(s) selected</div>
                 )}
               </div>
 
@@ -1081,80 +1120,6 @@ function CreateBatchModal({
 
             <div className={styles.formRow}>
               <div className={styles.formField}>
-                <label className={styles.label} htmlFor="admissionFee">
-                  Admission Fee
-                </label>
-                <div className={styles.inputWithSymbol}>
-                  <span className={styles.currencySymbol}>$</span>
-                  <input
-                    id="admissionFee"
-                    type="number"
-                    value={formData.admissionFee}
-                    onChange={(e) => handleChange('admissionFee', e.target.value)}
-                    onBlur={() => handleBlur('admissionFee')}
-                    placeholder="0"
-                    className={`${styles.input} ${errors.admissionFee ? styles.inputError : ''}`}
-                    disabled={loading}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                {errors.admissionFee && (
-                  <div className={styles.errorMessage}>{errors.admissionFee}</div>
-                )}
-              </div>
-
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="tuitionFee">
-                  Tuition Fee
-                </label>
-                <div className={styles.inputWithSymbol}>
-                  <span className={styles.currencySymbol}>$</span>
-                  <input
-                    id="tuitionFee"
-                    type="number"
-                    value={formData.tuitionFee}
-                    onChange={(e) => handleChange('tuitionFee', e.target.value)}
-                    onBlur={() => handleBlur('tuitionFee')}
-                    placeholder="0"
-                    className={`${styles.input} ${errors.tuitionFee ? styles.inputError : ''}`}
-                    disabled={loading}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                {errors.tuitionFee && (
-                  <div className={styles.errorMessage}>{errors.tuitionFee}</div>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.formRow}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="courseFee">
-                  Course Fee
-                </label>
-                <div className={styles.inputWithSymbol}>
-                  <span className={styles.currencySymbol}>$</span>
-                  <input
-                    id="courseFee"
-                    type="number"
-                    value={formData.courseFee}
-                    onChange={(e) => handleChange('courseFee', e.target.value)}
-                    onBlur={() => handleBlur('courseFee')}
-                    placeholder="0"
-                    className={`${styles.input} ${errors.courseFee ? styles.inputError : ''}`}
-                    disabled={loading}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                {errors.courseFee && (
-                  <div className={styles.errorMessage}>{errors.courseFee}</div>
-                )}
-              </div>
-
-              <div className={styles.formField}>
                 <label className={styles.label} htmlFor="maxStudents">
                   Max Students
                 </label>
@@ -1202,11 +1167,6 @@ function CreateBatchModal({
                   <div className={styles.helpText}>✓ Valid class count</div>
                 )}
               </div>
-            </div>
-
-            <div className={styles.totalFeeDisplay}>
-              <span className={styles.totalFeeLabel}>Total Fee:</span>
-              <span className={styles.totalFeeValue}>${calculateTotalFee().toLocaleString()}</span>
             </div>
 
             <div className={styles.formField}>
@@ -1291,10 +1251,12 @@ function BatchDetailModal({
   batch,
   onClose,
   getDisplayName,
+  subjectCatalog,
 }: {
   batch: BatchItem;
   onClose: () => void;
   getDisplayName: (item: any, field: string) => string;
+  subjectCatalog: SubjectItem[];
 }) {
   const statusColor: Record<string, { bg: string; color: string }> = {
     active:    { bg: 'rgba(16,185,129,.12)',  color: '#059669' },
@@ -1303,7 +1265,6 @@ function BatchDetailModal({
     inactive:  { bg: 'rgba(239,68,68,.12)',   color: '#dc2626' },
   };
   const sc = statusColor[batch.status] ?? statusColor.inactive;
-  const totalFee = batch.admissionFee + batch.tuitionFee + batch.courseFee;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)', padding: '16px' }}
@@ -1349,7 +1310,7 @@ function BatchDetailModal({
           <Section title="Academic Information">
             <Row label="Class"   value={getDisplayName(batch.className, 'classname')} />
             <Row label="Group"   value={getDisplayName(batch.group, 'groupName')} />
-            <Row label="Subject" value={getDisplayName(batch.subject, 'subjectName')} />
+            <Row label="Subjects" value={formatBatchSubjectsDisplay(batch, subjectCatalog)} />
             <Row label="Session Year" value={batch.sessionYear} />
             <Row label="Classes / Month" value={String(batch.monthlyClassCount || 0)} />
             <Row label="Max Students" value={String(batch.maxStudents)} />
@@ -1359,17 +1320,6 @@ function BatchDetailModal({
           <Section title="Schedule">
             <Row label="Starting Date" value={new Date(batch.batchStartingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
             <Row label="Closing Date"  value={new Date(batch.batchClosingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
-          </Section>
-
-          {/* Fees */}
-          <Section title="Fee Structure">
-            <Row label="Admission Fee" value={`৳ ${batch.admissionFee.toLocaleString()}`} />
-            <Row label="Tuition Fee"   value={`৳ ${batch.tuitionFee.toLocaleString()}`} />
-            <Row label="Course Fee"    value={`৳ ${batch.courseFee.toLocaleString()}`} />
-            <div style={{ borderTop: '2px dashed #e5e7eb', marginTop: '8px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#374151' }}>Total Fee</span>
-              <span style={{ fontSize: '17px', fontWeight: '800', color: '#6366f1' }}>৳ {totalFee.toLocaleString()}</span>
-            </div>
           </Section>
 
           {/* Description */}

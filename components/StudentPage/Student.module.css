@@ -4,11 +4,11 @@
 
 /* Main Page Container */
 .pageContainer {
-  max-width: 1600px;
+  max-width: 1760px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
 }
 
 /* Page Header */
@@ -257,7 +257,7 @@
 .tableCard {
   background: white;
   border-radius: 20px;
-  padding: 36px;
+  padding: 28px;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.05),
     0 10px 15px -3px rgba(0, 0, 0, 0.08),
@@ -428,37 +428,54 @@
 /* Table */
 .tableWrapper {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: auto;
   border-radius: 16px;
   border: 2px solid #e5e7eb;
   background: white;
   position: relative;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  max-height: calc(100vh - 280px);
+  -ms-overflow-style: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e2e8f0;
+}
+
+.tableWrapper::-webkit-scrollbar:vertical {
+  width: 0;
+}
+
+.tableWrapper::-webkit-scrollbar:horizontal {
+  height: 12px;
+}
+
+.tableWrapper::-webkit-scrollbar-track:horizontal {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  border-radius: 999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:horizontal:hover {
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+}
+
+.scrollHint {
+  margin: 0 0 10px 4px;
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1200px;
+  min-width: 1400px;
   font-size: 14px;
-}
-
-.table thead {
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.table thead::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #e5e7eb, #d1d5db, #e5e7eb);
 }
 
 .table th {
@@ -472,6 +489,10 @@
   border-bottom: 2px solid #e5e7eb;
   white-space: nowrap;
   position: relative;
+  top: 0;
+  z-index: 2;
+  position: sticky;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
 }
 
 .table th:not(:last-child)::after {
@@ -1385,27 +1406,23 @@
 }
 
 /* Custom Scrollbars */
-.modalBody::-webkit-scrollbar,
-.tableWrapper::-webkit-scrollbar {
+.modalBody::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-.modalBody::-webkit-scrollbar-track,
-.tableWrapper::-webkit-scrollbar-track {
+.modalBody::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 5px;
 }
 
-.modalBody::-webkit-scrollbar-thumb,
-.tableWrapper::-webkit-scrollbar-thumb {
+.modalBody::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border-radius: 5px;
   border: 2px solid #f1f1f1;
 }
 
-.modalBody::-webkit-scrollbar-thumb:hover,
-.tableWrapper::-webkit-scrollbar-thumb:hover {
+.modalBody::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 }
 
@@ -1435,6 +1452,14 @@
   .searchBox {
     width: 100%;
     max-width: 100%;
+  }
+
+  .table {
+    min-width: 1200px;
+  }
+
+  .tableWrapper {
+    max-height: calc(100vh - 250px);
   }
 }
 
@@ -1477,7 +1502,19 @@
   .tableCard {
     padding: 20px;
   }
-  
+
+  .table {
+    min-width: 980px;
+  }
+
+  .scrollHint {
+    font-size: 12px;
+  }
+
+  .tableWrapper {
+    max-height: calc(100vh - 220px);
+  }
+
   .table th,
   .table td {
     padding: 16px;
@@ -1531,6 +1568,14 @@
   
   .tableCount {
     display: none;
+  }
+
+  .table {
+    min-width: 860px;
+  }
+
+  .tableWrapper {
+    max-height: calc(100vh - 180px);
   }
   
   .pagination {

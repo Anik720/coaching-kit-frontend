@@ -44,20 +44,21 @@ export interface SubjectItem {
   __v: number;
 }
 
+export type BatchSubjectRef = { _id: string; subjectName: string };
+
 export interface BatchItem {
   _id: string;
   batchName: string;
   className: string | { _id: string; classname: string };
   group: string | { _id: string; groupName: string };
-  subject: string | { _id: string; subjectName: string };
+  /** @deprecated Prefer `subjects`; kept for older API responses */
+  subject?: string | BatchSubjectRef;
+  /** Multiple subjects (ids or populated refs from API) */
+  subjects?: string[] | BatchSubjectRef[];
   sessionYear: string;
   batchStartingDate: string;
   batchClosingDate: string;
-  admissionFee: number;
-  tuitionFee: number;
-  courseFee: number;
   monthlyClassCount: number; // নতুন ফিচার: ডাইনামিক মান্থলি ক্লাস ইনপুট
-  totalFee?: number;
   daysRemaining?: number;
   isActiveSession?: boolean;
   status: 'active' | 'inactive' | 'completed' | 'upcoming';
@@ -82,13 +83,13 @@ export interface CreateBatchDto {
   batchName: string;
   className: string;
   group: string;
-  subject: string;
+  /** All selected subject ids (required for new batches) */
+  subjects: string[];
+  /** First subject id — send for legacy backends that only read `subject` */
+  subject?: string;
   sessionYear?: string;
   batchStartingDate: string;
   batchClosingDate: string;
-  admissionFee: number;
-  tuitionFee: number;
-  courseFee: number;
   monthlyClassCount: number; // নতুন ফিচার: ডাইনামিক মান্থলি ক্লাস ইনপুট
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
@@ -102,12 +103,10 @@ export interface UpdateBatchDto {
   className?: string;
   group?: string;
   subject?: string;
+  subjects?: string[];
   sessionYear?: string;
   batchStartingDate?: string;
   batchClosingDate?: string;
-  admissionFee?: number;
-  tuitionFee?: number;
-  courseFee?: number;
   monthlyClassCount?: number; // নতুন ফিচার: অপশনাল হিসেবে আপডেট করার জন্য
   status?: 'active' | 'inactive' | 'completed' | 'upcoming';
   isActive?: boolean;
@@ -149,13 +148,11 @@ export interface CreateBatchResponse {
   batchName: string;
   className: string | { _id: string; classname: string };
   group: string | { _id: string; groupName: string };
-  subject: string | { _id: string; subjectName: string };
+  subject?: string | BatchSubjectRef;
+  subjects?: string[] | BatchSubjectRef[];
   sessionYear: string;
   batchStartingDate: string;
   batchClosingDate: string;
-  admissionFee: number;
-  tuitionFee: number;
-  courseFee: number;
   monthlyClassCount: number; // নতুন ফিচার
   status: string;
   isActive: boolean;
@@ -174,7 +171,7 @@ export interface BatchStats {
   completedBatches: number;
   upcomingBatches: number;
   averageStudentsPerBatch: number;
-  totalRevenue: number;
+  totalRevenue?: number;
   batchByStatus: {
     active: number;
     inactive: number;

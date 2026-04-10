@@ -24,6 +24,8 @@ interface AttendanceRow {
   className: string;
   batchName: string;
   subjectName: string;
+  /** True when this row was pre-filled from a teacher assignment (batch list may be expanded by class). */
+  fromAssignment?: boolean;
 }
 
 const STATUS_OPTIONS = [
@@ -42,6 +44,7 @@ const emptyRow = (): AttendanceRow => ({
   status: "present", remarks: "",
   batches: [],
   className: "", batchName: "", subjectName: "",
+  fromAssignment: false,
 });
 
 export default function TakeTeacherAttendancePage() {
@@ -121,6 +124,7 @@ export default function TakeTeacherAttendancePage() {
         className:   a.class?.classname     ?? "—",
         batchName:   a.batch?.batchName     ?? "—",
         subjectName: a.subject?.subjectName ?? "—",
+        fromAssignment: true,
       }));
 
       setRows(newRows);

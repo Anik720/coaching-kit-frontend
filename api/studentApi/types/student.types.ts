@@ -184,6 +184,7 @@ export interface UpdateStudentDto {
   totalAmount?: number;
   paidAmount?: number;
   dueAmount?: number;
+  admissionDate?: string;
   nextPaymentDate?: string;
   referredBy?: string;
   status?: StudentStatus;
@@ -264,7 +265,4 @@ export interface BatchForDropdown {
   className?: {
     classname: string;
   };
-  admissionFee?: number;
-  tuitionFee?: number;
-  courseFee?: number;
 }

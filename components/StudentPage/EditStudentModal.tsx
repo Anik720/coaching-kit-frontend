@@ -12,6 +12,7 @@ import {
   BatchSubject,
 } from '@/api/studentApi/types/student.types';
 import styles from './CreateStudentModal.module.css';
+import { subjectsFromBatchEntry } from '@/utils/batchSubjectsFromApi';
 
 interface ClassForDropdown {
   _id: string;
@@ -75,6 +76,7 @@ export default function EditStudentModal({
     motherName: student.motherName || '',
     motherMobileNumber: student.motherMobileNumber || '',
     admissionType: student.admissionType,
+    admissionDate: toDateInput(student.admissionDate),
     admissionFee: student.admissionFee,
     monthlyTuitionFee: student.monthlyTuitionFee || 0,
     courseFee: student.courseFee || 0,
@@ -203,6 +205,7 @@ export default function EditStudentModal({
     }
     if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
     if (!formData.presentAddress?.trim()) newErrors.presentAddress = 'Present address is required';
+    if (!formData.admissionDate?.trim()) newErrors.admissionDate = 'Joining date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -340,23 +343,12 @@ export default function EditStudentModal({
                               const seenSubjectIds = new Set<string>();
                               const batchSubjects: Array<{ _id: string; subjectName: string }> = [];
                               batchEntries.forEach(entry => {
-                                const rawSubject = entry.subject;
-                                if (!rawSubject) return;
-                                let subjectId: string;
-                                let subjectName: string;
-                                if (typeof rawSubject === 'object' && rawSubject._id) {
-                                  subjectId = String(rawSubject._id);
-                                  subjectName = rawSubject.subjectName || 'Subject';
-                                } else if (typeof rawSubject === 'string') {
-                                  subjectId = rawSubject;
-                                  subjectName = 'Subject';
-                                } else {
-                                  return;
-                                }
-                                if (!seenSubjectIds.has(subjectId)) {
-                                  seenSubjectIds.add(subjectId);
-                                  batchSubjects.push({ _id: subjectId, subjectName });
-                                }
+                                subjectsFromBatchEntry(entry).forEach(s => {
+                                  if (!seenSubjectIds.has(s._id)) {
+                                    seenSubjectIds.add(s._id);
+                                    batchSubjects.push(s);
+                                  }
+                                });
                               });
 
                               if (batchSubjects.length === 0) {
@@ -622,6 +614,23 @@ export default function EditStudentModal({
                     <option value={AdmissionType.MONTHLY}>Monthly</option>
                     <option value={AdmissionType.COURSE}>Course</option>
                   </select>
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.label}>
+                    Joining date <span className={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="admissionDate"
+                    value={formData.admissionDate || ''}
+                    onChange={handleChange}
+                    className={`${styles.input} ${errors.admissionDate ? styles.inputError : ''}`}
+                    disabled={loading}
+                  />
+                  {errors.admissionDate && (
+                    <span className={styles.errorMessage}>{errors.admissionDate}</span>
+                  )}
                 </div>
 
                 {formData.admissionType === AdmissionType.MONTHLY && (
