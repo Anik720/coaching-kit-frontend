@@ -75,8 +75,11 @@ export default function EditStudentModal({
     fatherMobileNumber: student.fatherMobileNumber,
     motherName: student.motherName || '',
     motherMobileNumber: student.motherMobileNumber || '',
+    localGuardianMobileNumber: student.localGuardianMobileNumber || '',
+    whatsappMobile: student.whatsappMobile || '',
     admissionType: student.admissionType,
     admissionDate: toDateInput(student.admissionDate),
+    paymentInstallment: student.paymentInstallment || undefined,
     admissionFee: student.admissionFee,
     monthlyTuitionFee: student.monthlyTuitionFee || 0,
     courseFee: student.courseFee || 0,
@@ -215,7 +218,11 @@ export default function EditStudentModal({
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      await onUpdate(student._id, formData);
+      const submitData = {
+        ...formData,
+        paymentInstallment: formData.paymentInstallment ? Number(formData.paymentInstallment) : undefined,
+      };
+      await onUpdate(student._id, submitData);
     } catch (error) {
       console.error('Failed to update student:', error);
     }
@@ -596,6 +603,32 @@ export default function EditStudentModal({
                     disabled={loading}
                   />
                 </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.label}>Local Guardian Mobile</label>
+                  <input
+                    type="tel"
+                    name="localGuardianMobileNumber"
+                    value={formData.localGuardianMobileNumber || ''}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="01XXXXXXXXX"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.label}>WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    name="whatsappMobile"
+                    value={formData.whatsappMobile || ''}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="01XXXXXXXXX"
+                    disabled={loading}
+                  />
+                </div>
               </div>
             </div>
 
@@ -651,19 +684,38 @@ export default function EditStudentModal({
                 )}
 
                 {formData.admissionType === AdmissionType.COURSE && (
-                  <div className={styles.formField}>
-                    <label className={styles.label}>Course Fee</label>
-                    <input
-                      type="number"
-                      name="courseFee"
-                      value={formData.courseFee || ''}
-                      onChange={handleChange}
-                      className={styles.input}
-                      min="0"
-                      step="100"
-                      disabled={loading}
-                    />
-                  </div>
+                  <>
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Course Fee</label>
+                      <input
+                        type="number"
+                        name="courseFee"
+                        value={formData.courseFee || ''}
+                        onChange={handleChange}
+                        className={styles.input}
+                        min="0"
+                        step="100"
+                        disabled={loading}
+                      />
+                    </div>
+
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Payment Installment</label>
+                      <select
+                        name="paymentInstallment"
+                        value={formData.paymentInstallment || ''}
+                        onChange={handleChange}
+                        className={styles.input}
+                        disabled={loading}
+                      >
+                        <option value="">Select Installment</option>
+                        <option value={1}>1</option>
+                        <option value={2}>2</option>
+                        <option value={3}>3</option>
+                        <option value={4}>4</option>
+                      </select>
+                    </div>
+                  </>
                 )}
 
                 <div className={styles.formField}>

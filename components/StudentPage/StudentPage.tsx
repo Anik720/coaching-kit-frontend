@@ -1077,6 +1077,18 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
                       <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.motherMobileNumber}</div>
                     </div>
                   )}
+                  {currentStudent.localGuardianMobileNumber && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Local Guardian Mobile</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.localGuardianMobileNumber}</div>
+                    </div>
+                  )}
+                  {currentStudent.whatsappMobile && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>WhatsApp Number</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.whatsappMobile}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1117,6 +1129,12 @@ export default function StudentsPage({ defaultStatus }: { defaultStatus?: Studen
                     <label className={styles.label}>Status</label>
                     <div className={`${styles.input} ${styles.viewMode}`}>{getStatusText(currentStudent.status)}</div>
                   </div>
+                  {currentStudent.admissionType === AdmissionType.COURSE && currentStudent.paymentInstallment && (
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Payment Installment</label>
+                      <div className={`${styles.input} ${styles.viewMode}`}>{currentStudent.paymentInstallment}</div>
+                    </div>
+                  )}
                   {currentStudent.referredBy && (
                     <div className={styles.formField}>
                       <label className={styles.label}>Referred By</label>
